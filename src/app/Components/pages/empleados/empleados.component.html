@@ -1,0 +1,105 @@
+<div class="flex justify-between items-center mb-4">
+  <h2 class="text-2xl font-bold">📋 Empleados</h2>
+  <button (click)="abrirModal()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded">
+    ➕ Agregar Empleado
+  </button>
+</div>
+
+<div class="overflow-x-auto">
+  <table class="min-w-full bg-white rounded shadow">
+    <thead class="bg-gray-100 text-left">
+      <tr>
+        <th class="px-4 py-2">Nombre</th>
+        <th class="px-4 py-2">Cédula</th>
+        <th class="px-4 py-2">Teléfono</th>
+        <th class="px-4 py-2">Moto</th>
+        <th class="px-4 py-2">Descanso</th>
+        <th class="px-4 py-2">Acciones</th>
+      </tr>
+    </thead>
+    <tbody>
+      <!-- 🔁 Aquí irán los empleados (más adelante lo haremos dinámico) -->
+      <tr class="border-t" *ngFor="let empleado of empleados">
+        <td class="px-4 py-2">{{ empleado.nombre }}</td>
+        <td class="px-4 py-2">{{ empleado.cedula }}</td>
+        <td class="px-4 py-2">{{ empleado.telefono }}</td>
+        <td class="px-4 py-2">{{ empleado.moto }}</td>
+        <td class="px-4 py-2">{{ empleado.descanso }}</td>
+        <td class="px-4 py-2">
+          <button (click)="abrirPagos(empleado)" class="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded mr-2">
+            Pagos
+          </button>
+          <button (click)="editarEmpleado(empleado)" class="bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-1 rounded">Editar</button>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- Modal -->
+ <div>
+   <div *ngIf="mostrarModal" class="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
+     <div class="bg-white p-6 rounded shadow-md w-full max-w-md">
+       <h2 class="text-xl font-semibold mb-4">Agregar Empleado</h2>
+
+  <form (ngSubmit)="agregarEmpleado()" #formEmpleado="ngForm" class="space-y-3">
+    <input type="text" [(ngModel)]="nuevoEmpleado.nombre" name="nombre" placeholder="Nombre" required class="w-full p-2 border rounded" />
+    <input type="text" [(ngModel)]="nuevoEmpleado.cedula" name="cedula" placeholder="Cédula" required class="w-full p-2 border rounded" />
+    <input type="text" [(ngModel)]="nuevoEmpleado.telefono" name="telefono" placeholder="Teléfono" required class="w-full p-2 border rounded" />
+    <input type="text" [(ngModel)]="nuevoEmpleado.moto" name="moto" placeholder="Moto (placa)" required class="w-full p-2 border rounded" />
+    <input type="text" [(ngModel)]="nuevoEmpleado.descanso" name="descanso" placeholder="Día de descanso" required class="w-full p-2 border rounded" />
+
+    <div class="flex justify-between">
+      <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Guardar</button>
+      <button type="button" (click)="cerrarModal()" class="text-red-500">Cancelar</button>
+    </div>
+  </form>
+</div>
+</div>
+<div *ngIf="mostrarPagos" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+<div class="bg-white p-6 rounded shadow-md w-96">
+  <h2 class="text-xl font-bold mb-4">Pagos de {{ empleadoSeleccionado?.nombre }}</h2>
+
+  <ul class="mb-4">
+    <li *ngFor="let pago of empleadoSeleccionado?.pagos">
+      Semana {{ pago.semana }} - ${{ pago.monto }} -
+      <span [class.text-green-500]="pago.pagado" [class.text-red-500]="!pago.pagado">
+        {{ pago.pagado ? 'Pagado' : 'Pendiente' }}
+      </span>
+    </li>
+  </ul>
+
+  <button (click)="registrarPago()" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded mb-2">Registrar pago</button>
+  <button (click)="cerrarPagos()" class="text-red-500 hover:underline">Cerrar</button>
+</div>
+</div>
+</div>
+
+<!-- Resumen de Pagos -->
+<h2 class="text-xl font-bold mt-10 mb-4">Resumen de Pagos - Semana {{ obtenerSemanaActual() }}</h2>
+
+<table class="w-full bg-white border rounded shadow">
+  <thead class="bg-gray-100">
+    <tr>
+      <th class="px-4 py-2 text-left">Empleado</th>
+      <th class="px-4 py-2 text-left">Cédula</th>
+      <th class="px-4 py-2 text-left">Descanso</th>
+      <th class="px-4 py-2 text-left">Estado</th>
+      <th class="px-4 py-2 text-left">Monto</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr *ngFor="let resumen of getResumenSemanal()" class="border-t">
+      <td class="px-4 py-2">{{ resumen.nombre }}</td>
+      <td class="px-4 py-2">{{ resumen.cedula }}</td>
+      <td class="px-4 py-2">{{ resumen.descanso }}</td>
+      <td class="px-4 py-2">
+        <span [class.text-green-600]="resumen.pagado" [class.text-red-600]="!resumen.pagado">
+          {{ resumen.pagado ? 'Pagado' : 'Pendiente' }}
+        </span>
+      </td>
+      <td class="px-4 py-2">${{ resumen.monto }}</td>
+    </tr>
+  </tbody>
+</table>
+

@@ -1,0 +1,38 @@
+<h2 class="text-2xl font-bold mb-4">📅 Registrar Pagos Manualmente</h2>
+
+<div class="flex items-center mb-4">
+  <label class="mr-2 font-semibold">Semana:</label>
+  <input [(ngModel)]="semanaSeleccionada" type="week" class="border p-2 rounded" />
+</div>
+
+<table class="w-full bg-white border rounded shadow">
+  <thead class="bg-gray-100">
+    <tr>
+      <th class="px-4 py-2 text-left">Empleado</th>
+      <th class="px-4 py-2 text-left">Cédula</th>
+      <th class="px-4 py-2 text-left">¿Pagó?</th>
+      <th class="px-4 py-2 text-left">Acción</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr *ngFor="let empleado of empleados" class="border-t">
+      <td class="px-4 py-2">{{ empleado.nombre }}</td>
+      <td class="px-4 py-2">{{ empleado.cedula }}</td>
+      <td class="px-4 py-2">
+        <span [ngClass]="{
+          'text-green-600': yaPago(empleado),
+          'text-red-600': !yaPago(empleado)
+        }">
+          {{ yaPago(empleado) ? 'Sí' : 'No' }}
+        </span>
+      </td>
+      <td class="px-4 py-2">
+        <button (click)="registrarPago(empleado)"
+                class="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600"
+                [disabled]="yaPago(empleado)">
+          Registrar Pago
+        </button>
+      </td>
+    </tr>
+  </tbody>
+</table>

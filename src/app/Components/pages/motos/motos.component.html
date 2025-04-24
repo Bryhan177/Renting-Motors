@@ -1,0 +1,116 @@
+<div class="overflow-x-auto mt-6">
+
+  <div class="bg-white p-4 rounded shadow mb-4">
+    <h2 class="text-xl font-bold mb-2">Registrar nueva moto 🛵</h2>
+    <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+      <input type="text" placeholder="Placa"
+      [(ngModel)]="nuevaMoto.placa"
+      class="border p-2 rounded"
+      [class.border-red-500]="formularioInvalido && !nuevaMoto.placa"
+    />
+
+    <input type="text" placeholder="Modelo"
+      [(ngModel)]="nuevaMoto.modelo"
+      class="border p-2 rounded"
+      [class.border-red-500]="formularioInvalido && !nuevaMoto.modelo"
+    />
+
+      <input type="number" placeholder="Año" [(ngModel)]="nuevaMoto.anio" class="border p-2 rounded" />
+      <input type="date" placeholder="SOAT" [(ngModel)]="nuevaMoto.soat" class="border p-2 rounded" />
+      <input type="date" placeholder="Tecnomecánica" [(ngModel)]="nuevaMoto.tecnomecanica" class="border p-2 rounded" />
+      <select [(ngModel)]="nuevaMoto.estado" class="border p-2 rounded">
+        <option value="Activa">Activa</option>
+        <option value="En mantenimiento">En mantenimiento</option>
+        <option value="Inactiva">Inactiva</option>
+      </select>
+    </div>
+    <div *ngIf="formularioInvalido" class="text-red-600 font-semibold">
+      ⚠️ Por favor completa al menos la placa y el modelo.
+    </div>
+
+    <button (click)="agregarMoto()" class="mt-4 bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded">
+      Agregar moto ✅
+    </button>
+  </div>
+
+
+  <table class="min-w-full bg-white border border-gray-200 shadow-md rounded-lg">
+    <thead class="bg-gray-100">
+      <tr>
+        <th class="px-4 py-2 text-left">Placa</th>
+        <th class="px-4 py-2 text-left">Modelo</th>
+        <th class="px-4 py-2 text-left">Año</th>
+        <th class="px-4 py-2 text-left">SOAT</th>
+        <th class="px-4 py-2 text-left">Tecnomecánica</th>
+        <th class="px-4 py-2 text-left">Estado</th>
+        <th class="px-4 py-2 text-left">Acciones</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr *ngFor="let moto of motos" class="border-t">
+        <td class="px-4 py-2">{{ moto.placa }}</td>
+        <td class="px-4 py-2">{{ moto.modelo }}</td>
+        <td class="px-4 py-2">{{ moto.anio }}</td>
+        <td class="px-4 py-2">{{ moto.soat }}</td>
+        <td class="px-4 py-2">{{ moto.tecnomecanica }}</td>
+        <td class="px-4 py-2">
+          <span [ngClass]="{
+            'text-green-600': moto.estado === 'Activa',
+            'text-yellow-500': moto.estado === 'En mantenimiento',
+            'text-gray-500': moto.estado === 'Inactiva'
+          }">{{ moto.estado }}</span>
+        </td>
+        <td class="px-4 py-2">
+          <button (click)="abrirModal(moto)" class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded">Editar</button>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- Modal para Editar Moto -->
+<div *ngIf="modalVisible" class="fixed inset-0 flex justify-center items-center bg-gray-900 bg-opacity-50">
+  <div class="bg-white p-6 rounded-lg shadow-lg w-1/3">
+    <h2 class="text-xl font-bold mb-4">Editar Moto</h2>
+    <form (ngSubmit)="editarMoto()">
+      <div class="mb-4">
+        <label for="placa" class="block">Placa</label>
+        <input id="placa" type="text" [(ngModel)]="motoEditada.placa" name="placa" class="border p-2 w-full" required>
+      </div>
+      <div class="mb-4">
+        <label for="modelo" class="block">Modelo</label>
+        <input id="modelo" type="text" [(ngModel)]="motoEditada.modelo" name="modelo" class="border p-2 w-full" required>
+      </div>
+      <div class="mb-4">
+        <label for="anio" class="block">Año</label>
+        <input id="anio" type="number" [(ngModel)]="motoEditada.anio" name="anio" class="border p-2 w-full" required>
+      </div>
+
+      <!-- Nuevos campos para SOAT, Tecnomecánica y Estado -->
+      <div class="mb-4">
+        <label for="soat" class="block">SOAT</label>
+        <input id="soat" type="date" [(ngModel)]="motoEditada.soat" name="soat" class="border p-2 w-full" required>
+      </div>
+
+      <div class="mb-4">
+        <label for="tecno" class="block">Tecnomecánica</label>
+        <input id="tecno" type="date" [(ngModel)]="motoEditada.tecno" name="tecno" class="border p-2 w-full" required>
+      </div>
+
+      <div class="mb-4">
+        <label for="estado" class="block">Estado</label>
+        <select id="estado" [(ngModel)]="motoEditada.estado" name="estado" class="border p-2 w-full" required>
+          <option value="Activo">Activo</option>
+          <option value="Inactivo">Inactivo</option>
+        </select>
+      </div>
+
+      <div class="flex justify-end">
+        <button type="button" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded" (click)="cerrarModal()">Cancelar</button>
+        <button type="submit" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded ml-2">Guardar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+
