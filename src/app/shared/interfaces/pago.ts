@@ -8,6 +8,10 @@ export interface Pago {
   monto: number; // Monto en COP
   pagado: boolean; // Si el pago fue realizado
   fechaPago?: Date | null; // Fecha cuando se realizó el pago
+  gastos?: number;
+  descripcionGasto?: string;
+  metodoPago?: string;
+  observaciones?: string;
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -27,4 +31,8 @@ export interface CreatePagoPayload {
   monto: number;
   pagado?: boolean;
   fechaPago?: string;
+  gastos?: number;
+  descripcionGasto?: string;
+  metodoPago?: string;
+  observaciones?: string;
 }

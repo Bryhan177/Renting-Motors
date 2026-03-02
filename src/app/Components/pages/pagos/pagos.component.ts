@@ -19,6 +19,17 @@ export class PagosComponent implements OnInit {
   conductores: Usuario[] = [];
   semanaSeleccionada: string = this.obtenerSemanaActual();
   loading = false;
+  
+  // Custom Payment Modal
+  mostrarModalPago = false;
+  pagoSeleccionado: Pago | null = null;
+  datosPago = {
+    monto: 0,
+    gastos: 0,
+    descripcionGasto: '',
+    metodoPago: 'TRANSFERENCIA',
+    observaciones: ''
+  };
 
   constructor(
     private pagosService: PagosService,
@@ -52,41 +63,75 @@ export class PagosComponent implements OnInit {
     this.loadPagos();
   }
 
-  marcarComoPagado(pago: Pago): void {
-    Swal.fire({
-      title: '¿Confirmar pago?',
-      text: `¿Marcar como pagado el pago de ${pago.conductor?.nombre} ${pago.conductor?.apellido} por $${pago.monto.toLocaleString()}?`,
-      icon: 'question',
-      showCancelButton: true,
-      confirmButtonColor: '#28a745',
-      cancelButtonColor: '#6c757d',
-      confirmButtonText: 'Sí, marcar como pagado',
-      cancelButtonText: 'Cancelar'
-    }).then((result) => {
-      if (result.isConfirmed) {
-        this.pagosService.marcarComoPagado(pago._id!).subscribe({
-          next: (pagoActualizado) => {
-            // Actualizar el pago en la lista
-            const index = this.pagos.findIndex(p => p._id === pago._id);
-            if (index !== -1) {
-              this.pagos[index] = pagoActualizado;
-            }
-            Swal.fire({
-              icon: 'success',
-              title: 'Pago registrado',
-              text: 'El pago ha sido marcado como realizado',
-              timer: 2000,
-              showConfirmButton: false
-            });
-          },
-          error: (error) => {
-            console.error('Error marcando pago:', error);
-            Swal.fire({
-              icon: 'error',
-              title: 'Error',
-              text: 'No se pudo registrar el pago'
-            });
-          }
+  abrirModalPago(pago: Pago): void {
+    this.pagoSeleccionado = pago;
+    this.datosPago = {
+      monto: pago.monto,
+      gastos: 0,
+      descripcionGasto: '',
+      metodoPago: 'TRANSFERENCIA',
+      observaciones: ''
+    };
+    this.mostrarModalPago = true;
+  }
+
+  cerrarModalPago(): void {
+    this.mostrarModalPago = false;
+    this.pagoSeleccionado = null;
+  }
+
+  confirmarPago(): void {
+    if (!this.pagoSeleccionado) return;
+
+    if (this.datosPago.gastos > 0 && !this.datosPago.descripcionGasto) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'Debe ingresar la descripción del gasto',
+        toast: true,
+        position: 'top-end',
+        showConfirmButton: false,
+        timer: 3000
+      });
+      return;
+    }
+
+    const payload: Partial<Pago> = {
+      monto: this.datosPago.monto,
+      gastos: this.datosPago.gastos,
+      descripcionGasto: this.datosPago.descripcionGasto,
+      metodoPago: this.datosPago.metodoPago,
+      observaciones: this.datosPago.observaciones,
+      pagado: true,
+      fechaPago: new Date()
+    };
+
+    this.pagosService.updatePago(this.pagoSeleccionado._id!, payload).subscribe({
+      next: (pagoActualizado) => {
+        const index = this.pagos.findIndex(p => p._id === pagoActualizado._id);
+        if (index !== -1) {
+          this.pagos[index] = pagoActualizado;
+        }
+        Swal.fire({
+          icon: 'success',
+          title: 'Pago registrado con éxito',
+          toast: true,
+          position: 'top-end',
+          showConfirmButton: false,
+          timer: 3000
+        });
+        this.cerrarModalPago();
+      },
+      error: (error) => {
+        console.error('Error registrando pago:', error);
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: 'No se pudo registrar el pago',
+          toast: true,
+          position: 'top-end',
+          showConfirmButton: false,
+          timer: 3000
         });
       }
     });

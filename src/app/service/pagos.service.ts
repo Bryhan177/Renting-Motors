@@ -16,7 +16,11 @@ export class PagosService {
       _id: pago.id,
       conductorId: pago.conductor_id,
       conductor: pago.conductor ? { ...pago.conductor, _id: pago.conductor.id } : undefined,
-      fechaPago: pago.fecha_pago
+      fechaPago: pago.fecha_pago,
+      gastos: pago.gastos,
+      descripcionGasto: pago.descripcion_gasto,
+      metodoPago: pago.metodo_pago,
+      observaciones: pago.observaciones
     };
   }
 
@@ -44,7 +48,11 @@ export class PagosService {
       semana: pago.semana,
       monto: pago.monto,
       pagado: pago.pagado || false,
-      fecha_pago: pago.fechaPago || null
+      fecha_pago: pago.fechaPago || null,
+      gastos: pago.gastos || 0,
+      descripcion_gasto: pago.descripcionGasto || null,
+      metodo_pago: pago.metodoPago || null,
+      observaciones: pago.observaciones || null
     };
     return from(supabase.from('pagos').insert(payload).select().single()).pipe(
       map(({ data, error }) => {
@@ -58,9 +66,15 @@ export class PagosService {
     const payload: any = { ...pago };
     if (pago.conductorId !== undefined) payload.conductor_id = pago.conductorId;
     if (pago.fechaPago !== undefined) payload.fecha_pago = pago.fechaPago;
+    if (pago.descripcionGasto !== undefined) payload.descripcion_gasto = pago.descripcionGasto;
+    if (pago.metodoPago !== undefined) payload.metodo_pago = pago.metodoPago;
+    
+    // Eliminar las keys camelCase para que no se envíen a la base de datos
     delete payload._id;
     delete payload.conductorId;
     delete payload.fechaPago;
+    delete payload.descripcionGasto;
+    delete payload.metodoPago;
     delete payload.conductor;
 
     return from(supabase.from('pagos').update(payload).eq('id', id).select().single()).pipe(

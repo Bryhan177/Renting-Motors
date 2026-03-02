@@ -101,7 +101,7 @@
             
             <div class="mt-4 pt-4 border-t border-gray-700 flex justify-between items-center">
                 <p class="text-xs text-gray-500">{{ pago.semana }}</p>
-                <button (click)="marcarComoPagado(pago)" 
+                <button (click)="abrirModalPago(pago)" 
                         class="bg-green-600 hover:bg-green-500 text-white text-sm font-medium py-2 px-4 rounded-lg transition flex items-center gap-2 shadow-lg shadow-green-900/20">
                     <span>💳</span> Registrar Pago
                 </button>
@@ -122,7 +122,7 @@
         </div>
 
         <div *ngFor="let pago of getPagosPagados()" 
-             class="bg-gray-800/50 rounded-xl p-4 border border-gray-700/50 hover:bg-gray-800 transition duration-300 opacity-75 hover:opacity-100">
+             class="bg-gray-800/50 rounded-xl p-4 border border-gray-700/50 hover:bg-gray-800 transition duration-300 opacity-75 hover:opacity-100 flex flex-col gap-2">
             <div class="flex justify-between items-center">
                  <div class="flex items-center gap-3">
                     <div class="w-8 h-8 rounded-full bg-green-900/30 flex items-center justify-center text-green-500 text-sm">
@@ -130,12 +130,19 @@
                     </div>
                     <div>
                         <h4 class="font-bold text-gray-300">{{ pago.conductor?.nombre }} {{ pago.conductor?.apellido }}</h4>
-                        <p class="text-xs text-gray-500">{{ pago.fechaPago | date:'mediumDate' }}</p>
+                        <p class="text-xs text-gray-500">{{ pago.fechaPago | date:'mediumDate' }} | {{ pago.metodoPago || 'Efectivo' }}</p>
                     </div>
                 </div>
                 <div class="text-right">
                     <p class="text-xl font-bold text-green-500">$ {{ pago.monto | number }}</p>
                 </div>
+            </div>
+            <div *ngIf="pago.gastos && pago.gastos > 0" class="mt-2 pt-2 border-t border-gray-700 flex justify-between items-center">
+                <p class="text-xs text-red-400">Gastos: {{ pago.descripcionGasto }}</p>
+                <p class="text-sm font-bold text-red-500">- $ {{ pago.gastos | number }}</p>
+            </div>
+            <div *ngIf="pago.observaciones" class="text-xs text-gray-400 italic">
+                "{{ pago.observaciones }}"
             </div>
         </div>
     </div>
@@ -151,4 +158,89 @@
       </button>
   </div>
 
+</div>
+
+<!-- Modal Registro Múltiple de Pago (Estilo Excel) -->
+<div *ngIf="mostrarModalPago" class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+  <div class="bg-gray-800 rounded-2xl shadow-2xl w-full max-w-2xl border border-gray-700 overflow-hidden transform transition-all">
+      <div class="p-6 border-b border-gray-700 bg-gray-900/50 flex justify-between items-center">
+          <h3 class="text-xl font-bold text-white flex items-center gap-2">
+              <span>💳</span> Registrar Pago - {{ pagoSeleccionado?.conductor?.nombre }} {{ pagoSeleccionado?.conductor?.apellido }}
+          </h3>
+          <button (click)="cerrarModalPago()" class="text-gray-400 hover:text-white transition text-2xl">&times;</button>
+      </div>
+
+      <div class="p-6 space-y-5">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+              <!-- Valor Pagado -->
+              <div>
+                  <label class="block text-sm font-medium text-gray-400 mb-1">Valor Pagado (Requerido)</label>
+                  <div class="relative">
+                      <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                          <span class="text-gray-500">$</span>
+                      </div>
+                      <input type="number" [(ngModel)]="datosPago.monto" 
+                             class="w-full bg-gray-900 border border-gray-600 rounded-lg pl-8 pr-4 py-2 text-white focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none">
+                  </div>
+              </div>
+
+              <!-- Método de Pago -->
+              <div>
+                  <label class="block text-sm font-medium text-gray-400 mb-1">Método de Pago</label>
+                  <select [(ngModel)]="datosPago.metodoPago" 
+                          class="w-full bg-gray-900 border border-gray-600 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none">
+                      <option value="TRANSFERENCIA">Transferencia</option>
+                      <option value="EFECTIVO">Efectivo</option>
+                      <option value="NEQUI">Nequi</option>
+                      <option value="DAVIPLATA">Daviplata</option>
+                  </select>
+              </div>
+
+              <!-- Gastos -->
+              <div>
+                  <label class="block text-sm font-medium text-gray-400 mb-1">Gastos (Opcional)</label>
+                  <div class="relative">
+                      <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                          <span class="text-gray-500">$</span>
+                      </div>
+                      <input type="number" [(ngModel)]="datosPago.gastos" 
+                             class="w-full bg-gray-900 border border-gray-600 rounded-lg pl-8 pr-4 py-2 text-white focus:ring-2 focus:ring-red-500 focus:border-transparent outline-none"
+                             placeholder="0">
+                  </div>
+              </div>
+
+              <!-- Descripción Gastos -->
+              <div>
+                  <label class="block text-sm font-medium text-gray-400 mb-1">Descripción del Gasto <span *ngIf="datosPago.gastos > 0" class="text-red-400">*</span></label>
+                  <input type="text" [(ngModel)]="datosPago.descripcionGasto" 
+                         class="w-full bg-gray-900 border border-gray-600 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-red-500 focus:border-transparent outline-none"
+                         placeholder="Ej. Cambio de Aceite, repuesto...">
+              </div>
+
+              <!-- Observaciones -->
+              <div class="md:col-span-2">
+                  <label class="block text-sm font-medium text-gray-400 mb-1">Observaciones</label>
+                  <textarea [(ngModel)]="datosPago.observaciones" rows="2"
+                            class="w-full bg-gray-900 border border-gray-600 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none"
+                            placeholder="Ej. Consignó luego de 3 días, incluye retroactivo..."></textarea>
+              </div>
+          </div>
+          
+          <div class="mt-4 p-4 bg-gray-900 border border-dashed border-gray-700 rounded-lg flex justify-between items-center">
+             <span class="text-gray-400 font-medium">Total Calculado a Registrar:</span>
+             <span class="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-green-400 to-emerald-400">
+               $ {{ (datosPago.monto) | number }}
+             </span>
+          </div>
+      </div>
+
+      <div class="p-6 border-t border-gray-700 bg-gray-900/30 flex justify-end gap-3">
+          <button (click)="cerrarModalPago()" class="px-5 py-2 rounded-lg text-gray-300 hover:text-white hover:bg-gray-700 transition">Cancelar</button>
+          <button (click)="confirmarPago()" 
+                  class="px-5 py-2 rounded-lg bg-green-600 hover:bg-green-500 text-white font-medium shadow-lg shadow-green-900/20 transition flex items-center gap-2"
+                  [disabled]="datosPago.gastos > 0 && !datosPago.descripcionGasto">
+              <span>💳</span> Confirmar Pago
+          </button>
+      </div>
+  </div>
 </div>
