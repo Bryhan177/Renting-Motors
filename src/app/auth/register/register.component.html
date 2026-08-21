@@ -1,68 +1,65 @@
-<section class="min-h-screen flex items-center justify-center bg-[#0c0e10] px-4 py-10">
-  <div class="w-full max-w-5xl grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
-    <div class="bg-[#15191e] border border-white/10 rounded-2xl p-6 md:p-8 text-white">
-      <p class="font-[family-name:var(--font-brand)] text-3xl tracking-wide mb-1" style="font-family: 'Bebas Neue', Impact, sans-serif">GoRenting</p>
-      <h2 class="text-2xl font-semibold text-white mb-1">Registro de conductor</h2>
-      <p class="text-sm text-gray-400 mb-6">
-        El rol lo asigna después un administrador o asesor en el panel. Aquí entras como conductor.
+<section class="auth-page">
+  <a routerLink="/" class="auth-back">← Volver</a>
+
+  <div class="auth-shell">
+    <div class="auth-visual">
+      <img src="assets/images/register.png" alt="Registro GoRenting" />
+    </div>
+
+    <div class="auth-form-wrap">
+      <p class="auth-brand">GoRenting</p>
+      <h2 class="auth-title">Registro de conductor</h2>
+      <p class="auth-lead">
+        Crea tu cuenta. Un administrador o asesor te asignará el rol después en el panel.
       </p>
 
-      <form (ngSubmit)="agregarUsuario()" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <form (ngSubmit)="agregarUsuario()" class="auth-grid">
         <div>
-          <label class="block text-sm text-gray-300 mb-1">Nombre</label>
+          <label class="auth-label">Nombre</label>
           <input name="nombre" [(ngModel)]="nuevoUsuario.nombre" class="field" placeholder="Nombre" />
         </div>
         <div>
-          <label class="block text-sm text-gray-300 mb-1">Apellido</label>
+          <label class="auth-label">Apellido</label>
           <input name="apellido" [(ngModel)]="nuevoUsuario.apellido" class="field" placeholder="Apellido" />
         </div>
-        <div class="sm:col-span-2">
-          <label class="block text-sm text-gray-300 mb-1">Correo</label>
+        <div class="span-2">
+          <label class="auth-label">Correo</label>
           <input type="email" name="email" [(ngModel)]="nuevoUsuario.email" class="field" placeholder="correo@gmail.com" />
         </div>
         <div>
-          <label class="block text-sm text-gray-300 mb-1">Cédula</label>
+          <label class="auth-label">Cédula</label>
           <input type="number" name="cedula" [(ngModel)]="nuevoUsuario.cedula" class="field" placeholder="1234567890" />
         </div>
         <div>
-          <label class="block text-sm text-gray-300 mb-1">Edad</label>
+          <label class="auth-label">Edad</label>
           <input type="number" name="edad" [(ngModel)]="nuevoUsuario.edad" class="field" placeholder="25" min="18" max="90" />
         </div>
-        <div class="sm:col-span-2">
-          <label class="block text-sm text-gray-300 mb-1">Teléfono</label>
+        <div class="span-2">
+          <label class="auth-label">Teléfono</label>
           <input type="tel" name="telefono" [(ngModel)]="nuevoUsuario.telefono" class="field" placeholder="3001234567" />
         </div>
         <div>
-          <label class="block text-sm text-gray-300 mb-1">Contraseña</label>
+          <label class="auth-label">Contraseña</label>
           <input type="password" name="password" [(ngModel)]="nuevoUsuario.password" class="field" placeholder="••••••••" />
         </div>
         <div>
-          <label class="block text-sm text-gray-300 mb-1">Confirmar</label>
+          <label class="auth-label">Confirmar</label>
           <input type="password" name="confirmPassword" [(ngModel)]="nuevoUsuario.confirmPassword" class="field" placeholder="••••••••" />
         </div>
 
-        <div class="sm:col-span-2 flex items-center gap-2">
+        <div class="span-2 terms">
           <input name="activo" type="checkbox" [(ngModel)]="nuevoUsuario.activo" class="accent-amber-500" />
           <label class="text-sm text-gray-300">Acepto términos y condiciones</label>
         </div>
 
-        <div class="sm:col-span-2">
-          <button type="submit" class="w-full bg-amber-500 hover:bg-amber-600 text-[#14110a] font-semibold py-2.5 rounded-lg transition">
-            Registrarme
-          </button>
+        <div class="span-2">
+          <button type="submit" class="auth-submit">Registrarme</button>
         </div>
       </form>
 
-      <p class="text-center text-sm text-gray-400 mt-5">
+      <p class="auth-switch">
         ¿Ya tienes cuenta?
-        <a routerLink="/login" class="text-amber-400 hover:underline cursor-pointer">Inicia sesión</a>
-      </p>
-    </div>
-
-    <div class="hidden md:flex flex-col items-center justify-center text-center px-4">
-      <img src="assets/images/log_fondo_negro.png" alt="GoRenting" class="w-full max-w-md object-contain opacity-90 mb-6" />
-      <p class="text-gray-400 text-sm max-w-sm">
-        Regístrate para operar una MDD. El equipo te asignará contrato, flota y, si aplica, un rol distinto en Usuarios.
+        <a routerLink="/login" class="auth-link">Inicia sesión</a>
       </p>
     </div>
   </div>

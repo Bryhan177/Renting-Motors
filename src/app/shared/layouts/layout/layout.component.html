@@ -6,11 +6,11 @@
 
 <ng-template #appShell>
   <app-header></app-header>
-  <div class="flex">
+  <div class="app-shell-row">
     <ng-container *ngIf="showSidebar()">
       <app-sidebar></app-sidebar>
     </ng-container>
-    <main class="flex-1 p-4 fondo">
+    <main class="app-shell-main fondo">
       <router-outlet></router-outlet>
     </main>
   </div>

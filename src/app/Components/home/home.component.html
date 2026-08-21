@@ -7,7 +7,7 @@
     </div>
 
     <header class="hero-top">
-      <img src="assets/images/log_fondo_negro.png" alt="" class="hero-mark-img" />
+      <img src="assets/images/icon.png" alt="" class="hero-mark-img" />
       <nav class="hero-nav">
         <a routerLink="/login" class="nav-ghost">Entrar</a>
         <a routerLink="/register" class="nav-solid">Registrarme</a>
@@ -16,9 +16,9 @@
 
     <div class="hero-copy">
       <p class="brand-word">GoRenting</p>
-      <h1 class="hero-title">MDD listas para generar.</h1>
+      <h1 class="hero-title">Motos listas para trabajar.</h1>
       <p class="hero-lead">
-        Operamos Máquinas de Dinero: flota con contrato, cobro, depósito y mantenimiento en un solo flujo.
+        Arrienda tu moto con contrato claro, cuota semanal y soporte de GoRenting.
       </p>
       <div class="hero-cta">
         <a routerLink="/register" class="btn-primary">Quiero ser conductor</a>
@@ -38,50 +38,58 @@
         <li>
           <span class="step-n">01</span>
           <strong>Te registras</strong>
-          <span>El equipo te asigna rol y valida tu perfil.</span>
+          <span>El equipo te valida y te asigna tu perfil.</span>
         </li>
         <li>
           <span class="step-n">02</span>
-          <strong>Te entregan una MDD</strong>
+          <strong>Te entregan una moto</strong>
           <span>Acta, SOAT, pico y placa y condiciones al día.</span>
         </li>
         <li>
           <span class="step-n">03</span>
           <strong>Operas y reportas pagos</strong>
-          <span>La asesora registra cobros, gastos y caja MDD.</span>
+          <span>La asesora registra tus pagos, gastos y soporte.</span>
         </li>
       </ol>
     </div>
   </section>
 
-  <!-- Flota disponible -->
+  <!-- Catálogo de motos -->
   <section class="section fleet" id="flota">
     <div class="section-inner">
-      <h2 class="section-title">Flota disponible</h2>
-      <p class="section-lead">MDD en arriendo o liquidación, listas para asignar.</p>
+      <h2 class="section-title">Nuestras motos</h2>
+      <p class="section-lead">
+        Mira la flota disponible. Toca una moto para escribirnos por WhatsApp e indicar que te interesa.
+      </p>
 
-      <div *ngIf="mdds.length === 0" class="fleet-empty">
-        Pronto verás aquí las MDD disponibles. Mientras tanto, regístrate o escríbenos.
+      <div *ngIf="cargando" class="fleet-empty">Cargando motos...</div>
+
+      <div *ngIf="!cargando && mdds.length === 0" class="fleet-empty">
+        Pronto verás aquí las motos. Mientras tanto, regístrate o escríbenos.
       </div>
 
-      <ul class="fleet-list" *ngIf="mdds.length > 0">
-        <li *ngFor="let m of mdds" class="fleet-item">
-          <div class="fleet-photo">
-            <img *ngIf="m.imagen" [src]="m.imagen" [alt]="m.placa" />
-            <div *ngIf="!m.imagen" class="fleet-photo-fallback">MDD</div>
-            <span
-              class="fleet-tag"
-              [class.tag-arriendo]="m.modalidad !== 'liquidacion'"
-              [class.tag-liq]="m.modalidad === 'liquidacion'"
-            >
-              {{ m.modalidad === 'liquidacion' ? 'Liquidación' : 'Arriendo' }}
-            </span>
-          </div>
-          <div class="fleet-meta">
-            <h3>{{ m.marca }} {{ m.modelo }}</h3>
-            <p class="placa">{{ m.placa }}</p>
-            <p class="precio" *ngIf="m.precioCobro">Cuota desde $ {{ m.precioCobro | number }}</p>
-          </div>
+      <ul class="fleet-list" *ngIf="!cargando && mdds.length > 0">
+        <li *ngFor="let m of mdds">
+          <button type="button" class="fleet-item" (click)="interesMdd(m)" [attr.aria-label]="'WhatsApp por ' + m.placa">
+            <div class="fleet-photo">
+              <img *ngIf="m.imagen" [src]="m.imagen" [alt]="m.marca + ' ' + m.modelo + ' ' + m.placa" />
+              <div *ngIf="!m.imagen" class="fleet-photo-fallback">Moto</div>
+              <span
+                class="fleet-tag"
+                [class.tag-arriendo]="m.modalidad !== 'liquidacion'"
+                [class.tag-liq]="m.modalidad === 'liquidacion'"
+              >
+                {{ m.modalidad === 'liquidacion' ? 'Liquidación' : 'Arriendo' }}
+              </span>
+            </div>
+            <div class="fleet-meta">
+              <h3>{{ m.marca }} {{ m.modelo }}</h3>
+              <p class="placa">{{ m.placa }}</p>
+              <p class="estado-mdd">{{ etiquetaEstado(m) }}</p>
+              <p class="precio" *ngIf="m.precioCobro">Cuota desde $ {{ m.precioCobro | number }}</p>
+              <p class="wa-hint">WhatsApp · me interesa esta moto</p>
+            </div>
+          </button>
         </li>
       </ul>
 
@@ -93,6 +101,6 @@
 
   <footer class="home-footer">
     <p class="brand-word footer-brand">GoRenting</p>
-    <p>MDD · control de flota, cobros y documentación</p>
+    <p>Motos en arriendo · contrato, pagos y acompañamiento</p>
   </footer>
 </div>

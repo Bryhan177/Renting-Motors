@@ -4,6 +4,8 @@ import { RouterLink } from '@angular/router';
 import { MotosService } from '../../service/motos.service';
 import { Moto } from '../../shared/interfaces/moto';
 
+const WHATSAPP_NUMERO = '573215962216';
+
 @Component({
   selector: 'app-home',
   standalone: true,
@@ -14,31 +16,62 @@ import { Moto } from '../../shared/interfaces/moto';
 export class HomeComponent implements OnInit {
   private platformId = inject(PLATFORM_ID);
   mdds: Moto[] = [];
+  cargando = true;
 
   constructor(private motosService: MotosService) {}
 
   ngOnInit(): void {
-    // Evita timeout de SSR/prerender: Supabase solo en el navegador
-    if (!isPlatformBrowser(this.platformId)) return;
+    if (!isPlatformBrowser(this.platformId)) {
+      this.cargando = false;
+      return;
+    }
 
     this.motosService.getMotos().subscribe({
       next: (list) => {
-        this.mdds = list
-          .filter((m) => m.estado === 'disponible' || !m.conductorId)
-          .slice(0, 6);
+        this.mdds = list;
+        this.cargando = false;
       },
       error: () => {
         this.mdds = [];
+        this.cargando = false;
       },
     });
   }
 
+  etiquetaEstado(m: Moto): string {
+    switch (m.estado) {
+      case 'disponible':
+        return 'Disponible';
+      case 'en_uso':
+        return 'En uso';
+      case 'en_mantenimiento':
+        return 'En mantenimiento';
+      case 'fuera_servicio':
+        return 'Fuera de servicio';
+      default:
+        return m.estado || '';
+    }
+  }
+
   whatsapp(): void {
-    if (!isPlatformBrowser(this.platformId)) return;
-    const telefono = '573116433560';
-    const mensaje = encodeURIComponent(
-      'Hola GoRenting, quiero información para operar una MDD (Máquina de Dinero).',
+    this.abrirWhatsApp(
+      'Hola GoRenting, soy un conductor y quiero información para arrendar una moto.',
     );
-    window.open(`https://wa.me/${telefono}?text=${mensaje}`, '_blank', 'noopener,noreferrer');
+  }
+
+  interesMdd(m: Moto, event?: Event): void {
+    event?.preventDefault();
+    event?.stopPropagation();
+    const nombre = `${m.marca || ''} ${m.modelo || ''}`.trim() || 'moto';
+    const placa = m.placa || 'sin placa';
+    this.abrirWhatsApp(
+      `Hola GoRenting, soy un conductor interesado en la moto ${nombre} con placa ${placa}. ¿Está disponible?`,
+    );
+  }
+
+  private abrirWhatsApp(mensaje: string): void {
+    if (!isPlatformBrowser(this.platformId)) return;
+    const text = encodeURIComponent(mensaje);
+    window.open(`https://wa.me/${WHATSAPP_NUMERO}?text=${text}`, '_blank', 'noopener,noreferrer');
   }
 }

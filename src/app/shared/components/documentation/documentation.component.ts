@@ -25,6 +25,7 @@ export class DocumentationComponent implements OnInit {
   conductores: Usuario[] = [];
   tab: CategoriaDocumento | 'todos' = 'todos';
   mostrarModal = false;
+  editandoId: string | null = null;
   archivo: File | null = null;
 
   form = {
@@ -41,8 +42,19 @@ export class DocumentationComponent implements OnInit {
     { id: 'cc_cliente', label: 'CC cliente' },
     { id: 'licencia', label: 'Licencia' },
     { id: 'matricula_mdd', label: 'Matrícula MDD' },
+    { id: 'formulario', label: 'Formularios' },
+    { id: 'tecnomecanica', label: 'Tecnomecánicas' },
+    { id: 'soat', label: 'SOAT' },
     { id: 'otro', label: 'Otros' },
   ];
+
+  get categoriasForm(): { id: CategoriaDocumento; label: string }[] {
+    return this.categorias.filter((c): c is { id: CategoriaDocumento; label: string } => c.id !== 'todos');
+  }
+
+  get esEdicion(): boolean {
+    return !!this.editandoId;
+  }
 
   constructor(
     private docs: DocumentosService,
@@ -83,9 +95,16 @@ export class DocumentationComponent implements OnInit {
     }
   }
 
+  cerrarModal(): void {
+    this.mostrarModal = false;
+    this.editandoId = null;
+    this.archivo = null;
+  }
+
   abrirSubir(): void {
+    this.editandoId = null;
     this.form = {
-      categoria: 'contrato_plantilla',
+      categoria: this.tab !== 'todos' ? this.tab : 'contrato_plantilla',
       nombre: '',
       descripcion: '',
       conductorId: null,
@@ -95,11 +114,82 @@ export class DocumentationComponent implements OnInit {
     this.mostrarModal = true;
   }
 
-  subir(): void {
-    if (!this.archivo || !this.form.nombre.trim()) {
+  abrirEditar(doc: Documento): void {
+    if (!doc._id) return;
+    this.editandoId = doc._id;
+    this.archivo = null;
+    this.form = {
+      categoria: doc.categoria,
+      nombre: doc.nombre || '',
+      descripcion: doc.descripcion || '',
+      conductorId: doc.conductorId || null,
+      motoId: doc.motoId || null,
+    };
+    this.mostrarModal = true;
+  }
+
+  esImagen(doc: Documento): boolean {
+    const mime = (doc.mimeType || '').toLowerCase();
+    if (mime.startsWith('image/')) return true;
+    return /\.(jpe?g|png|gif|webp|bmp|svg)$/i.test(doc.url || doc.nombre || '');
+  }
+
+  private extensionDesdeMime(mime?: string): string {
+    const m = (mime || '').toLowerCase();
+    if (m.includes('pdf')) return '.pdf';
+    if (m.includes('jpeg') || m.includes('jpg')) return '.jpg';
+    if (m.includes('png')) return '.png';
+    if (m.includes('webp')) return '.webp';
+    if (m.includes('gif')) return '.gif';
+    if (m.includes('word') || m.includes('msword')) return '.doc';
+    if (m.includes('officedocument.wordprocessingml')) return '.docx';
+    return '';
+  }
+
+  private nombreDescarga(doc: Documento): string {
+    const base = (doc.nombre || 'documento').trim();
+    if (/\.[a-z0-9]{2,5}$/i.test(base)) return base;
+    return `${base}${this.extensionDesdeMime(doc.mimeType)}`;
+  }
+
+  guardar(): void {
+    if (!this.form.nombre.trim()) {
+      Swal.fire({ icon: 'warning', title: 'El nombre es requerido' });
+      return;
+    }
+
+    if (this.esEdicion && this.editandoId) {
+      this.docs
+        .actualizar(this.editandoId, {
+          categoria: this.form.categoria,
+          nombre: this.form.nombre,
+          descripcion: this.form.descripcion,
+          conductorId: this.form.conductorId || null,
+          motoId: this.form.motoId || null,
+        })
+        .subscribe({
+          next: () => {
+            this.cerrarModal();
+            this.cargar();
+            Swal.fire({
+              icon: 'success',
+              title: 'Documento actualizado',
+              toast: true,
+              timer: 1400,
+              showConfirmButton: false,
+              position: 'top-end',
+            });
+          },
+          error: (e) => Swal.fire({ icon: 'error', title: e?.message || 'Error al actualizar' }),
+        });
+      return;
+    }
+
+    if (!this.archivo) {
       Swal.fire({ icon: 'warning', title: 'Archivo y nombre requeridos' });
       return;
     }
+
     this.docs
       .upload({
         file: this.archivo,
@@ -111,16 +201,37 @@ export class DocumentationComponent implements OnInit {
       })
       .subscribe({
         next: () => {
-          this.mostrarModal = false;
+          this.cerrarModal();
           this.cargar();
-          Swal.fire({ icon: 'success', title: 'Documento subido', toast: true, timer: 1400, showConfirmButton: false, position: 'top-end' });
+          Swal.fire({
+            icon: 'success',
+            title: 'Documento subido',
+            toast: true,
+            timer: 1400,
+            showConfirmButton: false,
+            position: 'top-end',
+          });
         },
         error: (e) => Swal.fire({ icon: 'error', title: e?.message || 'Error al subir' }),
       });
   }
 
-  descargar(doc: Documento): void {
-    window.open(doc.url, '_blank');
+  async descargar(doc: Documento): Promise<void> {
+    try {
+      const res = await fetch(doc.url);
+      if (!res.ok) throw new Error('No se pudo descargar');
+      const blob = await res.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = objectUrl;
+      a.download = this.nombreDescarga(doc);
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(objectUrl);
+    } catch {
+      window.open(doc.url, '_blank');
+    }
   }
 
   eliminar(doc: Documento): void {

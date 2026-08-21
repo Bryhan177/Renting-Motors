@@ -1,54 +1,41 @@
-<button class="md:hidden top-0 right-0 text-gray-800 hover:text-gray-600 transition-colors bg-transparent border-none outline-none" (click)="toggleSidebar()">
-  <span class="text-2xl">☰</span>
+<!-- Hamburguesa: flotante, no empuja el contenido -->
+<button
+  type="button"
+  class="sidebar-toggle"
+  (click)="toggleSidebar()"
+  aria-label="Abrir menú"
+>
+  ☰
 </button>
-<div class="flex h-screen flex-col md:flex-row">
-  <aside
-    [ngClass]="{
-      'translate-x-0': showSidebar,
-      '-translate-x-full': !showSidebar
-    }"
-    class="fixed md:relative top-0 left-0 h-full w-64 bg-gray-900 text-white shadow-lg transform transition-transform duration-300 ease-in-out z-50 md:translate-x-0"
-  >
-    <div class="flex items-center justify-center h-20 border-b border-gray-700">
-      <span class="text-xl font-bold tracking-wide">{{ userName }}</span>
-    </div>
 
-    <span class="text-2xl cursor-pointer absolute top-6 right-3 md:hidden" (click)="toggleSidebar()">☰</span>
+<!-- Fondo oscuro al abrir en móvil -->
+<div
+  class="sidebar-backdrop"
+  *ngIf="showSidebar"
+  (click)="closeSidebar()"
+  aria-hidden="true"
+></div>
 
-    <nav class="flex-1 py-6 px-4 space-y-1 cursor-pointer overflow-y-auto">
-      <a (click)="goDashboard()" class="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-gray-700 transition">
-        <span>Dashboard</span>
-      </a>
-      <a (click)="goMotos()" class="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-gray-700 transition">
-        <span>MDD</span>
-      </a>
-      <a (click)="goUsuarios()" class="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-gray-700 transition">
-        <span>Usuarios</span>
-      </a>
-      <a (click)="goPagos()" class="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-gray-700 transition">
-        <span>Pagos</span>
-      </a>
-      <a (click)="goMantenimientos()" class="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-gray-700 transition">
-        <span>Mantenimientos</span>
-      </a>
-      <a (click)="goFlujoCaja()" class="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-gray-700 transition">
-        <span>Flujo de caja</span>
-      </a>
-      <a (click)="goHistorial()" class="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-gray-700 transition">
-        <span>Historial MDD</span>
-      </a>
-      <a (click)="goDocumentacion()" class="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-gray-700 transition">
-        <span>Documentación</span>
-      </a>
-    </nav>
+<aside class="sidebar-panel" [class.is-open]="showSidebar">
+  <div class="sidebar-head">
+    <span class="sidebar-user">{{ userName }}</span>
+    <button type="button" class="sidebar-close" (click)="closeSidebar()" aria-label="Cerrar menú">
+      ✕
+    </button>
+  </div>
 
-    <div class="p-4 border-t border-gray-700">
-      <button
-        class="w-full flex items-center justify-center gap-2 bg-red-600 hover:bg-red-700 text-white py-2 rounded-lg transition"
-        (click)="logout()"
-      >
-        <span>Cerrar sesión</span>
-      </button>
-    </div>
-  </aside>
-</div>
+  <nav class="sidebar-nav">
+    <a (click)="goDashboard()">Dashboard</a>
+    <a (click)="goMotos()">MDD</a>
+    <a (click)="goUsuarios()">Usuarios</a>
+    <a (click)="goPagos()">Pagos</a>
+    <a (click)="goMantenimientos()">Mantenimientos</a>
+    <a (click)="goFlujoCaja()">Flujo de caja</a>
+    <a (click)="goHistorial()">Historial MDD</a>
+    <a (click)="goDocumentacion()">Documentación</a>
+  </nav>
+
+  <div class="sidebar-foot">
+    <button type="button" class="sidebar-logout" (click)="logout()">Cerrar sesión</button>
+  </div>
+</aside>

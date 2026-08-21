@@ -1,8 +1,55 @@
-a {
-  cursor: pointer;
-  transition: color 0.2s ease;
+:host {
+  display: block;
 }
 
-a:hover {
-  color: #fff; /* amarillo */
+.admin-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 3.75rem;
+  padding: 0.55rem 1rem;
+  padding-right: 4rem; /* espacio para hamburguesa en móvil */
+  background: #0c0e10;
+  border-bottom: 1px solid rgba(242, 239, 232, 0.12);
+  color: #f2efe8;
+}
+
+.admin-header-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  min-width: 0;
+}
+
+.admin-header-logo {
+  width: 2.75rem;
+  height: 2.75rem;
+  object-fit: contain;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.admin-header-title {
+  margin: 0;
+  font-family: 'Bebas Neue', Impact, sans-serif;
+  font-size: 1.65rem;
+  letter-spacing: 0.04em;
+  font-weight: 400;
+  color: #f2efe8;
+  white-space: nowrap;
+}
+
+@media (min-width: 768px) {
+  .admin-header {
+    padding-right: 1.25rem;
+  }
+
+  .admin-header-logo {
+    width: 3rem;
+    height: 3rem;
+  }
+
+  .admin-header-title {
+    font-size: 1.9rem;
+  }
 }

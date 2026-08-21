@@ -2,14 +2,18 @@
   <div class="flex justify-between items-center mb-6 gap-4 flex-wrap">
     <div>
       <h1 class="text-3xl font-bold text-white">Documentación</h1>
-      <p class="text-gray-300 mt-1">Contratos PDF, CC, licencia y matrícula MDD</p>
+      <p class="text-gray-300 mt-1">PDF, imágenes, formularios, CC, licencia y matrícula MDD</p>
     </div>
-    <button (click)="abrirSubir()" class="bg-blue-600 hover:bg-blue-500 text-white py-2.5 px-5 rounded-lg">Subir documento</button>
+    <button (click)="abrirSubir()" class="bg-amber-500 hover:bg-amber-600 text-[#14110a] font-semibold py-2.5 px-5 rounded-lg">
+      Subir documento
+    </button>
   </div>
 
   <div class="flex flex-wrap gap-2 mb-6">
     <button *ngFor="let c of categorias" (click)="cambiarTab(c.id)"
-            [class.bg-blue-600]="tab === c.id"
+            [class.bg-amber-500]="tab === c.id"
+            [class.text-[#14110a]]="tab === c.id"
+            [class.font-semibold]="tab === c.id"
             class="px-3 py-1.5 rounded-lg text-sm bg-gray-800 text-white border border-gray-700">
       {{ c.label }}
     </button>
@@ -24,10 +28,17 @@
         <span class="text-xs px-2 py-1 rounded bg-gray-700 text-gray-200">{{ labelCat(d.categoria) }}</span>
         <span class="text-xs text-gray-400">{{ d.createdAt | date:'shortDate' }}</span>
       </div>
+
+      <div *ngIf="esImagen(d)" class="rounded-lg overflow-hidden border border-gray-600 bg-gray-900 aspect-video">
+        <img [src]="d.url" [alt]="d.nombre" class="w-full h-full object-contain" />
+      </div>
+
       <h3 class="font-bold text-white truncate">{{ d.nombre }}</h3>
       <p class="text-sm text-gray-400 line-clamp-2">{{ d.descripcion || 'Sin descripción' }}</p>
-      <div class="flex gap-2 mt-auto">
-        <button (click)="descargar(d)" class="flex-1 bg-emerald-700 hover:bg-emerald-600 text-white text-sm py-2 rounded-lg">Ver / Descargar</button>
+      <p class="text-xs text-gray-500 truncate">{{ d.mimeType || 'archivo' }}</p>
+      <div class="flex flex-wrap gap-2 mt-auto">
+        <button (click)="descargar(d)" class="flex-1 min-w-[5.5rem] bg-emerald-700 hover:bg-emerald-600 text-white text-sm py-2 rounded-lg">Descargar</button>
+        <button (click)="abrirEditar(d)" class="px-3 bg-amber-600 hover:bg-amber-500 text-white text-sm py-2 rounded-lg">Editar</button>
         <button (click)="eliminar(d)" class="px-3 bg-red-700 hover:bg-red-600 text-white text-sm py-2 rounded-lg">Eliminar</button>
       </div>
     </div>
@@ -36,16 +47,16 @@
 
 <div *ngIf="mostrarModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
   <div class="bg-gray-800 rounded-2xl w-full max-w-md border border-gray-600 text-white p-5 space-y-3">
-    <h3 class="text-xl font-bold">Subir documento</h3>
+    <h3 class="text-xl font-bold">{{ esEdicion ? 'Editar documento' : 'Subir documento' }}</h3>
+
+    <label class="block text-sm text-gray-300">Categoría / filtro</label>
     <select [(ngModel)]="form.categoria" class="w-full bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-white">
-      <option value="contrato_plantilla">Contrato PDF (plantilla)</option>
-      <option value="cc_cliente">Cédula del cliente</option>
-      <option value="licencia">Licencia</option>
-      <option value="matricula_mdd">Matrícula MDD</option>
-      <option value="otro">Otro</option>
+      <option *ngFor="let c of categoriasForm" [value]="c.id">{{ c.label }}</option>
     </select>
+
     <input [(ngModel)]="form.nombre" placeholder="Nombre" class="w-full bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-white">
     <input [(ngModel)]="form.descripcion" placeholder="Descripción" class="w-full bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-white">
+
     <select [(ngModel)]="form.conductorId" class="w-full bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-white">
       <option [ngValue]="null">Sin conductor</option>
       <option *ngFor="let c of conductores" [value]="c._id">{{ c.nombre }} {{ c.apellido }}</option>
@@ -54,10 +65,20 @@
       <option [ngValue]="null">Sin MDD</option>
       <option *ngFor="let m of motos" [value]="m._id">{{ m.placa }}</option>
     </select>
-    <input type="file" accept=".pdf,image/*,.doc,.docx" (change)="onFile($event)" class="text-sm text-white">
-    <div class="flex justify-end gap-2">
-      <button (click)="mostrarModal=false" class="px-4 py-2">Cancelar</button>
-      <button (click)="subir()" class="px-4 py-2 bg-blue-600 rounded-lg">Subir</button>
+
+    <ng-container *ngIf="!esEdicion">
+      <input type="file" accept=".pdf,image/*,.jpg,.jpeg,.png,.webp,.gif,.doc,.docx" (change)="onFile($event)" class="text-sm text-white">
+      <p class="text-xs text-gray-400">Puedes subir PDF o imágenes (JPG, PNG, WEBP, etc.).</p>
+    </ng-container>
+    <p *ngIf="esEdicion" class="text-xs text-gray-400">
+      Aquí puedes corregir la categoría (ej. de Contrato a Formulario) sin volver a subir el archivo.
+    </p>
+
+    <div class="flex justify-end gap-2 pt-1">
+      <button type="button" (click)="cerrarModal()" class="px-4 py-2">Cancelar</button>
+      <button type="button" (click)="guardar()" class="px-4 py-2 bg-amber-500 text-[#14110a] font-semibold rounded-lg">
+        {{ esEdicion ? 'Guardar cambios' : 'Subir' }}
+      </button>
     </div>
   </div>
 </div>

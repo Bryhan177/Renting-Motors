@@ -1,86 +1,48 @@
-<div class="absolute">
-  <button class="absolute top-4 left-4 goHome" (click)="goHome()">Volver</button>
-</div>
-<section
-  class="min-h-screen flex items-center justify-center bg-gradient-to-br from-secondary to-gray-900 px-4"
->
-  <div
-    class="bg-black rounded-2xl shadow-2xl w-full max-w-5xl p-6 md:p-12 animate-fade-in"
-  >
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
-      <!-- Formulario de Login -->
-      <div>
-        <h2 class="text-3xl font-bold text-white text-center md:text-left">
-          ¡Bienvenido de nuevo! 👋
-        </h2>
-        <p class="text-gray-500 text-sm mb-6 text-center md:text-left">
-          Inicia sesión para continuar
-        </p>
+<section class="auth-page">
+  <button type="button" class="auth-back" (click)="goHome()">← Volver</button>
 
-        <form class="space-y-4" (ngSubmit)="onLogin()" #loginForm="ngForm">
-          <div>
-            <label for="email" class="block text-white font-medium">
-              Correo electrónico
-            </label>
-            <input
-              type="email"
-              id="email"
-              name="email"
-              [(ngModel)]="email"
-              required
-              placeholder="admin@gmail.com"
-              class="w-full px-4 py-2 mt-1 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-secondary focus:border-transparent transition duration-300"
-            />
-          </div>
+  <div class="auth-shell">
+    <div class="auth-visual">
+      <img src="assets/images/login.png" alt="Login GoRenting" />
+    </div>
 
-          <div>
-            <label for="password" class="block text-white font-medium">
-              Contraseña
-            </label>
-            <input
-              type="password"
-              id="password"
-              name="password"
-              [(ngModel)]="password"
-              required
-              placeholder="••••••••"
-              class="w-full px-4 py-2 mt-1 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-secondary focus:border-transparent transition duration-300"
-            />
-          </div>
+    <div class="auth-form-wrap">
+      <img src="assets/images/icon.png" alt="GoRenting" class="auth-icon" />
+      <h2 class="auth-title">Bienvenido de nuevo</h2>
+      <p class="auth-lead">Inicia sesión para continuar</p>
 
-
-
-          <button
-            type="submit"
-            class="w-full bg-secondary text-black py-2 px-4 rounded-lg hover:text-white transition duration-300 font-semibold"
-          >
-            Iniciar Sesión
-          </button>
-
-          <div *ngIf="error" class="text-red-600 text-center mt-2">
-            {{ error }}
-          </div>
-        </form>
-
-        <p class="text-center text-white text-sm mt-4">
-          ¿No tienes cuenta?
-          <a
-            (click)="goToRegister()"
-            class="text-secondary font-medium hover:underline cursor-pointer"
-          >
-            Regístrate
-          </a>
-        </p>
-      </div>
-
-      <!-- Imagen (solo visible en pantallas grandes) -->
-      <div class="hidden md:block">
-        <img
-          src="assets/images/log_fondo_negro.png"
-          alt="Logo"
-          class="w-full h-auto max-h-[600px] object-contain mx-auto"
+      <form class="auth-form" (ngSubmit)="onLogin()" #loginForm="ngForm">
+        <label class="auth-label" for="email">Correo electrónico</label>
+        <input
+          type="email"
+          id="email"
+          name="email"
+          [(ngModel)]="email"
+          required
+          placeholder="correo@gmail.com"
+          class="auth-input"
         />
-      </div>
+
+        <label class="auth-label" for="password">Contraseña</label>
+        <input
+          type="password"
+          id="password"
+          name="password"
+          [(ngModel)]="password"
+          required
+          placeholder="••••••••"
+          class="auth-input"
+        />
+
+        <button type="submit" class="auth-submit">Iniciar sesión</button>
+
+        <p *ngIf="error" class="auth-error">{{ error }}</p>
+      </form>
+
+      <p class="auth-switch">
+        ¿No tienes cuenta?
+        <a (click)="goToRegister()" class="auth-link">Regístrate</a>
+      </p>
     </div>
   </div>
 </section>

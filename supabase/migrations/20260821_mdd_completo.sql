@@ -75,11 +75,11 @@ create table if not exists public.movimientos_caja (
 
 create index if not exists mov_caja_banco_fecha_idx on public.movimientos_caja (banco, fecha desc);
 
--- DOCUMENTOS (contratos PDF, CC, licencia, matrícula)
+-- DOCUMENTOS (contratos PDF, formularios, CC, licencia, matrícula)
 create table if not exists public.documentos (
   id uuid primary key default gen_random_uuid(),
   categoria text not null
-    check (categoria in ('contrato_plantilla', 'cc_cliente', 'licencia', 'matricula_mdd', 'otro')),
+    check (categoria in ('contrato_plantilla', 'cc_cliente', 'licencia', 'matricula_mdd', 'formulario', 'tecnomecanica', 'soat', 'otro')),
   nombre text not null,
   descripcion text,
   url text not null,

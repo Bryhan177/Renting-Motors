@@ -32,20 +32,16 @@
   inset: 0;
   z-index: 0;
   overflow: hidden;
-  background:
-    radial-gradient(ellipse 80% 60% at 70% 40%, rgba(232, 163, 23, 0.22), transparent 55%),
-    radial-gradient(ellipse 50% 40% at 15% 80%, rgba(40, 90, 120, 0.35), transparent 50%),
-    linear-gradient(160deg, #12151a 0%, #0c0e10 45%, #1a1208 100%);
+  background: #0c0e10;
 }
 
 .hero-media-shift {
   position: absolute;
-  inset: -8%;
-  background:
-    url('/assets/images/log_fondo_negro.png') right 8% center / min(52vw, 560px) auto no-repeat,
-    radial-gradient(circle at 80% 30%, rgba(255, 255, 255, 0.04), transparent 40%);
-  opacity: 0.55;
-  animation: drift 18s ease-in-out infinite alternate;
+  inset: 0;
+  background: url('/assets/images/hero.png') center right / cover no-repeat;
+  opacity: 1;
+  animation: drift 22s ease-in-out infinite alternate;
+  will-change: transform;
 }
 
 .hero-scrim {
@@ -53,9 +49,10 @@
   inset: 0;
   background: linear-gradient(
     105deg,
-    rgba(12, 14, 16, 0.92) 0%,
-    rgba(12, 14, 16, 0.75) 42%,
-    rgba(12, 14, 16, 0.35) 100%
+    rgba(12, 14, 16, 0.9) 0%,
+    rgba(12, 14, 16, 0.62) 36%,
+    rgba(12, 14, 16, 0.2) 62%,
+    rgba(12, 14, 16, 0.08) 100%
   );
 }
 
@@ -78,7 +75,7 @@
 }
 
 .hero-mark-img {
-  height: 2.5rem;
+  height: 5.75rem;
   width: auto;
   object-fit: contain;
   filter: brightness(1.05);
@@ -313,16 +310,28 @@
 }
 
 .fleet-item {
+  display: block;
+  width: 100%;
+  text-align: left;
   background: #15191e;
   border: 1px solid var(--line);
   border-radius: 0.35rem;
   overflow: hidden;
+  color: inherit;
+  font: inherit;
+  padding: 0;
+  cursor: pointer;
   transition: border-color 0.25s, transform 0.25s;
 }
 
 .fleet-item:hover {
   border-color: rgba(232, 163, 23, 0.45);
   transform: translateY(-3px);
+}
+
+.fleet-item:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
 }
 
 .fleet-photo {
@@ -386,11 +395,25 @@
   text-transform: uppercase;
 }
 
+.estado-mdd {
+  margin: 0.35rem 0 0;
+  font-size: 0.8rem;
+  color: rgba(242, 239, 232, 0.55);
+}
+
 .precio {
   margin: 0.55rem 0 0;
   color: var(--accent);
   font-weight: 600;
   font-size: 0.95rem;
+}
+
+.wa-hint {
+  margin: 0.75rem 0 0;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #25d366;
+  letter-spacing: 0.02em;
 }
 
 .fleet-cta {
@@ -412,18 +435,108 @@
 }
 
 @media (max-width: 767px) {
+  .hero {
+    justify-content: flex-end;
+    padding: max(1rem, env(safe-area-inset-top)) 1rem calc(2rem + env(safe-area-inset-bottom));
+    min-height: 100svh;
+  }
+
+  .hero-top {
+    padding: max(0.85rem, env(safe-area-inset-top)) 1rem 0.85rem;
+    gap: 0.5rem;
+  }
+
+  .hero-mark-img {
+    height: 3rem;
+    max-width: 48%;
+  }
+
+  .hero-nav {
+    gap: 0.4rem;
+    flex-shrink: 0;
+  }
+
+  .nav-ghost,
+  .nav-solid {
+    font-size: 0.8rem;
+    padding: 0.5rem 0.7rem;
+    white-space: nowrap;
+  }
+
   .hero-media-shift {
-    background-position: center 20%;
-    background-size: min(90vw, 380px) auto;
-    opacity: 0.28;
+    background-position: 72% center;
+    background-size: cover;
+    opacity: 1;
+    animation: none;
   }
 
   .hero-scrim {
-    background: linear-gradient(180deg, rgba(12, 14, 16, 0.55) 0%, rgba(12, 14, 16, 0.92) 55%);
+    background: linear-gradient(
+      180deg,
+      rgba(12, 14, 16, 0.5) 0%,
+      rgba(12, 14, 16, 0.78) 48%,
+      rgba(12, 14, 16, 0.96) 100%
+    );
   }
 
-  .hero {
-    justify-content: flex-end;
-    padding-bottom: 2.5rem;
+  .hero-copy {
+    max-width: none;
+    padding-bottom: 0.25rem;
+  }
+
+  .brand-word {
+    font-size: clamp(2.75rem, 14vw, 3.75rem);
+  }
+
+  .hero-title {
+    font-size: 1.25rem;
+  }
+
+  .hero-lead {
+    font-size: 0.95rem;
+    margin-bottom: 1.35rem;
+  }
+
+  .hero-cta {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .btn-primary,
+  .btn-ghost {
+    width: 100%;
+    min-height: 2.75rem;
+  }
+
+  .section {
+    padding: 3rem 1rem;
+  }
+
+  .section-lead {
+    margin-bottom: 1.75rem;
+  }
+
+  .fleet-photo {
+    height: 11.5rem;
+  }
+
+  .fleet-cta .btn-primary {
+    width: 100%;
+  }
+
+  .home-footer {
+    padding: 2rem 1rem calc(2.5rem + env(safe-area-inset-bottom));
   }
 }
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-media-shift {
+    animation: none;
+  }
+
+  .hero-top,
+  .hero-copy {
+    animation: none;
+  }
+}
+

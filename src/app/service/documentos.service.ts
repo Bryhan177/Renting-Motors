@@ -8,6 +8,9 @@ export type CategoriaDocumento =
   | 'cc_cliente'
   | 'licencia'
   | 'matricula_mdd'
+  | 'formulario'
+  | 'tecnomecanica'
+  | 'soat'
   | 'otro';
 
 export interface Documento {
@@ -106,6 +109,37 @@ export class DocumentosService {
         if (error) throw error;
         if (!storagePath) return from(Promise.resolve(undefined));
         return from(sb.storage.from('documentos').remove([storagePath])).pipe(map(() => void 0));
+      }),
+    );
+  }
+
+  actualizar(
+    id: string,
+    payload: {
+      categoria: CategoriaDocumento;
+      nombre: string;
+      descripcion?: string;
+      conductorId?: string | null;
+      motoId?: string | null;
+    },
+  ): Observable<Documento> {
+    return from(
+      getSupabase()
+        .from('documentos')
+        .update({
+          categoria: payload.categoria,
+          nombre: payload.nombre,
+          descripcion: payload.descripcion || null,
+          conductor_id: payload.conductorId || null,
+          moto_id: payload.motoId || null,
+        })
+        .eq('id', id)
+        .select('*')
+        .single(),
+    ).pipe(
+      map(({ data, error }) => {
+        if (error || !data) throw error || new Error('No se pudo actualizar');
+        return this.map(data);
       }),
     );
   }

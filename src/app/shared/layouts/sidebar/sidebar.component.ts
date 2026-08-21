@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, HostListener } from '@angular/core';
 import { Router } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { AuthService } from '../../../auth/auth.service';
@@ -8,54 +8,71 @@ import { AuthService } from '../../../auth/auth.service';
   standalone: true,
   imports: [CommonModule],
   templateUrl: './sidebar.component.html',
-  styleUrl: './sidebar.component.css'
+  styleUrl: './sidebar.component.css',
 })
-
 export class SidebarComponent implements OnInit {
-  showSidebar: boolean = false;
-  userName: string = 'Usuario';
+  showSidebar = false;
+  userName = 'Usuario';
 
-  constructor(private router: Router, private authService: AuthService) {}
+  constructor(
+    private router: Router,
+    private authService: AuthService,
+  ) {}
 
-  ngOnInit() {
-    // Si estamos en el lado del cliente (para evitar errores en SSR)
+  ngOnInit(): void {
     if (typeof window !== 'undefined' && window.localStorage) {
       const storedName = localStorage.getItem('userName');
-      if (storedName) {
-        this.userName = storedName;
-      }
+      if (storedName) this.userName = storedName;
     }
   }
 
-  logout() {
-    this.authService.logout();
+  @HostListener('window:resize')
+  onResize(): void {
+    if (typeof window !== 'undefined' && window.innerWidth >= 768) {
+      this.showSidebar = false;
+    }
   }
-  goDashboard() {
-    this.router.navigate(['/dashboard']);
-  }
-  goMotos() {
-    this.router.navigate(['/motos']);
-  }
-  goUsuarios() {
-    this.router.navigate(['/usuarios']);
-  }
-  goPagos() {
-    this.router.navigate(['/pagos']);
-  }
-  goMantenimientos() {
-    this.router.navigate(['/mantenimientos']);
-  }
-  goFlujoCaja() {
-    this.router.navigate(['/flujo-caja']);
-  }
-  goHistorial() {
-    this.router.navigate(['/history-vehicle']);
-  }
-  goDocumentacion() {
-    this.router.navigate(['/documentation']);
-  }
-  toggleSidebar() {
+
+  toggleSidebar(): void {
     this.showSidebar = !this.showSidebar;
   }
-}
 
+  closeSidebar(): void {
+    this.showSidebar = false;
+  }
+
+  private go(path: string): void {
+    this.closeSidebar();
+    this.router.navigate([path]);
+  }
+
+  logout(): void {
+    this.closeSidebar();
+    this.authService.logout();
+  }
+
+  goDashboard(): void {
+    this.go('/dashboard');
+  }
+  goMotos(): void {
+    this.go('/motos');
+  }
+  goUsuarios(): void {
+    this.go('/usuarios');
+  }
+  goPagos(): void {
+    this.go('/pagos');
+  }
+  goMantenimientos(): void {
+    this.go('/mantenimientos');
+  }
+  goFlujoCaja(): void {
+    this.go('/flujo-caja');
+  }
+  goHistorial(): void {
+    this.go('/history-vehicle');
+  }
+  goDocumentacion(): void {
+    this.go('/documentation');
+  }
+}
