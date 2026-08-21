@@ -43,7 +43,10 @@
       <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
         <div>
           <h1 class="text-3xl font-bold text-white">Hola, {{ empleado.nombre.split(' ')[0] }} 👋</h1>
-          <p class="text-gray-400">Aquí está el resumen de tu actividad hoy.</p>
+          <p class="text-gray-400">Aquí está el resumen de tu actividad y asignaciones.</p>
+          <button (click)="abrirModalPago()" class="mt-4 bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-5 rounded-lg shadow-lg flex items-center gap-2 transition">
+            <span>💸</span> Subir Comprobante de Pago
+          </button>
         </div>
         <div class="flex items-center gap-4">
            <div class="text-right hidden md:block">
@@ -130,4 +133,56 @@
 
     </div>
   </main>
+
+  <!-- Modal Pago -->
+  <div *ngIf="modalPagoVisible" class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+    <div class="bg-gray-800 rounded-2xl shadow-2xl w-full max-w-lg border border-gray-700 overflow-hidden transform transition-all">
+        <div class="p-6 border-b border-gray-700 flex justify-between items-center bg-gray-900/50">
+            <h3 class="text-xl font-bold text-white flex items-center gap-2">
+                💸 Registrar Pago Semanal
+            </h3>
+            <button (click)="cerrarModalPago()" class="text-gray-400 hover:text-white transition text-2xl">&times;</button>
+        </div>
+        
+        <div class="p-6 space-y-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-400 mb-1">Monto a Pagar</label>
+                <input type="number" [(ngModel)]="pagoForm.monto" 
+                        class="w-full bg-gray-900 border border-gray-600 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none transition" 
+                        placeholder="Ej. 150000">
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-400 mb-1">Método de Pago</label>
+                <select [(ngModel)]="pagoForm.metodoPago" 
+                        class="w-full bg-gray-900 border border-gray-600 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none transition appearance-none">
+                    <option value="Transferencia">Transferencia Bancaria (Nequi, Bancolombia)</option>
+                    <option value="Efectivo">Efectivo (Consignación)</option>
+                    <option value="Otro">Otro</option>
+                </select>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-400 mb-1">Comprobante (Obligatorio)</label>
+                <input type="file" accept="image/*" (change)="onComprobanteSelected($event)" 
+                        class="w-full bg-gray-900 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none transition file:mr-4 file:py-2 file:px-4 file:rounded-l-lg file:border-0 file:text-sm file:font-medium file:bg-green-600 file:text-white hover:file:bg-green-700 cursor-pointer">
+                
+                <div *ngIf="pagoForm.comprobanteImagen" class="mt-2 text-center relative border border-gray-600 p-1 rounded bg-black/30">
+                    <img [src]="pagoForm.comprobanteImagen" alt="Comprobante" class="h-24 mx-auto object-cover rounded">
+                </div>
+            </div>
+            <p class="text-xs text-gray-400 mt-2">
+              El pago quedará en estado <b>Pendiente</b> hasta que sea validado por un administrador.
+            </p>
+        </div>
+
+        <div class="p-6 border-t border-gray-700 bg-gray-900/30 flex justify-end gap-3">
+            <button (click)="cerrarModalPago()" class="px-5 py-2 rounded-lg text-gray-300 hover:text-white hover:bg-gray-700 transition">Cancelar</button>
+            <button (click)="enviarPago()" 
+                    class="px-5 py-2 rounded-lg bg-green-600 hover:bg-green-700 text-white font-medium shadow-lg shadow-green-500/20 transition">
+                Enviar Comprobante
+            </button>
+        </div>
+    </div>
+  </div>
 </div>

@@ -1,31 +1,32 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { RouterLink } from '@angular/router';
 import { MotosService } from '../../../service/motos.service';
-import { PagosService } from '../../../service/pagos.service';
+import { CobrosService } from '../../../service/cobros.service';
 import { Moto } from '../../../shared/interfaces/moto';
-import { Pago, Estadisticas } from '../../../shared/interfaces/pago';
-import { Usuario } from '../../../shared/interfaces/usuario';
+import { Estadisticas } from '../../../shared/interfaces/pago';
+import { Cobro } from '../../../service/cobros.service';
 
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, RouterLink],
   templateUrl: './dashboard.component.html',
-  styleUrl: './dashboard.component.css'
+  styleUrl: './dashboard.component.css',
 })
 export class DashboardComponent implements OnInit {
   motos: Moto[] = [];
-  pagos: Pago[] = [];
-  conductores: Usuario[] = [];
+  cobrosPendientes: Cobro[] = [];
+  cobrosEnMora: Cobro[] = [];
   estadisticas: Estadisticas | null = null;
   loading = true;
-  conductoresPendientes: Usuario[] = [];
-
-  semanaActual = this.obtenerSemanaActual();
+  totalPagado = 0;
+  totalPendiente = 0;
+  totalMora = 0;
 
   constructor(
     private motosService: MotosService,
-    private pagosService: PagosService
+    private cobrosService: CobrosService,
   ) {}
 
   ngOnInit(): void {
@@ -35,101 +36,46 @@ export class DashboardComponent implements OnInit {
   loadData(): void {
     this.loading = true;
 
-    // Cargar estadísticas
     this.motosService.getEstadisticas().subscribe({
       next: (estadisticas) => {
         this.estadisticas = estadisticas;
         this.loading = false;
       },
-      error: (error) => {
-        console.error('Error cargando estadísticas:', error);
+      error: () => {
         this.loading = false;
-      }
+      },
     });
 
-    // Cargar motos
     this.motosService.getMotos().subscribe({
-      next: (motos) => {
-        this.motos = motos;
-      },
-      error: (error) => {
-        console.error('Error cargando motos:', error);
-      }
+      next: (motos) => (this.motos = motos),
+      error: () => {},
     });
 
-    // Cargar pagos de la semana actual
-    this.pagosService.getPagosBySemana(this.semanaActual).subscribe({
-      next: (pagos) => {
-        this.pagos = pagos;
-        this.calcularConductoresPendientes();
+    this.cobrosService.getCobros().subscribe({
+      next: (cobros) => {
+        this.cobrosPendientes = cobros.filter((c) => c.saldo > 0);
+        this.cobrosEnMora = cobros.filter((c) => c.enMora);
+        this.totalPagado = cobros.reduce((s, c) => s + c.montoPagado, 0);
+        this.totalPendiente = cobros.reduce((s, c) => s + c.saldo, 0);
+        this.totalMora = this.cobrosEnMora.reduce((s, c) => s + c.saldo, 0);
       },
-      error: (error) => {
-        console.error('Error cargando pagos:', error);
-      }
+      error: () => {
+        this.cobrosPendientes = [];
+        this.cobrosEnMora = [];
+      },
     });
   }
 
-  calcularConductoresPendientes(): void {
-    // Conductores que tienen pagos pendientes esta semana
-    this.conductoresPendientes = this.pagos
-      .filter(pago => !pago.pagado && pago.conductor)
-      .map(pago => pago.conductor!)
-      .filter((conductor, index, self) =>
-        index === self.findIndex(c => c._id === conductor._id)
-      );
+  get motosEnUso(): number {
+    return this.motos.filter((m) => m.estado === 'en_uso').length;
   }
 
-  obtenerSemanaActual(): string {
-    const date = new Date();
-    const inicio = new Date(date.getFullYear(), 0, 1);
-    const dias = Math.floor((date.getTime() - inicio.getTime()) / (24 * 60 * 60 * 1000));
-    const semana = Math.ceil((dias + inicio.getDay() + 1) / 7);
-    return `${date.getFullYear()}-W${semana.toString().padStart(2, '0')}`;
-  }
-
-  // Getters para compatibilidad con template
-  get empleadosActivos(): number {
-    return this.estadisticas?.motosAsignadas || 0;
-  }
-
-  get motosOperativas(): number {
-    return this.estadisticas?.motosAsignadas || 0;
-  }
-
-  get totalRecaudado(): number {
-    return this.estadisticas?.totalRecaudadoSemana || 0;
-  }
-
-  get empleadosPendientes(): Usuario[] {
-    return this.conductoresPendientes;
-  }
-
-  // Métodos adicionales para métricas
   getMotosDisponiblesPorcentaje(): number {
-    const totalMotos = this.estadisticas?.totalMotos || 0;
-    const motosDisponibles = this.estadisticas?.motosDisponibles || 0;
-    return totalMotos > 0 ? Math.round((motosDisponibles / totalMotos) * 100) : 0;
+    const total = this.estadisticas?.totalMotos || 0;
+    const disp = this.estadisticas?.motosDisponibles || 0;
+    return total > 0 ? Math.round((disp / total) * 100) : 0;
   }
 
-  getPendientesPorcentaje(): number {
-    const totalConductores = this.estadisticas?.motosAsignadas || 0;
-    return totalConductores > 0 ? Math.round((this.conductoresPendientes.length / totalConductores) * 100) : 0;
-  }
-
-  getEficienciaPorcentaje(): number {
-    const totalConductores = this.estadisticas?.motosAsignadas || 0;
-    const conductoresPagados = totalConductores - this.conductoresPendientes.length;
-    return totalConductores > 0 ? Math.round((conductoresPagados / totalConductores) * 100) : 0;
-  }
-
-  getTotalAlertas(): number {
-    let alertas = 0;
-    if (this.conductoresPendientes.length > 0) alertas++;
-    // Aquí se pueden agregar más alertas en el futuro
-    return alertas;
-  }
-
-  // Métodos para mostrar estado de motos
   getEstadoClass(estado: string): string {
     switch (estado) {
       case 'disponible':
@@ -150,13 +96,18 @@ export class DashboardComponent implements OnInit {
       case 'disponible':
         return 'Disponible';
       case 'en_uso':
-        return 'En Uso';
+        return 'En uso';
       case 'en_mantenimiento':
         return 'Mantenimiento';
       case 'fuera_servicio':
-        return 'Fuera de Servicio';
+        return 'Fuera de servicio';
       default:
         return estado;
     }
+  }
+
+  conductorNombre(cobro: Cobro): string {
+    if (cobro.conductor) return `${cobro.conductor.nombre} ${cobro.conductor.apellido}`;
+    return 'Conductor';
   }
 }

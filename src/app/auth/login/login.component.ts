@@ -1,9 +1,8 @@
 import { Component } from '@angular/core';
-import { Router } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { UsuariosService } from '../../service/usuarios.service';
 import Swal from 'sweetalert2';
+import { AuthService, AuthResponse } from '../auth.service';
 
 @Component({
   selector: 'app-login',
@@ -17,8 +16,7 @@ export class LoginComponent {
   password: string = '';
   error: string = '';
 
-
-  constructor(private router: Router, private usuariosService: UsuariosService) {}
+  constructor(private authService: AuthService) {}
 
   onLogin() {
     if (!this.email || !this.password) {
@@ -26,46 +24,33 @@ export class LoginComponent {
       return;
     }
 
-    this.usuariosService.login(this.password, this.email).subscribe({
-      next: (usuario) => {
-        // Redirección basada en el rol obtenido de la base de datos
+    this.authService.login(this.email, this.password).subscribe({
+      next: (res: AuthResponse) => {
         Swal.fire({
           icon: 'success',
           title: 'Bienvenido',
-          text: `Has iniciado sesión como ${usuario.nombre}`,
+          text: `Has iniciado sesión como ${res.usuario.nombre}`,
           timer: 2000,
-          showConfirmButton: false
-        }).then(() => {
-          switch(usuario.rol) {
-            case 'administrador':
-            case 'asesor':
-              this.router.navigate(['/dashboard']);
-              break;
-            case 'empleado':
-              this.router.navigate(['/empleados']);
-              break;
-            default:
-              this.router.navigate(['/']); // Usuario normal a home
-              break;
-          }
-        });
+          showConfirmButton: false,
+        }).then(() => this.authService.redirectByRole(res.usuario.rol));
       },
-      error: (err) => {
-        console.error('Error en login:', err);
+      error: (err: any) => {
         this.error = 'Credenciales inválidas o error en el sistema';
         Swal.fire({
           icon: 'error',
           title: 'Error de inicio de sesión',
-          text: err.message || 'No se pudo iniciar sesión',
-          timer: 3000
+          text: err.error?.message || 'No se pudo iniciar sesión',
+          timer: 3000,
         });
-      }
+      },
     });
   }
+
   goToRegister() {
-    this.router.navigate(['register']);
+    window.location.href = '/register';
   }
+
   goHome() {
-    this.router.navigate(['']);
+    window.location.href = '/';
   }
 }

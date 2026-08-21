@@ -1,10 +1,9 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { PagosService } from '../../../service/pagos.service';
+import { PagosService, PagoManual } from '../../../service/pagos.service';
 import { MotosService } from '../../../service/motos.service';
-import { Pago } from '../../../shared/interfaces/pago';
-import { Usuario } from '../../../shared/interfaces/usuario';
+import { Moto } from '../../../shared/interfaces/moto';
 import Swal from 'sweetalert2';
 
 @Component({
@@ -12,192 +11,118 @@ import Swal from 'sweetalert2';
   standalone: true,
   imports: [CommonModule, FormsModule],
   templateUrl: './pagos.component.html',
-  styleUrl: './pagos.component.css'
+  styleUrl: './pagos.component.css',
 })
 export class PagosComponent implements OnInit {
-  pagos: Pago[] = [];
-  conductores: Usuario[] = [];
-  semanaSeleccionada: string = this.obtenerSemanaActual();
+  pagos: PagoManual[] = [];
+  motos: Moto[] = [];
   loading = false;
-  
-  // Custom Payment Modal
-  mostrarModalPago = false;
-  pagoSeleccionado: Pago | null = null;
-  datosPago = {
-    monto: 0,
+  mostrarModal = false;
+
+  form = {
+    motoId: '',
+    fechaPago: new Date().toISOString().slice(0, 10),
+    valorPagado: 0,
     gastos: 0,
     descripcionGasto: '',
     metodoPago: 'TRANSFERENCIA',
-    observaciones: ''
+    observaciones: '',
   };
 
   constructor(
     private pagosService: PagosService,
-    private motosService: MotosService
+    private motosService: MotosService,
   ) {}
 
   ngOnInit(): void {
-    this.loadPagos();
+    this.cargar();
+    this.motosService.getMotos().subscribe({ next: (m) => (this.motos = m) });
   }
 
-  loadPagos(): void {
+  cargar(): void {
     this.loading = true;
-    this.pagosService.getPagosBySemana(this.semanaSeleccionada).subscribe({
-      next: (pagos) => {
-        this.pagos = pagos;
+    this.pagosService.getPagos().subscribe({
+      next: (p) => {
+        this.pagos = p;
         this.loading = false;
       },
-      error: (error) => {
-        console.error('Error cargando pagos:', error);
+      error: (e) => {
         this.loading = false;
         Swal.fire({
           icon: 'error',
-          title: 'Error',
-          text: 'No se pudieron cargar los pagos'
+          title: 'No se pudieron cargar pagos',
+          text: e?.message || 'Ejecuta el SQL MDD completo',
         });
-      }
+      },
     });
   }
 
-  cambiarSemana(): void {
-    this.loadPagos();
+  get totalPagado(): number {
+    return this.pagos.reduce((s, p) => s + p.valorPagado, 0);
   }
 
-  abrirModalPago(pago: Pago): void {
-    this.pagoSeleccionado = pago;
-    this.datosPago = {
-      monto: pago.monto,
+  get totalGastos(): number {
+    return this.pagos.reduce((s, p) => s + p.gastos, 0);
+  }
+
+  motoSeleccionada(): Moto | undefined {
+    return this.motos.find((m) => m._id === this.form.motoId);
+  }
+
+  abrirModal(): void {
+    this.form = {
+      motoId: '',
+      fechaPago: new Date().toISOString().slice(0, 10),
+      valorPagado: 0,
       gastos: 0,
       descripcionGasto: '',
       metodoPago: 'TRANSFERENCIA',
-      observaciones: ''
+      observaciones: '',
     };
-    this.mostrarModalPago = true;
+    this.mostrarModal = true;
   }
 
-  cerrarModalPago(): void {
-    this.mostrarModalPago = false;
-    this.pagoSeleccionado = null;
+  onMotoChange(): void {
+    const m = this.motoSeleccionada();
+    if (m?.precioCobro) this.form.valorPagado = m.precioCobro;
   }
 
-  confirmarPago(): void {
-    if (!this.pagoSeleccionado) return;
-
-    if (this.datosPago.gastos > 0 && !this.datosPago.descripcionGasto) {
-      Swal.fire({
-        icon: 'error',
-        title: 'Error',
-        text: 'Debe ingresar la descripción del gasto',
-        toast: true,
-        position: 'top-end',
-        showConfirmButton: false,
-        timer: 3000
-      });
+  guardar(): void {
+    if (!this.form.motoId || !this.form.valorPagado) {
+      Swal.fire({ icon: 'warning', title: 'Elige MDD y valor pagado' });
       return;
     }
-
-    const payload: Partial<Pago> = {
-      monto: this.datosPago.monto,
-      gastos: this.datosPago.gastos,
-      descripcionGasto: this.datosPago.descripcionGasto,
-      metodoPago: this.datosPago.metodoPago,
-      observaciones: this.datosPago.observaciones,
-      pagado: true,
-      fechaPago: new Date()
-    };
-
-    this.pagosService.updatePago(this.pagoSeleccionado._id!, payload).subscribe({
-      next: (pagoActualizado) => {
-        const index = this.pagos.findIndex(p => p._id === pagoActualizado._id);
-        if (index !== -1) {
-          this.pagos[index] = pagoActualizado;
-        }
-        Swal.fire({
-          icon: 'success',
-          title: 'Pago registrado con éxito',
-          toast: true,
-          position: 'top-end',
-          showConfirmButton: false,
-          timer: 3000
-        });
-        this.cerrarModalPago();
-      },
-      error: (error) => {
-        console.error('Error registrando pago:', error);
-        Swal.fire({
-          icon: 'error',
-          title: 'Error',
-          text: 'No se pudo registrar el pago',
-          toast: true,
-          position: 'top-end',
-          showConfirmButton: false,
-          timer: 3000
-        });
-      }
-    });
-  }
-
-  generarPagosSemanales(): void {
-    Swal.fire({
-      title: '¿Generar pagos semanales?',
-      text: `¿Generar los pagos correspondientes para la semana ${this.semanaSeleccionada}?`,
-      icon: 'question',
-      showCancelButton: true,
-      confirmButtonColor: '#007bff',
-      cancelButtonColor: '#6c757d',
-      confirmButtonText: 'Sí, generar pagos',
-      cancelButtonText: 'Cancelar'
-    }).then((result) => {
-      if (result.isConfirmed) {
-        this.motosService.generarPagosSemanales(this.semanaSeleccionada).subscribe({
-          next: (pagosGenerados) => {
-            Swal.fire({
-              icon: 'success',
-              title: 'Pagos generados',
-              text: `Se generaron ${pagosGenerados.length} pagos para la semana ${this.semanaSeleccionada}`,
-              timer: 3000,
-              showConfirmButton: false
-            });
-            this.loadPagos(); // Recargar la lista
-          },
-          error: (error) => {
-            console.error('Error generando pagos:', error);
-            Swal.fire({
-              icon: 'error',
-              title: 'Error',
-              text: 'No se pudieron generar los pagos'
-            });
-          }
-        });
-      }
-    });
-  }
-
-  obtenerSemanaActual(): string {
-    const date = new Date();
-    const inicio = new Date(date.getFullYear(), 0, 1);
-    const dias = Math.floor((date.getTime() - inicio.getTime()) / (24 * 60 * 60 * 1000));
-    const semana = Math.ceil((dias + inicio.getDay() + 1) / 7);
-    return `${date.getFullYear()}-W${semana.toString().padStart(2, '0')}`;
-  }
-
-  getTotalPagado(): number {
-    return this.pagos
-      .filter(pago => pago.pagado)
-      .reduce((total, pago) => total + pago.monto, 0);
-  }
-
-  getTotalPendiente(): number {
-    return this.pagos
-      .filter(pago => !pago.pagado)
-      .reduce((total, pago) => total + pago.monto, 0);
-  }
-
-  getPagosPagados(): Pago[] {
-    return this.pagos.filter(pago => pago.pagado);
-  }
-
-  getPagosPendientes(): Pago[] {
-    return this.pagos.filter(pago => !pago.pagado);
+    const m = this.motoSeleccionada();
+    this.pagosService
+      .registrarManual({
+        motoId: this.form.motoId,
+        conductorId: m?.conductorId || null,
+        fechaPago: this.form.fechaPago,
+        valorPagado: Number(this.form.valorPagado),
+        gastos: Number(this.form.gastos) || 0,
+        descripcionGasto: this.form.descripcionGasto,
+        metodoPago: this.form.metodoPago,
+        observaciones: this.form.observaciones,
+      })
+      .subscribe({
+        next: () => {
+          this.mostrarModal = false;
+          this.cargar();
+          Swal.fire({
+            icon: 'success',
+            title: 'Pago registrado',
+            toast: true,
+            timer: 1500,
+            showConfirmButton: false,
+            position: 'top-end',
+          });
+        },
+        error: (e) =>
+          Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: e?.message || e?.error?.message || '',
+          }),
+      });
   }
 }

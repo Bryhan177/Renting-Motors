@@ -2,65 +2,43 @@
   <span class="text-2xl">☰</span>
 </button>
 <div class="flex h-screen flex-col md:flex-row">
-  <!-- SIDEBAR -->
   <aside
     [ngClass]="{
       'translate-x-0': showSidebar,
       '-translate-x-full': !showSidebar
     }"
-    class="fixed md:relative top-0 left-0 h-full w-64 bg-black text-white shadow-lg transform transition-transform duration-300 ease-in-out z-50 md:translate-x-0"
+    class="fixed md:relative top-0 left-0 h-full w-64 bg-gray-900 text-white shadow-lg transform transition-transform duration-300 ease-in-out z-50 md:translate-x-0"
   >
     <div class="flex items-center justify-center h-20 border-b border-gray-700">
-      <img
-        src="https://upload.wikimedia.org/wikipedia/commons/9/90/Logo-arbol-fondo-negro.jpg"
-        alt="Logo"
-        class="h-12 w-12 mr-2"
-      />
-      <span class="text-xl font-bold tracking-wide">Bryhan Stif</span>
+      <span class="text-xl font-bold tracking-wide">{{ userName }}</span>
     </div>
 
-    <!-- Botón de cerrar solo en móvil -->
-    <span
-      class="text-2xl cursor-pointer absolute top-6 right-3 md:hidden"
-      (click)="toggleSidebar()"
-    >
-    ☰
-    </span>
+    <span class="text-2xl cursor-pointer absolute top-6 right-3 md:hidden" (click)="toggleSidebar()">☰</span>
 
-    <!-- NAVEGACIÓN -->
-    <nav class="flex-1 py-8 px-4 space-y-2 cursor-pointer">
-      <a (click)="goDashboard()" routerLinkActive="bg-secondary text-white"
-        class="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-secondary transition"
-      >
-        <span>📊</span> <span>Dashboard</span>
+    <nav class="flex-1 py-6 px-4 space-y-1 cursor-pointer overflow-y-auto">
+      <a (click)="goDashboard()" class="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-gray-700 transition">
+        <span>Dashboard</span>
       </a>
-      <a (click)="goMotos()" routerLinkActive="bg-secondary text-white"
-        class="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-secondary transition"
-      >
-        <span>🛵</span> <span>Inventario Vehículos</span>
+      <a (click)="goMotos()" class="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-gray-700 transition">
+        <span>MDD</span>
       </a>
-      <a (click)="goUsuarios()" routerLinkActive="bg-secondary text-white"
-        class="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-secondary transition"
-      >
-        <span>🧑‍💼</span> <span>Usuarios</span>
+      <a (click)="goUsuarios()" class="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-gray-700 transition">
+        <span>Usuarios</span>
       </a>
-      <a (click)="goPagos()" routerLinkActive="bg-secondary text-white"
-        class="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-secondary transition"
-      >
-        <span>💰</span> <span>Pagos</span>
+      <a (click)="goPagos()" class="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-gray-700 transition">
+        <span>Pagos</span>
       </a>
-      <a class="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-secondary transition">
-          <span>🛠️</span><span>Mantenimientos</span>
+      <a (click)="goMantenimientos()" class="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-gray-700 transition">
+        <span>Mantenimientos</span>
       </a>
-      <a (click)="goHistorial()" routerLinkActive="bg-secondary text-white"
-        class="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-secondary transition"
-      >
-        <span>📜</span> <span>Historial Vehículo</span>
+      <a (click)="goFlujoCaja()" class="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-gray-700 transition">
+        <span>Flujo de caja</span>
       </a>
-      <a (click)="goDocumentacion()" routerLinkActive="bg-secondary text-white"
-        class="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-secondary transition"
-      >
-        <span>📄</span> <span (click)="goDocumentacion()">Documentación</span>
+      <a (click)="goHistorial()" class="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-gray-700 transition">
+        <span>Historial MDD</span>
+      </a>
+      <a (click)="goDocumentacion()" class="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-gray-700 transition">
+        <span>Documentación</span>
       </a>
     </nav>
 
@@ -69,7 +47,7 @@
         class="w-full flex items-center justify-center gap-2 bg-red-600 hover:bg-red-700 text-white py-2 rounded-lg transition"
         (click)="logout()"
       >
-        <span>🚪</span> <span>Cerrar sesión</span>
+        <span>Cerrar sesión</span>
       </button>
     </div>
   </aside>

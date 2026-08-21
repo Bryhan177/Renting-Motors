@@ -1,190 +1,98 @@
-<!-- home.component.html -->
- @if (VerInfo) {
- <div>
-
-   <div class="relative h-screen bg-cover bg-center flex flex-col md:flex-row">
-     <div class="absolute inset-0 gradient"></div>
-  <!-- Filtro oscuro -->
-
-  <!-- Contenedor del contenido -->
-  <div
-    class="relative z-10 flex flex-col md:flex-row items-center justify-center h-full text-white px-6 md:px-12 gap-6 w-full"
-  >
-    <!-- Imagen: primero en móviles, izquierda en grandes -->
-    <div class="w-full md:w-1/2 flex justify-center mb-6 md:mb-0">
-      <img
-        src="assets/images/log_fondo_negro.png"
-        alt="Logo"
-        class="w-3/4 md:w-full max-w-full md:max-w-full"
-      />
+<div class="home-page">
+  <!-- HERO: una composición — marca, headline, frase, CTAs, visual full-bleed -->
+  <section class="hero">
+    <div class="hero-media" aria-hidden="true">
+      <div class="hero-media-shift"></div>
+      <div class="hero-scrim"></div>
     </div>
 
-    <!-- Texto: debajo en móviles, derecha en grandes -->
-    <div class="w-full md:w-1/2 text-center md:text-left">
-      <h1 class="text-3xl md:text-5xl font-bold mb-4">
-        ¡Renting de Motos al Mejor Precio!
-      </h1>
-      <p class="text-lg md:text-xl mb-6">
-        Disfruta de las mejores motos sin preocuparte por la compra. ¡Solo
-        tienes que elegir la tuya!
+    <header class="hero-top">
+      <img src="assets/images/log_fondo_negro.png" alt="" class="hero-mark-img" />
+      <nav class="hero-nav">
+        <a routerLink="/login" class="nav-ghost">Entrar</a>
+        <a routerLink="/register" class="nav-solid">Registrarme</a>
+      </nav>
+    </header>
+
+    <div class="hero-copy">
+      <p class="brand-word">GoRenting</p>
+      <h1 class="hero-title">MDD listas para generar.</h1>
+      <p class="hero-lead">
+        Operamos Máquinas de Dinero: flota con contrato, cobro, depósito y mantenimiento en un solo flujo.
       </p>
-      <a
-        href="#"
-        class="bg-secondary hover:bg-blue-700 text-black py-3 px-6 rounded-lg shadow-md text-lg font-semibold transition duration-300"
-      >
-        ¡Ver Planes de Renting!
-      </a>
-    </div>
-  </div>
-</div>
-
-<section class="py-16 bg-white">
-  <div class="container mx-auto px-6">
-    <div class="grid md:grid-cols-2 gap-10">
-
-      <!-- 🛵 Rentar Moto -->
-      <div class="card">
-        <div class="content text-center">
-          <h2 class="text-2xl font-bold text-yellow-500 mb-4">🛵 Rentar una Moto</h2>
-          <p class="text-sm mb-2">
-            ¿Necesitas una moto para tus actividades diarias o trabajo?
-          </p>
-          <p class="text-sm mb-4">
-            Motos seguras, económicas y listas para rodar.
-          </p>
-
-          <ul class="text-left text-sm mb-4 list-disc list-inside">
-            <li>📍 Entrega rápida y cercana</li>
-            <li>🛠️ Mantenimiento incluido</li>
-            <li>🕒 Alquiler por días, semanas o meses</li>
-            <li>💳 Pago flexible</li>
-            <li>✅ Documentación al día</li>
-          </ul>
-
-          <button class="bg-yellow-500 hover:bg-blue-700 text-white py-2 px-4 rounded-lg shadow-md text-sm">
-            Ver Motos Disponibles
-          </button>
-        </div>
-      </div>
-
-      <!-- 🚗 Únete como Conductor -->
-      <div class="card">
-        <div class="content text-center">
-          <h2 class="text-2xl font-bold text-yellow-500 mb-4">🚗 Únete como Conductor</h2>
-          <p class="text-sm mb-2">
-            Gana dinero extra siendo parte de nuestro equipo.
-          </p>
-          <p class="text-sm mb-4">
-            Solo necesitas ganas y una moto 🚀
-          </p>
-
-          <ul class="text-left text-sm mb-4 list-disc list-inside">
-            <li>📅 Disponibilidad de horario</li>
-            <li>🪪 Licencia de conducir vigente</li>
-            <li>🏍️ Experiencia de conducción</li>
-            <li>🔧 Conocimiento básico de la moto</li>
-            <li>🛡️ Enfoque en la seguridad</li>
-          </ul>
-
-          <button class="bg-yellow-500 hover:bg-blue-700 text-white py-2 px-4 rounded-lg shadow-md text-sm">
-            ¡Aplica Ahora!
-          </button>
-        </div>
+      <div class="hero-cta">
+        <a routerLink="/register" class="btn-primary">Quiero ser conductor</a>
+        <button type="button" class="btn-ghost" (click)="whatsapp()">Hablar por WhatsApp</button>
       </div>
     </div>
-  </div>
-</section>
+  </section>
 
+  <!-- Una sección = un propósito: el modelo -->
+  <section class="section model">
+    <div class="section-inner">
+      <h2 class="section-title">Cómo trabajamos</h2>
+      <p class="section-lead">
+        Del contrato a la liquidación: entrega, cuota (semanal, quincenal o mensual), depósito y actas claras.
+      </p>
+      <ol class="steps">
+        <li>
+          <span class="step-n">01</span>
+          <strong>Te registras</strong>
+          <span>El equipo te asigna rol y valida tu perfil.</span>
+        </li>
+        <li>
+          <span class="step-n">02</span>
+          <strong>Te entregan una MDD</strong>
+          <span>Acta, SOAT, pico y placa y condiciones al día.</span>
+        </li>
+        <li>
+          <span class="step-n">03</span>
+          <strong>Operas y reportas pagos</strong>
+          <span>La asesora registra cobros, gastos y caja MDD.</span>
+        </li>
+      </ol>
+    </div>
+  </section>
 
-<!-- Sección de planes -->
-<!-- AQUI ME GUSTARIA CAMBIAR LOS PALNES POR 3 CARD DE MOTOS CON EL NOMBRE Y EL PRECIO DE ALQUILER POR DIA Y SEMANA -->
-<section id="planes" class="py-16 selection-bg-secondary">
-  <div class="container mx-auto px-6 text-center">
-    <h2 class="text-4xl font-bold text-white mb-10">
-      🏍️ Motos Disponibles para Renting
-    </h2>
-    <div class="list_motos">
-      <div *ngFor="let producto of productos" class="card_moto">
-        <!-- Card 1 -->
-        <div
-          class="bg-white rounded-2xl shadow-xl overflow-hidden hover:shadow-2xl transition duration-300"
-        >
-          <img
-            [src]="producto.img"
-            alt="Moto 1"
-            class="w-full h-56 object-cover"
-          />
-          <div class="p-6">
-            <h3 class="text-2xl font-semibold text-gray-800 mb-2">
-              {{ producto.nombre }}
-            </h3>
-            <p class="text-gray-600 mb-2">
-              💲 <strong>${{ producto.precio_dia }}/día</strong> | 💲
-              <strong>${{ producto.precio_semana }}/semana</strong>
-            </p>
-            <button (click)="whatsapp()"
-              class="mt-4 bg-secondary hover:bg-blue-700 text-white py-2 px-5 rounded-lg transition duration-300"
+  <!-- Flota disponible -->
+  <section class="section fleet" id="flota">
+    <div class="section-inner">
+      <h2 class="section-title">Flota disponible</h2>
+      <p class="section-lead">MDD en arriendo o liquidación, listas para asignar.</p>
+
+      <div *ngIf="mdds.length === 0" class="fleet-empty">
+        Pronto verás aquí las MDD disponibles. Mientras tanto, regístrate o escríbenos.
+      </div>
+
+      <ul class="fleet-list" *ngIf="mdds.length > 0">
+        <li *ngFor="let m of mdds" class="fleet-item">
+          <div class="fleet-photo">
+            <img *ngIf="m.imagen" [src]="m.imagen" [alt]="m.placa" />
+            <div *ngIf="!m.imagen" class="fleet-photo-fallback">MDD</div>
+            <span
+              class="fleet-tag"
+              [class.tag-arriendo]="m.modalidad !== 'liquidacion'"
+              [class.tag-liq]="m.modalidad === 'liquidacion'"
             >
-              ¡La Quiero!
-            </button>
+              {{ m.modalidad === 'liquidacion' ? 'Liquidación' : 'Arriendo' }}
+            </span>
           </div>
-        </div>
+          <div class="fleet-meta">
+            <h3>{{ m.marca }} {{ m.modelo }}</h3>
+            <p class="placa">{{ m.placa }}</p>
+            <p class="precio" *ngIf="m.precioCobro">Cuota desde $ {{ m.precioCobro | number }}</p>
+          </div>
+        </li>
+      </ul>
+
+      <div class="fleet-cta">
+        <a routerLink="/register" class="btn-primary">Crear cuenta de conductor</a>
       </div>
     </div>
-  </div>
-</section>
+  </section>
 
-<!-- Fin sección de planes -->
-<div class="w-full bg-black py-16 overflow-hidden flex flex-col items-center">
-  <!-- Fila 1 -->
-  <div class="flex gap-8 animate-left">
-    <div *ngFor="let t of testimonios" class="group relative w-[380px]">
-      <div
-        class="relative overflow-hidden rounded-2xl bg-black shadow-2xl transition-all duration-300 hover:-translate-y-1 hover:shadow-indigo-500/10"
-      >
-        <!-- Glow top-left -->
-        <div
-          class="absolute -left-16 -top-16 h-32 w-32 rounded-full bg-gradient-to-br from-yellow-500 to-purple-500/0 blur-2xl transition-all duration-500 group-hover:scale-150 group-hover:opacity-70"
-        ></div>
-        <!-- Glow bottom-right -->
-        <div
-          class="absolute -right-16 -bottom-16 h-32 w-32 rounded-full bg-gradient-to-br from-yellow-500 to-indigo-500/0 blur-2xl transition-all duration-500 group-hover:scale-150 group-hover:opacity-70"
-        ></div>
-
-        <!-- Contenido -->
-        <div class="relative p-6">
-          <h3 class="text-xl font-semibold text-white">{{ t.titulo }}</h3>
-          <p class="mt-2 text-slate-400">{{ t.comentario }}</p>
-          <p class="mt-4 text-sm text-slate-500">— {{ t.nombre }}</p>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Fila 2 -->
-  <div class="flex gap-8 animate-right mt-12">
-    <div *ngFor="let t of testimonios" class="group relative w-[380px]">
-      <div
-        class="relative overflow-hidden rounded-2xl bg-black shadow-2xl transition-all duration-300 hover:-translate-y-1 hover:shadow-indigo-500/10"
-      >
-        <div
-          class="absolute -left-16 -top-16 h-32 w-32 rounded-full bg-gradient-to-br from-yellow-500 to-purple-500/0 blur-2xl transition-all duration-500 group-hover:scale-150 group-hover:opacity-70"
-        ></div>
-        <div
-          class="absolute -right-16 -bottom-16 h-32 w-32 rounded-full bg-gradient-to-br from-yellow-500 to-indigo-500/0 blur-2xl transition-all duration-500 group-hover:scale-150 group-hover:opacity-70"
-        ></div>
-
-        <div class="relative p-6">
-          <h3 class="text-xl font-semibold text-white">{{ t.titulo }}</h3>
-          <p class="mt-2 text-slate-400">{{ t.comentario }}</p>
-          <p class="mt-4 text-sm text-slate-500">— {{ t.nombre }}</p>
-        </div>
-      </div>
-    </div>
-  </div>
+  <footer class="home-footer">
+    <p class="brand-word footer-brand">GoRenting</p>
+    <p>MDD · control de flota, cobros y documentación</p>
+  </footer>
 </div>
-
-</div>
-}
-
-

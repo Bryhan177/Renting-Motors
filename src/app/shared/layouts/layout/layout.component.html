@@ -1,10 +1,18 @@
-<app-header></app-header>
-<div class="flex">
-  <ng-container *ngIf="showSidebar()">
-    <app-sidebar></app-sidebar>
-  </ng-container>
-  <main class="flex-1 p-4 fondo">
+<ng-container *ngIf="isPublicShell(); else appShell">
+  <main class="min-h-screen bg-[#0c0e10]">
     <router-outlet></router-outlet>
   </main>
-</div>
-<app-footer></app-footer>
+</ng-container>
+
+<ng-template #appShell>
+  <app-header></app-header>
+  <div class="flex">
+    <ng-container *ngIf="showSidebar()">
+      <app-sidebar></app-sidebar>
+    </ng-container>
+    <main class="flex-1 p-4 fondo">
+      <router-outlet></router-outlet>
+    </main>
+  </div>
+  <app-footer></app-footer>
+</ng-template>

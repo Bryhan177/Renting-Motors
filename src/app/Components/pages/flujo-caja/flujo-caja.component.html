@@ -1,0 +1,67 @@
+<div class="min-h-screen bg-gray-900 text-white p-6 rounded-xl">
+  <div class="flex justify-between items-center mb-8 gap-4 flex-wrap">
+    <div>
+      <h1 class="text-3xl font-bold text-white">Flujo de caja</h1>
+      <p class="text-gray-300 mt-1">Bancos: MDD (operación) y Ahorro MDD</p>
+    </div>
+    <button (click)="abrir()" class="bg-blue-600 hover:bg-blue-500 text-white py-2.5 px-5 rounded-lg">Nuevo movimiento</button>
+  </div>
+
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+    <div class="bg-gray-800 border border-emerald-700/40 rounded-xl p-6">
+      <h3 class="text-lg font-bold text-emerald-300 mb-3">Banco MDD</h3>
+      <p class="text-sm text-gray-300">Ingresos $ {{ (bancoResumen('mdd')?.ingresos || 0) | number }}</p>
+      <p class="text-sm text-gray-300">Egresos $ {{ (bancoResumen('mdd')?.egresos || 0) | number }}</p>
+      <p class="text-3xl font-bold text-white mt-2">Saldo $ {{ (bancoResumen('mdd')?.saldo || 0) | number }}</p>
+    </div>
+    <div class="bg-gray-800 border border-cyan-700/40 rounded-xl p-6">
+      <h3 class="text-lg font-bold text-cyan-300 mb-3">Ahorro MDD</h3>
+      <p class="text-sm text-gray-300">Ingresos $ {{ (bancoResumen('ahorro_mdd')?.ingresos || 0) | number }}</p>
+      <p class="text-sm text-gray-300">Egresos $ {{ (bancoResumen('ahorro_mdd')?.egresos || 0) | number }}</p>
+      <p class="text-3xl font-bold text-white mt-2">Saldo $ {{ (bancoResumen('ahorro_mdd')?.saldo || 0) | number }}</p>
+    </div>
+  </div>
+
+  <div class="flex gap-2 mb-4">
+    <button (click)="filtroBanco=''; cargar()" [class.bg-blue-600]="!filtroBanco" class="px-3 py-1.5 rounded-lg text-sm bg-gray-800 text-white">Todos</button>
+    <button (click)="filtroBanco='mdd'; cargar()" [class.bg-blue-600]="filtroBanco==='mdd'" class="px-3 py-1.5 rounded-lg text-sm bg-gray-800 text-white">MDD</button>
+    <button (click)="filtroBanco='ahorro_mdd'; cargar()" [class.bg-blue-600]="filtroBanco==='ahorro_mdd'" class="px-3 py-1.5 rounded-lg text-sm bg-gray-800 text-white">Ahorro MDD</button>
+  </div>
+
+  <div class="space-y-2">
+    <div *ngFor="let m of movimientos" class="bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 flex justify-between gap-3">
+      <div>
+        <p class="font-medium text-white">{{ m.descripcion || 'Movimiento' }}</p>
+        <p class="text-xs text-gray-400">{{ labelBanco(m.banco) }} · {{ m.fecha | date:'mediumDate' }} <span *ngIf="m.motoPlaca">· {{ m.motoPlaca }}</span></p>
+      </div>
+      <p class="font-bold" [class.text-emerald-300]="m.tipo==='ingreso'" [class.text-red-300]="m.tipo==='egreso'">
+        {{ m.tipo === 'ingreso' ? '+' : '-' }} $ {{ m.monto | number }}
+      </p>
+    </div>
+  </div>
+</div>
+
+<div *ngIf="mostrarModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
+  <div class="bg-gray-800 rounded-2xl w-full max-w-md border border-gray-600 text-white p-5 space-y-3">
+    <h3 class="text-xl font-bold">Movimiento de caja</h3>
+    <select [(ngModel)]="form.banco" class="w-full bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-white">
+      <option value="mdd">Banco MDD</option>
+      <option value="ahorro_mdd">Ahorro MDD</option>
+    </select>
+    <select [(ngModel)]="form.tipo" class="w-full bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-white">
+      <option value="ingreso">Ingreso</option>
+      <option value="egreso">Egreso</option>
+    </select>
+    <input type="number" [(ngModel)]="form.monto" placeholder="Monto" class="w-full bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-white">
+    <input type="date" [(ngModel)]="form.fecha" class="w-full bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-white">
+    <select [(ngModel)]="form.motoId" class="w-full bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-white">
+      <option [ngValue]="null">Sin MDD</option>
+      <option *ngFor="let m of motos" [value]="m._id">{{ m.placa }}</option>
+    </select>
+    <input [(ngModel)]="form.descripcion" placeholder="Descripción" class="w-full bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-white">
+    <div class="flex justify-end gap-2">
+      <button (click)="mostrarModal=false" class="px-4 py-2">Cancelar</button>
+      <button (click)="guardar()" class="px-4 py-2 bg-blue-600 rounded-lg">Guardar</button>
+    </div>
+  </div>
+</div>

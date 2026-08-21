@@ -12,6 +12,7 @@ export interface Pago {
   descripcionGasto?: string;
   metodoPago?: string;
   observaciones?: string;
+  comprobanteImagen?: string | null;
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -35,4 +36,5 @@ export interface CreatePagoPayload {
   descripcionGasto?: string;
   metodoPago?: string;
   observaciones?: string;
+  comprobanteImagen?: string;
 }

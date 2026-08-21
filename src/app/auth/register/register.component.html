@@ -1,85 +1,69 @@
-<section class="min-h-screen flex items-center justify-center bg-gradient-to-tr from-gray-900 to-secondary px-4">
-  <div class="bg-black rounded-2xl shadow-2xl w-full max-w-7xl p-6 md:p-12 animate-fade-in">
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
+<section class="min-h-screen flex items-center justify-center bg-[#0c0e10] px-4 py-10">
+  <div class="w-full max-w-5xl grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
+    <div class="bg-[#15191e] border border-white/10 rounded-2xl p-6 md:p-8 text-white">
+      <p class="font-[family-name:var(--font-brand)] text-3xl tracking-wide mb-1" style="font-family: 'Bebas Neue', Impact, sans-serif">GoRenting</p>
+      <h2 class="text-2xl font-semibold text-white mb-1">Registro de conductor</h2>
+      <p class="text-sm text-gray-400 mb-6">
+        El rol lo asigna después un administrador o asesor en el panel. Aquí entras como conductor.
+      </p>
 
-      <!-- Formulario -->
-      <div>
-        <h2 class="text-3xl font-bold text-white text-center md:text-left">Crea tu cuenta 📝</h2>
-        <p class="text-white text-sm mb-6 text-center md:text-left">Únete a nuestra comunidad de conductores y arrendatarios</p>
+      <form (ngSubmit)="agregarUsuario()" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <label class="block text-sm text-gray-300 mb-1">Nombre</label>
+          <input name="nombre" [(ngModel)]="nuevoUsuario.nombre" class="field" placeholder="Nombre" />
+        </div>
+        <div>
+          <label class="block text-sm text-gray-300 mb-1">Apellido</label>
+          <input name="apellido" [(ngModel)]="nuevoUsuario.apellido" class="field" placeholder="Apellido" />
+        </div>
+        <div class="sm:col-span-2">
+          <label class="block text-sm text-gray-300 mb-1">Correo</label>
+          <input type="email" name="email" [(ngModel)]="nuevoUsuario.email" class="field" placeholder="correo@gmail.com" />
+        </div>
+        <div>
+          <label class="block text-sm text-gray-300 mb-1">Cédula</label>
+          <input type="number" name="cedula" [(ngModel)]="nuevoUsuario.cedula" class="field" placeholder="1234567890" />
+        </div>
+        <div>
+          <label class="block text-sm text-gray-300 mb-1">Edad</label>
+          <input type="number" name="edad" [(ngModel)]="nuevoUsuario.edad" class="field" placeholder="25" min="18" max="90" />
+        </div>
+        <div class="sm:col-span-2">
+          <label class="block text-sm text-gray-300 mb-1">Teléfono</label>
+          <input type="tel" name="telefono" [(ngModel)]="nuevoUsuario.telefono" class="field" placeholder="3001234567" />
+        </div>
+        <div>
+          <label class="block text-sm text-gray-300 mb-1">Contraseña</label>
+          <input type="password" name="password" [(ngModel)]="nuevoUsuario.password" class="field" placeholder="••••••••" />
+        </div>
+        <div>
+          <label class="block text-sm text-gray-300 mb-1">Confirmar</label>
+          <input type="password" name="confirmPassword" [(ngModel)]="nuevoUsuario.confirmPassword" class="field" placeholder="••••••••" />
+        </div>
 
-        <form (ngSubmit)="agregarUsuario()" class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label class="block text-white font-medium">Nombre</label>
-            <input type="text" name="nombre" [(ngModel)]="nuevoUsuario.nombre" placeholder="Bryhan"
-              class="w-full px-4 py-2 mt-1 border border-gray-300 rounded-lg focus:ring-2 focus:ring-secondary focus:outline-none" />
-          </div>
+        <div class="sm:col-span-2 flex items-center gap-2">
+          <input name="activo" type="checkbox" [(ngModel)]="nuevoUsuario.activo" class="accent-amber-500" />
+          <label class="text-sm text-gray-300">Acepto términos y condiciones</label>
+        </div>
 
-          <div>
-            <label class="block text-white font-medium">Apellido</label>
-            <input type="text" name="apellido" [(ngModel)]="nuevoUsuario.apellido" placeholder="Andrade"
-              class="w-full px-4 py-2 mt-1 border border-gray-300 rounded-lg focus:ring-2 focus:ring-secondary focus:outline-none" />
-          </div>
+        <div class="sm:col-span-2">
+          <button type="submit" class="w-full bg-amber-500 hover:bg-amber-600 text-[#14110a] font-semibold py-2.5 rounded-lg transition">
+            Registrarme
+          </button>
+        </div>
+      </form>
 
-          <div>
-            <label class="block text-white font-medium">Correo Electrónico</label>
-            <input type="email" name="email" [(ngModel)]="nuevoUsuario.email" placeholder="tucorreo@gmail.com"
-              class="w-full px-4 py-2 mt-1 border border-gray-300 rounded-lg focus:ring-2 focus:ring-secondary focus:outline-none" />
-          </div>
+      <p class="text-center text-sm text-gray-400 mt-5">
+        ¿Ya tienes cuenta?
+        <a routerLink="/login" class="text-amber-400 hover:underline cursor-pointer">Inicia sesión</a>
+      </p>
+    </div>
 
-          <div>
-            <label class="block text-white font-medium">Cedula</label>
-            <input type="number" name="cedula" [(ngModel)]="nuevoUsuario.cedula" placeholder="1234567890"
-              class="w-full px-4 py-2 mt-1 border border-gray-300 rounded-lg focus:ring-2 focus:ring-secondary focus:outline-none" />
-          </div>
-          <div>
-            <label class="block text-white font-medium">Teléfono</label>
-            <input type="tel" name="telefono" [(ngModel)]="nuevoUsuario.telefono" placeholder="3001234567"
-              class="w-full px-4 py-2 mt-1 border border-gray-300 rounded-lg focus:ring-2 focus:ring-secondary focus:outline-none" />
-          </div>
-          <div>
-            <label class="block text-white font-medium">Rol</label>
-            <select name="rol" [(ngModel)]="nuevoUsuario.rol" class="w-full px-4 py-2 mt-1 border border-gray-300 rounded-lg focus:ring-2 focus:ring-secondary focus:outline-none">
-              <option value="administrador">Administrador</option>
-              <option value="asesor">Asesor</option>
-              <option value="usuario">Usuario</option>
-              <option value="empleado">Empleado</option>
-            </select>
-          </div>
-
-          <div class="md:col-span-2">
-            <label class="block text-white font-medium">Contraseña</label>
-            <input type="password" name="password" [(ngModel)]="nuevoUsuario.password" placeholder="••••••••"
-              class="w-full px-4 py-2 mt-1 border border-gray-300 rounded-lg focus:ring-2 focus:ring-secondary focus:outline-none" />
-          </div>
-
-          <div class="md:col-span-2">
-            <label class="block text-white font-medium">Confirmar Contraseña</label>
-            <input type="password" name="confirmPassword" [(ngModel)]="nuevoUsuario.confirmPassword" placeholder="••••••••"
-              class="w-full px-4 py-2 mt-1 border border-gray-300 rounded-lg focus:ring-2 focus:ring-secondary focus:outline-none" />
-          </div>
-
-          <div class="md:col-span-2 flex items-center gap-2">
-            <input name="activo" [(ngModel)]="nuevoUsuario.activo" type="checkbox" class="text-secondary">
-            <label class="text-sm text-white">Acepto los <a href="#" class="text-secondary underline">Términos y Condiciones</a></label>
-          </div>
-
-          <div class="md:col-span-2">
-            <button type="submit"
-              class="w-full bg-secondary hover:text-white text-black py-2 px-4 rounded-lg font-semibold transition duration-300">
-              Registrarme
-            </button>
-          </div>
-        </form>
-
-        <p class="text-center text-white text-sm mt-4">¿Ya tienes cuenta?
-          <a (click)="goToLogin()" class="text-secondary font-medium hover:underline cursor-pointer">Inicia sesión</a>
-        </p>
-      </div>
-
-      <!-- Imagen (solo visible en pantallas grandes) -->
-      <div class="hidden md:block">
-        <img src="assets/images/log_fondo_negro.png" alt="Logo" class="w-full h-auto max-h-[600px] object-contain mx-auto">
-      </div>
+    <div class="hidden md:flex flex-col items-center justify-center text-center px-4">
+      <img src="assets/images/log_fondo_negro.png" alt="GoRenting" class="w-full max-w-md object-contain opacity-90 mb-6" />
+      <p class="text-gray-400 text-sm max-w-sm">
+        Regístrate para operar una MDD. El equipo te asignará contrato, flota y, si aplica, un rol distinto en Usuarios.
+      </p>
     </div>
   </div>
 </section>

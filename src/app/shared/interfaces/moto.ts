@@ -1,15 +1,30 @@
 import { Usuario } from './usuario';
 
+export type ModalidadMdd = 'arriendo' | 'liquidacion';
+
 export interface Moto {
   _id?: string;
+  /** Alias de negocio: Máquina de Dinero */
+  codigo?: string;
   marca: string;
   modelo: string;
   placa: string;
-  precio: number; // Precio de alquiler diario en COP
+  /** Valor de compra / lo que valió la moto */
+  precio: number;
+  precioCompra?: number;
+  /** Cuánto se le cobra al conductor (cuota) */
+  precioCobro?: number;
+  soat?: string | null;
+  tecnomecanica?: string | null;
+  aceite?: string | null;
+  transitoMatricula?: string | null;
+  fechaIngreso?: string | null;
+  picoYPlaca?: string | null;
+  modalidad?: ModalidadMdd;
   estado: 'disponible' | 'en_uso' | 'en_mantenimiento' | 'fuera_servicio';
-  conductorId?: string | null; // Conductor asignado
-  conductor?: Usuario; // Información del conductor (populate)
-  createdAt?: Date;
-  updatedAt?: Date;
+  conductorId?: string | null;
+  conductor?: Usuario;
+  imagen?: string;
+  createdAt?: Date | string;
+  updatedAt?: Date | string;
 }
-

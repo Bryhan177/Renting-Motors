@@ -1,230 +1,324 @@
-<div class="min-h-screen bg-gray-900 text-white p-6 rounded-xl relative">
-  
-  <!-- Encabezado y Acciones -->
+﻿<div class="min-h-screen bg-gray-900 text-white p-6 rounded-xl relative">
   <div class="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
     <div>
-      <h1 class="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-emerald-400">
-        Inventario de Motos
-      </h1>
-      <p class="text-gray-400 mt-1">Gestiona tu flota, asignaciones y mantenimientos</p>
+      <h1 class="text-3xl font-bold text-white">Inventario MDD</h1>
+      <p class="text-gray-300 mt-1">Máquinas de Dinero · Contrato → Entrega → Operación → Devolución</p>
     </div>
-    <div class="flex gap-3">
-        <!-- Filtro (placeholder) -->
-        <div class="relative hidden sm:block">
-            <input type="text" placeholder="Buscar placa o modelo..." 
-                class="bg-gray-800 border border-gray-700 text-white text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-64 p-2.5 pl-10" />
-            <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-                <svg class="w-4 h-4 text-gray-400" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 20">
-                    <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m19 19-4-4m0-7A7 7 0 1 1 1 8a7 7 0 0 1 14 0Z"/>
-                </svg>
-            </div>
-        </div>
-
-        <button (click)="abrirModal()" 
-            class="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 px-5 rounded-lg transition shadow-lg shadow-blue-500/20">
-            <span>➕</span> Nueva Moto
-        </button>
-    </div>
+    <button (click)="abrirModal()" class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 px-5 rounded-lg">Nueva MDD</button>
   </div>
 
-  <!-- Stats Resumen Rápido -->
   <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-      <div class="bg-gray-800 p-4 rounded-xl border border-gray-700 flex items-center gap-3">
-          <div class="p-2 bg-blue-500/10 rounded-lg text-blue-400 font-bold text-xl">🛵</div>
-          <div>
-              <p class="text-xs text-gray-400">Total Flota</p>
-              <p class="text-lg font-bold text-white">{{ motos.length }}</p>
-          </div>
-      </div>
-      <div class="bg-gray-800 p-4 rounded-xl border border-gray-700 flex items-center gap-3">
-          <div class="p-2 bg-green-500/10 rounded-lg text-green-400 font-bold text-xl">✅</div>
-          <div>
-              <p class="text-xs text-gray-400">Disponibles</p>
-              <p class="text-lg font-bold text-white">{{ countMotosByState('disponible') }}</p>
-          </div>
-      </div>
-      <div class="bg-gray-800 p-4 rounded-xl border border-gray-700 flex items-center gap-3">
-          <div class="p-2 bg-yellow-500/10 rounded-lg text-yellow-400 font-bold text-xl">🛠️</div>
-          <div>
-              <p class="text-xs text-gray-400">En Taller</p>
-              <p class="text-lg font-bold text-white">{{ countMotosByState('en_mantenimiento') }}</p>
-          </div>
-      </div>
-       <div class="bg-gray-800 p-4 rounded-xl border border-gray-700 flex items-center gap-3">
-          <div class="p-2 bg-blue-500/10 rounded-lg text-blue-400 font-bold text-xl">🚀</div>
-          <div>
-              <p class="text-xs text-gray-400">En Uso</p>
-              <p class="text-lg font-bold text-white">{{ countMotosByState('en_uso') }}</p>
-          </div>
-      </div>
+    <div class="bg-gray-800 p-4 rounded-xl border border-gray-700"><p class="text-xs text-gray-300">Total</p><p class="text-lg font-bold text-white">{{ motos.length }}</p></div>
+    <div class="bg-gray-800 p-4 rounded-xl border border-gray-700"><p class="text-xs text-gray-300">Disponibles</p><p class="text-lg font-bold text-white">{{ countMotosByState('disponible') }}</p></div>
+    <div class="bg-gray-800 p-4 rounded-xl border border-gray-700"><p class="text-xs text-gray-300">En taller</p><p class="text-lg font-bold text-white">{{ countMotosByState('en_mantenimiento') }}</p></div>
+    <div class="bg-gray-800 p-4 rounded-xl border border-gray-700"><p class="text-xs text-gray-300">En uso</p><p class="text-lg font-bold text-white">{{ countMotosByState('en_uso') }}</p></div>
   </div>
 
-  <!-- Grid de Motos -->
   <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-    <div *ngFor="let moto of motos" 
-         class="bg-gray-800 rounded-xl overflow-hidden shadow-lg border border-gray-700 hover:border-gray-500 transition group relative">
-      
-      <!-- Badge de Estado -->
-      <div class="absolute top-3 right-3 z-10">
-          <span [class]="'px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider backdrop-blur-md ' + getEstadoClass(moto.estado)">
-              {{ getEstadoText(moto.estado) }}
-          </span>
+    <div *ngFor="let moto of motos" class="bg-gray-800 rounded-xl overflow-hidden border border-gray-700 relative">
+      <div class="absolute top-3 right-3 z-10 flex flex-col gap-1 items-end">
+        <span
+          class="px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wide text-white"
+          [class.bg-emerald-600]="moto.modalidad !== 'liquidacion'"
+          [class.bg-violet-600]="moto.modalidad === 'liquidacion'"
+        >
+          {{ moto.modalidad === 'liquidacion' ? 'Liquidación' : 'Arriendo' }}
+        </span>
+        <span [class]="'px-3 py-1 rounded-full text-xs font-bold uppercase ' + getEstadoClass(moto.estado)">{{ getEstadoText(moto.estado) }}</span>
       </div>
-
-      <!-- Imagen / Icono Placeholder -->
-      <div class="h-40 bg-gray-900 flex items-center justify-center relative overflow-hidden group-hover:scale-105 transition duration-500">
-          <span class="text-6xl opacity-20 group-hover:opacity-40 transition">🏍️</span>
-          <div class="absolute bottom-0 left-0 w-full h-1/2 bg-gradient-to-t from-gray-900 to-transparent"></div>
-          <p class="absolute bottom-2 left-4 text-2xl font-black text-white tracking-widest">{{ moto.placa }}</p>
+      <div class="h-40 bg-gray-900 flex items-center justify-center relative">
+        <img *ngIf="moto.imagen" [src]="moto.imagen" class="w-full h-full object-cover" alt="mdd">
+        <span *ngIf="!moto.imagen" class="text-5xl text-white opacity-40">MDD</span>
+        <p class="absolute bottom-2 left-4 text-2xl font-black tracking-widest text-white drop-shadow">{{ moto.placa }}</p>
       </div>
-
-      <!-- Contenido -->
       <div class="p-5">
-          <h3 class="text-lg font-bold text-white mb-1">{{ moto.marca }} {{ moto.modelo }}</h3>
-          <p class="text-green-400 font-bold text-xl mb-4">${{ moto.precio | number }} <span class="text-xs text-gray-500 font-normal">/día</span></p>
-          
-          <!-- Info Conductor -->
-          <div class="bg-gray-900/50 rounded-lg p-3 mb-4 flex items-center gap-3 border border-gray-700/50">
-              <div class="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center text-sm">
-                  {{ moto.conductor ? '👤' : '❓' }}
-              </div>
-              <div class="flex-1 overflow-hidden">
-                  <p class="text-xs text-gray-400">Conductor Asignado</p>
-                  <p class="text-sm font-medium text-white truncate">
-                      {{ moto.conductor ? moto.conductor.nombre + ' ' + moto.conductor.apellido : 'Sin asignar' }}
-                  </p>
-              </div>
-              <button *ngIf="moto.conductor" (click)="removerConductor(moto._id!)" 
-                      class="text-red-400 hover:text-red-300 hover:bg-red-500/10 p-1 rounded transition" title="Desvincular">
-                  🚫
-              </button>
-          </div>
-
-          <!-- Acciones -->
-          <div class="grid grid-cols-2 gap-2">
-              <button *ngIf="!moto.conductor" (click)="abrirModalAsignar(moto)" 
-                      class="col-span-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium py-2 rounded-lg transition flex items-center justify-center gap-2">
-                  <span>🔑</span> Asignar
-              </button>
-              
-              <button (click)="abrirModal(moto)" 
-                      class="bg-gray-700 hover:bg-gray-600 text-white text-sm font-medium py-2 rounded-lg transition border border-gray-600">
-                  ✏️ Editar
-              </button>
-              <button (click)="eliminarMoto(moto._id!)" 
-                      class="bg-red-500/10 hover:bg-red-500/20 text-red-500 text-sm font-medium py-2 rounded-lg transition border border-red-500/20">
-                  🗑️ Eliminar
-              </button>
-          </div>
+        <h3 class="text-lg font-bold mb-1 text-white">{{ moto.marca }} {{ moto.modelo }}</h3>
+        <p class="text-green-300 font-bold text-lg">Compra $ {{ (moto.precioCompra || moto.precio) | number }}</p>
+        <p class="text-blue-300 text-sm mb-2">Cobro conductor $ {{ (moto.precioCobro || 0) | number }}</p>
+        <p class="text-xs text-gray-300 mb-3" *ngIf="moto.picoYPlaca">Pico y placa: {{ moto.picoYPlaca }}</p>
+        <div class="bg-gray-900/80 rounded-lg p-3 mb-4 border border-gray-600">
+          <p class="text-xs text-gray-300">Conductor</p>
+          <p class="text-sm truncate text-white">{{ moto.conductor ? moto.conductor.nombre + ' ' + moto.conductor.apellido : 'Sin asignar' }}</p>
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <button *ngIf="!moto.conductor && moto.estado === 'disponible'" (click)="abrirModalAsignar(moto)"
+                  class="col-span-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm py-2 rounded-lg">Entregar / Contrato</button>
+          <button *ngIf="moto.estado === 'en_uso'" (click)="abrirDevolver(moto)" class="bg-orange-600 text-white text-sm py-2 rounded-lg">Devolver</button>
+          <button (click)="abrirDeposito(moto)" class="bg-amber-600 text-white text-sm py-2 rounded-lg"
+                  [class.col-span-2]="moto.estado !== 'en_uso'">Depósito</button>
+          <button (click)="abrirModal(moto)" class="bg-gray-600 hover:bg-gray-500 text-white text-sm py-2 rounded-lg">Editar</button>
+          <button (click)="eliminarMoto(moto._id!)" class="bg-red-700 hover:bg-red-600 text-white text-sm py-2 rounded-lg">Eliminar</button>
+        </div>
       </div>
     </div>
   </div>
+</div>
 
-  <!-- Empty State -->
-  <div *ngIf="motos.length === 0" class="text-center py-20">
-      <div class="text-6xl mb-4">🏍️</div>
-      <h3 class="text-xl font-bold text-white">No hay motos registradas</h3>
-      <p class="text-gray-400 mb-6">Comienza agregando una nueva moto a tu flota.</p>
-      <button (click)="abrirModal()" class="bg-blue-600 text-white px-6 py-2 rounded-lg">Agregar Moto</button>
+<!-- Modal MDD -->
+<div *ngIf="modalVisible" class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
+  <div class="bg-gray-800 rounded-2xl w-full max-w-2xl border border-gray-600 text-white max-h-[92vh] flex flex-col">
+    <div class="p-5 border-b border-gray-600 flex justify-between">
+      <h3 class="text-xl font-bold text-white">{{ isEditing ? 'Editar MDD' : 'Nueva MDD' }}</h3>
+      <button (click)="cerrarModal()" class="text-2xl text-white">&times;</button>
+    </div>
+    <div class="p-5 space-y-3 overflow-y-auto">
+      <div class="grid grid-cols-2 gap-3">
+        <input [(ngModel)]="motoForm.marca" placeholder="Marca" class="bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-white placeholder:text-gray-400">
+        <input [(ngModel)]="motoForm.modelo" placeholder="Modelo" class="bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-white placeholder:text-gray-400">
+        <input [(ngModel)]="motoForm.placa" placeholder="Placa" class="bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-white uppercase placeholder:text-gray-400">
+        <select [(ngModel)]="motoForm.modalidad" class="bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-white">
+          <option value="arriendo">Arriendo</option>
+          <option value="liquidacion">Liquidación</option>
+        </select>
+        <div>
+          <label class="text-xs text-gray-300">Precio compra (valió la moto)</label>
+          <input type="number" [(ngModel)]="motoForm.precioCompra" class="w-full bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-white">
+        </div>
+        <div>
+          <label class="text-xs text-gray-300">Cobro al conductor</label>
+          <input type="number" [(ngModel)]="motoForm.precioCobro" class="w-full bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-white">
+        </div>
+        <div>
+          <label class="text-xs text-gray-300">SOAT (vencimiento)</label>
+          <input type="date" [(ngModel)]="motoForm.soat" class="w-full bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-white">
+        </div>
+        <div>
+          <label class="text-xs text-gray-300">Tecnomecánica</label>
+          <input type="date" [(ngModel)]="motoForm.tecnomecanica" class="w-full bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-white">
+        </div>
+        <input [(ngModel)]="motoForm.aceite" placeholder="Aceite que se le echa" class="bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-white placeholder:text-gray-400">
+        <input [(ngModel)]="motoForm.transitoMatricula" placeholder="Tránsito donde está matriculada" class="bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-white placeholder:text-gray-400">
+        <div>
+          <label class="text-xs text-gray-300">Fecha de ingreso</label>
+          <input type="date" [(ngModel)]="motoForm.fechaIngreso" class="w-full bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-white">
+        </div>
+        <div>
+          <label class="text-xs text-gray-300">Día pico y placa</label>
+          <select [(ngModel)]="motoForm.picoYPlaca" class="w-full bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-white">
+            <option value="">Sin definir</option>
+            <option *ngFor="let d of diasPico" [value]="d">{{ d }}</option>
+          </select>
+        </div>
+        <select [(ngModel)]="motoForm.estado" class="bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-white">
+          <option value="disponible">Disponible</option>
+          <option value="en_mantenimiento">Mantenimiento</option>
+          <option value="fuera_servicio">Fuera de servicio</option>
+          <option value="en_uso">En uso</option>
+        </select>
+        <div>
+          <label class="text-xs text-gray-300">Conductor</label>
+          <select [(ngModel)]="conductorCreacion" class="w-full bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-white">
+            <option value="sin_conductor">Sin conductor (por ahora)</option>
+            <option *ngFor="let c of conductoresDisponibles" [value]="c._id">{{ c.nombre }} {{ c.apellido }}</option>
+          </select>
+        </div>
+        <input type="file" accept="image/*" (change)="onFileSelected($event)" class="col-span-2 text-sm text-white">
+      </div>
+      <img *ngIf="motoForm.imagen" [src]="motoForm.imagen" class="h-24 mx-auto rounded object-cover">
+      <p *ngIf="formularioInvalido" class="text-red-300 text-sm">Marca, modelo y placa son obligatorios</p>
+    </div>
+    <div class="p-4 border-t border-gray-600 flex justify-end gap-2">
+      <button (click)="cerrarModal()" class="px-4 py-2 text-white">Cancelar</button>
+      <button (click)="isEditing ? editarMoto() : agregarMoto()" class="px-4 py-2 bg-blue-600 text-white rounded-lg">Guardar MDD</button>
+    </div>
   </div>
 </div>
 
-<!-- Modal Agregar/Editar Moto -->
-<div *ngIf="modalVisible" class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-    <div class="bg-gray-800 rounded-2xl shadow-2xl w-full max-w-lg border border-gray-700 overflow-hidden transform transition-all">
-        <div class="p-6 border-b border-gray-700 flex justify-between items-center bg-gray-900/50">
-            <h3 class="text-xl font-bold text-white flex items-center gap-2">
-                {{ isEditing ? '✏️ Editar Moto' : '🛵 Nueva Moto' }}
-            </h3>
-            <button (click)="cerrarModal()" class="text-gray-400 hover:text-white transition text-2xl">&times;</button>
-        </div>
-        
-        <div class="p-6 space-y-4">
-            <div class="grid grid-cols-2 gap-4">
-                <div>
-                    <label class="block text-sm font-medium text-gray-400 mb-1">Marca</label>
-                    <input [(ngModel)]="motoForm.marca" 
-                           class="w-full bg-gray-900 border border-gray-600 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition" 
-                           placeholder="Ej. Yamaha">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-400 mb-1">Modelo</label>
-                    <input [(ngModel)]="motoForm.modelo" 
-                           class="w-full bg-gray-900 border border-gray-600 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition" 
-                           placeholder="Ej. 2024">
-                </div>
-            </div>
-
-            <div class="grid grid-cols-2 gap-4">
-                <div>
-                    <label class="block text-sm font-medium text-gray-400 mb-1">Placa</label>
-                    <input [(ngModel)]="motoForm.placa" 
-                           class="w-full bg-gray-900 border border-gray-600 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition uppercase font-mono" 
-                           placeholder="ABC-123">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-400 mb-1">Precio Alquiler</label>
-                    <input type="number" [(ngModel)]="motoForm.precio" 
-                           class="w-full bg-gray-900 border border-gray-600 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition" 
-                           placeholder="0.00">
-                </div>
-            </div>
-
-            <div>
-                <label class="block text-sm font-medium text-gray-400 mb-1">Estado Inicial</label>
-                <select [(ngModel)]="motoForm.estado" 
-                        class="w-full bg-gray-900 border border-gray-600 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition appearance-none">
-                    <option value="disponible">🟢 Disponible</option>
-                    <option value="en_mantenimiento">🟡 Mantenimiento</option>
-                    <option value="fuera_servicio">🔴 Fuera de Servicio</option>
-                </select>
-            </div>
-            
-            <div *ngIf="formularioInvalido" class="p-3 bg-red-500/20 border border-red-500/40 rounded-lg flex items-center gap-2 text-red-400 text-sm">
-                <span>⚠️</span> Todos los campos son obligatorios.
-            </div>
-        </div>
-
-        <div class="p-6 border-t border-gray-700 bg-gray-900/30 flex justify-end gap-3">
-            <button (click)="cerrarModal()" class="px-5 py-2 rounded-lg text-gray-300 hover:text-white hover:bg-gray-700 transition">Cancelar</button>
-            <button (click)="isEditing ? editarMoto() : agregarMoto()" 
-                    class="px-5 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-medium shadow-lg shadow-blue-500/20 transition">
-                {{ isEditing ? 'Guardar Cambios' : 'Registrar Moto' }}
-            </button>
-        </div>
+<!-- Modal entrega / contrato -->
+<div *ngIf="modalAsignarVisible" class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
+  <div class="bg-gray-800 rounded-2xl w-full max-w-2xl border border-gray-600 max-h-[90vh] flex flex-col text-white">
+    <div class="p-6 border-b border-gray-600">
+      <h3 class="text-xl font-bold text-white">{{ pasoAsignar === 1 ? '1. Contrato (borrador)' : '2. Acta de entrega' }}</h3>
+      <p class="text-sm text-gray-300">Moto {{ motoSeleccionada?.placa }}</p>
     </div>
+    <div class="overflow-y-auto p-6 space-y-4" *ngIf="pasoAsignar === 1">
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div>
+          <label class="text-xs text-gray-300 block mb-1">Fecha inicio</label>
+          <input type="date" [(ngModel)]="fechaInicioContrato"
+                 class="w-full bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-sm text-white">
+        </div>
+        <div>
+          <label class="text-xs text-gray-300 block mb-1">Frecuencia de pago</label>
+          <select [(ngModel)]="frecuenciaPago" (ngModelChange)="onCambioFrecuencia()"
+                  class="w-full bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-sm text-white">
+            <option value="semanal">Semanal</option>
+            <option value="quincenal">Quincenal</option>
+            <option value="mensual">Mensual</option>
+          </select>
+        </div>
+        <div>
+          <label class="text-xs text-gray-300 block mb-1">{{ labelCuota() }}</label>
+          <input type="number" [(ngModel)]="cuotaSemanal"
+                 class="w-full bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-sm text-white">
+        </div>
+        <div>
+          <label class="text-xs text-gray-300 block mb-1">Depósito</label>
+          <input type="number" [(ngModel)]="depositoPactado"
+                 class="w-full bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-sm text-white">
+        </div>
+      </div>
+      <p class="text-xs text-gray-300">Crear contrato no activa ni genera cobro. La frecuencia define cada cuántos días se cobra.</p>
+      <button
+        *ngFor="let c of conductoresDisponibles"
+        type="button"
+        (click)="seleccionarConductor(c)"
+        [ngClass]="{
+          'border-blue-400 bg-blue-900': conductorSeleccionado?._id === c._id,
+          'border-gray-600': conductorSeleccionado?._id !== c._id
+        }"
+        class="w-full flex items-center gap-3 p-3 rounded-xl text-left border hover:bg-gray-700 text-white mb-2"
+      >
+        <div class="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center font-bold text-white">{{ c.nombre.charAt(0) }}</div>
+        <div>
+          <h4 class="font-medium text-white">{{ c.nombre }} {{ c.apellido }}</h4>
+          <p class="text-xs text-gray-300">{{ c.cedula }}</p>
+        </div>
+      </button>
+      <p *ngIf="conductoresDisponibles.length === 0" class="text-sm text-amber-200">No hay conductores libres. Crea uno en Usuarios.</p>
+    </div>
+    <div class="overflow-y-auto p-6 space-y-4" *ngIf="pasoAsignar === 2">
+      <p class="text-xs text-amber-200">Confirmar entrega → contrato activo + moto en uso + primer cobro.</p>
+      <div class="grid grid-cols-3 gap-3">
+        <div>
+          <label class="text-xs text-gray-300 block mb-1">Km</label>
+          <input type="number" [(ngModel)]="entregaForm.kilometraje"
+                 class="w-full bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-sm text-white">
+        </div>
+        <div>
+          <label class="text-xs text-gray-300 block mb-1">Combustible</label>
+          <select [(ngModel)]="entregaForm.nivelCombustible"
+                  class="w-full bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-sm text-white">
+            <option value="vacio">Vacío</option><option value="1/4">1/4</option><option value="1/2">1/2</option><option value="3/4">3/4</option><option value="lleno">Lleno</option>
+          </select>
+        </div>
+        <div>
+          <label class="text-xs text-gray-300 block mb-1">Estado</label>
+          <select [(ngModel)]="entregaForm.estadoGeneral"
+                  class="w-full bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-sm text-white">
+            <option value="bueno">Bueno</option><option value="regular">Regular</option><option value="malo">Malo</option>
+          </select>
+        </div>
+      </div>
+      <div>
+        <p class="text-xs text-gray-300 mb-1">Accesorios</p>
+        <label *ngFor="let a of entregaForm.accesorios" class="flex gap-2 text-sm py-1 text-white"><input type="checkbox" [(ngModel)]="a.entregado"> {{ a.nombre }}</label>
+        <input #nuevoAcc placeholder="Agregar accesorio + Enter" (keyup.enter)="agregarAccesorio(nuevoAcc.value); nuevoAcc.value=''"
+               class="mt-2 w-full bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-sm text-white placeholder:text-gray-400">
+      </div>
+      <div>
+        <p class="text-xs text-gray-300 mb-1">Documentos</p>
+        <label *ngFor="let d of entregaForm.documentos" class="flex gap-2 text-sm py-1 text-white"><input type="checkbox" [(ngModel)]="d.entregado"> {{ d.tipo }}</label>
+        <input #nuevoDoc placeholder="Agregar documento + Enter" (keyup.enter)="agregarDocumento(nuevoDoc.value); nuevoDoc.value=''"
+               class="mt-2 w-full bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-sm text-white placeholder:text-gray-400">
+      </div>
+      <textarea [(ngModel)]="entregaForm.observaciones" rows="2" placeholder="Observaciones"
+                class="w-full bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-sm text-white placeholder:text-gray-400"></textarea>
+    </div>
+    <div class="p-4 border-t border-gray-600 flex justify-end gap-2">
+      <button (click)="cerrarModalAsignar()" class="px-4 py-2 text-white">Cancelar</button>
+      <button *ngIf="pasoAsignar === 1" (click)="crearContratoYContinuar()" class="px-4 py-2 bg-blue-600 text-white rounded-lg">Crear contrato y preparar entrega</button>
+      <button *ngIf="pasoAsignar === 2" (click)="guardarBorradorEntrega(false)" class="px-4 py-2 bg-gray-600 text-white rounded-lg">Guardar borrador</button>
+      <button *ngIf="pasoAsignar === 2" (click)="confirmarEntrega()" class="px-4 py-2 bg-emerald-600 text-white rounded-lg">Confirmar entrega</button>
+    </div>
+  </div>
 </div>
 
-<!-- Modal Asignar Conductor -->
-<div *ngIf="modalAsignarVisible" class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-    <div class="bg-gray-800 rounded-2xl shadow-2xl w-full max-w-md border border-gray-700 overflow-hidden">
-        <div class="p-6 border-b border-gray-700 bg-gray-900/50">
-            <h3 class="text-xl font-bold text-white">Asignar Conductor</h3>
-            <p class="text-sm text-gray-400 mt-1">Moto: <span class="text-white font-mono font-bold">{{ motoSeleccionada?.placa }}</span></p>
-        </div>
-        
-        <div class="max-h-80 overflow-y-auto p-2">
-            <div *ngIf="conductoresDisponibles.length === 0" class="p-8 text-center text-gray-500">
-                <p>No hay conductores disponibles.</p>
-            </div>
-            
-            <button *ngFor="let conductor of conductoresDisponibles" (click)="asignarConductor(conductor._id!)" 
-                    class="w-full flex items-center gap-3 p-3 hover:bg-gray-700/50 rounded-xl transition text-left group border border-transparent hover:border-blue-500/30">
-                <div class="w-10 h-10 rounded-full bg-gradient-to-tr from-blue-600 to-purple-600 flex items-center justify-center font-bold text-white text-lg">
-                    {{ conductor.nombre.charAt(0) }}
-                </div>
-                <div>
-                    <h4 class="text-white font-medium group-hover:text-blue-400 transition">{{ conductor.nombre }} {{ conductor.apellido }}</h4>
-                    <p class="text-xs text-gray-400">{{ conductor.cedula }}</p>
-                </div>
-                <div class="ml-auto opacity-0 group-hover:opacity-100 transition text-blue-500">
-                    ➡️
-                </div>
-            </button>
-        </div>
-
-        <div class="p-4 border-t border-gray-700 bg-gray-900/30 flex justify-end">
-            <button (click)="cerrarModalAsignar()" class="px-5 py-2 rounded-lg text-gray-300 hover:text-white hover:bg-gray-700 transition">Cancelar</button>
-        </div>
+<!-- Modal devolución -->
+<div *ngIf="modalDevolverVisible && devolucionForm" class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
+  <div class="bg-gray-800 rounded-2xl w-full max-w-2xl border border-gray-600 max-h-[90vh] flex flex-col text-white">
+    <div class="p-6 border-b border-gray-600">
+      <h3 class="text-xl font-bold text-white">Acta de devolución</h3>
+      <p class="text-sm text-gray-300" *ngIf="entregaSnapshot">Entrega: {{ entregaSnapshot.kilometraje }} km</p>
     </div>
+    <div class="overflow-y-auto p-6 space-y-4">
+      <div class="grid grid-cols-3 gap-3">
+        <div>
+          <label class="text-xs text-gray-300 block mb-1">Km final</label>
+          <input type="number" [(ngModel)]="devolucionForm.kilometraje"
+                 class="w-full bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-sm text-white">
+        </div>
+        <div>
+          <label class="text-xs text-gray-300 block mb-1">Combustible</label>
+          <select [(ngModel)]="devolucionForm.nivelCombustible"
+                  class="w-full bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-sm text-white">
+            <option value="vacio">Vacío</option><option value="1/4">1/4</option><option value="1/2">1/2</option><option value="3/4">3/4</option><option value="lleno">Lleno</option>
+          </select>
+        </div>
+        <div>
+          <label class="text-xs text-gray-300 block mb-1">Condición moto</label>
+          <select [(ngModel)]="devolucionForm.condicionMoto"
+                  class="w-full bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-sm text-white">
+            <option value="disponible">Disponible</option>
+            <option value="en_mantenimiento">En mantenimiento</option>
+            <option value="fuera_servicio">Fuera de servicio</option>
+          </select>
+        </div>
+      </div>
+      <div>
+        <p class="text-xs text-gray-300 mb-1">Accesorios devueltos</p>
+        <label *ngFor="let a of devolucionForm.accesorios" class="flex gap-2 text-sm py-1 text-white"><input type="checkbox" [(ngModel)]="a.devuelto"> {{ a.nombre }}</label>
+      </div>
+      <div>
+        <p class="text-xs text-gray-300 mb-1">Documentos</p>
+        <label *ngFor="let d of devolucionForm.documentos" class="flex gap-2 text-sm py-1 text-white"><input type="checkbox" [(ngModel)]="d.devuelto"> {{ d.tipo }}</label>
+      </div>
+      <textarea [(ngModel)]="devolucionForm.observaciones" rows="2" placeholder="Observaciones"
+                class="w-full bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-sm text-white placeholder:text-gray-400"></textarea>
+    </div>
+    <div class="p-4 border-t border-gray-600 flex justify-end gap-2">
+      <button (click)="modalDevolverVisible = false" class="px-4 py-2 text-white">Cancelar</button>
+      <button (click)="guardarBorradorDevolucion(false)" class="px-4 py-2 bg-gray-600 text-white rounded-lg">Guardar borrador</button>
+      <button (click)="confirmarDevolucion()" class="px-4 py-2 bg-orange-600 text-white rounded-lg">Confirmar devolución</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal depósito -->
+<div *ngIf="modalDepositoVisible && depositoInfo" class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
+  <div class="bg-gray-800 rounded-2xl w-full max-w-lg border border-gray-600 text-white">
+    <div class="p-6 border-b border-gray-600"><h3 class="text-xl font-bold text-white">Depósito</h3></div>
+    <div class="p-6 space-y-3 text-white">
+      <p>Esperado: $ {{ depositoInfo.montoEsperado | number }}</p>
+      <p>Recibido: $ {{ depositoInfo.montoRecibido | number }}</p>
+      <p class="text-amber-200 font-bold" *ngIf="depositoInfo.saldoPendiente > 0">Pendiente: $ {{ depositoInfo.saldoPendiente | number }}</p>
+      <p>En custodia: $ {{ depositoInfo.saldoEnCustodia | number }}</p>
+      <p class="text-sm text-gray-300">Estado: {{ depositoInfo.estado }}</p>
+      <div *ngIf="depositoMovimientos.length" class="text-xs text-gray-300 space-y-1 max-h-24 overflow-y-auto border border-gray-600 rounded-lg p-2">
+        <p *ngFor="let m of depositoMovimientos">{{ m.tipo }} · $ {{ m.monto | number }} · {{ m.estado }}</p>
+      </div>
+      <div class="grid grid-cols-2 gap-2" *ngIf="depositoInfo.saldoPendiente > 0">
+        <input type="number" [(ngModel)]="depositoMonto"
+               class="bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-sm text-white">
+        <select [(ngModel)]="depositoMetodo"
+                class="bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-sm text-white">
+          <option value="TRANSFERENCIA">Transferencia</option>
+          <option value="EFECTIVO">Efectivo</option>
+          <option value="NEQUI">Nequi</option>
+        </select>
+      </div>
+      <button *ngIf="depositoInfo.saldoPendiente > 0" (click)="registrarRecepcionDeposito()" class="w-full bg-blue-600 text-white py-2 rounded-lg">Registrar recepción</button>
+      <div *ngIf="depositoInfo.estado === 'en_liquidacion'" class="border-t border-gray-600 pt-3 space-y-2">
+        <p class="text-sm text-gray-300">Liquidación (no cubre mora)</p>
+        <select [(ngModel)]="liquidarDecision" (ngModelChange)="onCambioDecisionLiquidacion()"
+                class="w-full bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-sm text-white">
+          <option value="devolver_completo">Devolver completo</option>
+          <option value="devolver_parcial">Devolver parcial / retener</option>
+          <option value="retener">Retener todo</option>
+        </select>
+        <div *ngIf="liquidarDecision === 'devolver_parcial'" class="grid grid-cols-2 gap-2">
+          <input type="number" [(ngModel)]="liquidarMontoDevolver" placeholder="Devolver"
+                 class="bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-sm text-white placeholder:text-gray-400">
+          <input type="number" [(ngModel)]="liquidarMontoRetener" placeholder="Retener"
+                 class="bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-sm text-white placeholder:text-gray-400">
+        </div>
+        <input [(ngModel)]="liquidarMotivo" placeholder="Motivo obligatorio"
+               class="w-full bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-sm text-white placeholder:text-gray-400">
+        <button (click)="liquidarDeposito()" class="w-full bg-emerald-600 text-white py-2 rounded-lg">Liquidar</button>
+      </div>
+    </div>
+    <div class="p-4 border-t border-gray-600 flex justify-end">
+      <button (click)="modalDepositoVisible = false" class="px-4 py-2 text-white">Cerrar</button>
+    </div>
+  </div>
 </div>

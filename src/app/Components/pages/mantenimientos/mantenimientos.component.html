@@ -1,0 +1,51 @@
+<div class="min-h-screen bg-gray-900 text-white p-6 rounded-xl">
+  <div class="flex justify-between items-center mb-8 gap-4">
+    <div>
+      <h1 class="text-3xl font-bold text-white">Mantenimientos MDD</h1>
+      <p class="text-gray-300 mt-1">MDD fuera de operación: aceite, cambios y reparaciones</p>
+    </div>
+    <button (click)="abrir()" class="bg-amber-600 hover:bg-amber-500 text-white py-2.5 px-5 rounded-lg">Registrar ingreso</button>
+  </div>
+
+  <div class="space-y-3">
+    <div *ngIf="lista.length === 0" class="text-center text-gray-400 py-12 border border-dashed border-gray-700 rounded-xl">Sin registros</div>
+    <div *ngFor="let m of lista" class="bg-gray-800 border border-gray-700 rounded-xl p-4 flex gap-4 items-center">
+      <div class="w-16 h-16 rounded-lg bg-gray-900 overflow-hidden flex-shrink-0">
+        <img *ngIf="m.moto?.imagen" [src]="m.moto?.imagen" class="w-full h-full object-cover" alt="">
+      </div>
+      <div class="flex-1">
+        <p class="font-bold text-white">{{ m.moto?.placa }} · {{ m.moto?.marca }} {{ m.moto?.modelo }}</p>
+        <p class="text-sm text-gray-300">Ingreso {{ m.fechaIngreso | date:'mediumDate' }} · {{ m.tipo }}</p>
+        <p class="text-sm text-white mt-1">{{ m.observacion }}</p>
+      </div>
+      <div class="text-right">
+        <p class="font-bold text-amber-300">$ {{ m.valor | number }}</p>
+        <p class="text-xs" [class.text-yellow-300]="m.estado === 'en_taller'" [class.text-green-300]="m.estado === 'finalizado'">{{ m.estado }}</p>
+        <button *ngIf="m.estado === 'en_taller'" (click)="finalizar(m)" class="mt-2 text-sm bg-emerald-700 px-3 py-1 rounded-lg text-white">Finalizar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div *ngIf="mostrarModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
+  <div class="bg-gray-800 rounded-2xl w-full max-w-md border border-gray-600 text-white p-5 space-y-3">
+    <h3 class="text-xl font-bold">Ingreso a mantenimiento</h3>
+    <select [(ngModel)]="form.motoId" class="w-full bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-white">
+      <option value="">Seleccionar MDD...</option>
+      <option *ngFor="let m of motos" [value]="m._id">{{ m.placa }} — {{ m.marca }} {{ m.modelo }}</option>
+    </select>
+    <input type="date" [(ngModel)]="form.fechaIngreso" class="w-full bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-white">
+    <input type="number" [(ngModel)]="form.valor" placeholder="Valor del mantenimiento" class="w-full bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-white placeholder:text-gray-400">
+    <select [(ngModel)]="form.tipo" class="w-full bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-white">
+      <option value="cambio_aceite">Cambio de aceite</option>
+      <option value="reparacion">Reparación</option>
+      <option value="llantas">Llantas</option>
+      <option value="general">General</option>
+    </select>
+    <textarea [(ngModel)]="form.observacion" rows="3" placeholder="¿Por qué entra a mantenimiento?" class="w-full bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-white placeholder:text-gray-400"></textarea>
+    <div class="flex justify-end gap-2">
+      <button (click)="mostrarModal = false" class="px-4 py-2">Cancelar</button>
+      <button (click)="guardar()" class="px-4 py-2 bg-amber-600 rounded-lg">Guardar</button>
+    </div>
+  </div>
+</div>
