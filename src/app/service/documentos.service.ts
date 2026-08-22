@@ -45,9 +45,10 @@ export class DocumentosService {
     };
   }
 
-  list(categoria?: CategoriaDocumento): Observable<Documento[]> {
+  list(categoria?: CategoriaDocumento, conductorId?: string): Observable<Documento[]> {
     let q = getSupabase().from('documentos').select('*').order('created_at', { ascending: false });
     if (categoria) q = q.eq('categoria', categoria);
+    if (conductorId) q = q.eq('conductor_id', conductorId);
     return from(q).pipe(
       map(({ data, error }) => {
         if (error) throw error;

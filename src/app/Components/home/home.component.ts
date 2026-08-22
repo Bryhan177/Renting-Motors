@@ -3,13 +3,13 @@ import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { MotosService } from '../../service/motos.service';
 import { Moto } from '../../shared/interfaces/moto';
-
-const WHATSAPP_NUMERO = '573215962216';
+import { WHATSAPP_NUMERO } from '../../shared/constants';
+import { WhatsappFloatComponent } from '../../shared/components/whatsapp-float/whatsapp-float.component';
 
 @Component({
   selector: 'app-home',
   standalone: true,
-  imports: [CommonModule, RouterLink],
+  imports: [CommonModule, RouterLink, WhatsappFloatComponent],
   templateUrl: './home.component.html',
   styleUrl: './home.component.css',
 })

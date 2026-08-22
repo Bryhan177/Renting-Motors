@@ -179,9 +179,10 @@ export class CobrosService {
     );
   }
 
-  getAbonos(estado?: string): Observable<Abono[]> {
+  getAbonos(estado?: string, conductorId?: string): Observable<Abono[]> {
     let q = getSupabase().from('abonos').select('*').order('created_at', { ascending: false });
     if (estado) q = q.eq('estado', estado);
+    if (conductorId) q = q.eq('conductor_id', conductorId);
     return from(q).pipe(
       map(({ data, error }) => {
         if (error) throw error;

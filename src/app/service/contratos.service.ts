@@ -49,13 +49,14 @@ export class ContratosService {
     };
   }
 
-  getContratos(params?: { estado?: string; motoId?: string }): Observable<Contrato[]> {
+  getContratos(params?: { estado?: string; motoId?: string; conductorId?: string }): Observable<Contrato[]> {
     let q = getSupabase()
       .from('contratos')
       .select('*, usuarios:conductor_id(*), motos:moto_id(*)')
       .order('created_at', { ascending: false });
     if (params?.estado) q = q.eq('estado', params.estado);
     if (params?.motoId) q = q.eq('moto_id', params.motoId);
+    if (params?.conductorId) q = q.eq('conductor_id', params.conductorId);
     return from(q).pipe(
       map(({ data, error }) => {
         if (error) throw error;
