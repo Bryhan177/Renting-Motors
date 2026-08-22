@@ -33,8 +33,8 @@
       </div>
       <div class="p-5">
         <h3 class="text-lg font-bold mb-1 text-white">{{ moto.marca }} {{ moto.modelo }}</h3>
-        <p class="text-green-300 font-bold text-lg">Compra $ {{ (moto.precioCompra || moto.precio) | number }}</p>
-        <p class="text-blue-300 text-sm mb-2">Cobro conductor $ {{ (moto.precioCobro || 0) | number }}</p>
+          <p class="text-green-300 font-bold text-lg">Compra $ {{ (moto.precioCompra || moto.precio) | number:'1.0-0':'es-CO' }}</p>
+          <p class="text-blue-300 text-sm mb-2">Cobro conductor $ {{ (moto.precioCobro || 0) | number:'1.0-0':'es-CO' }}</p>
         <p class="text-xs text-gray-300 mb-3" *ngIf="moto.picoYPlaca">Pico y placa: {{ moto.picoYPlaca }}</p>
         <div class="bg-gray-900/80 rounded-lg p-3 mb-4 border border-gray-600">
           <p class="text-xs text-gray-300">Conductor</p>
@@ -72,11 +72,11 @@
         </select>
         <div>
           <label class="text-xs text-gray-300">Precio compra (valió la moto)</label>
-          <input type="number" [(ngModel)]="motoForm.precioCompra" class="w-full bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-white">
+          <input type="text" inputmode="numeric" appCurrencyCo [(ngModel)]="motoForm.precioCompra" class="w-full bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-white">
         </div>
         <div>
           <label class="text-xs text-gray-300">Cobro al conductor</label>
-          <input type="number" [(ngModel)]="motoForm.precioCobro" class="w-full bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-white">
+          <input type="text" inputmode="numeric" appCurrencyCo [(ngModel)]="motoForm.precioCobro" class="w-full bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-white">
         </div>
         <div>
           <label class="text-xs text-gray-300">SOAT (vencimiento)</label>
@@ -149,12 +149,12 @@
         </div>
         <div>
           <label class="text-xs text-gray-300 block mb-1">{{ labelCuota() }}</label>
-          <input type="number" [(ngModel)]="cuotaSemanal"
+          <input type="text" inputmode="numeric" appCurrencyCo [(ngModel)]="cuotaSemanal"
                  class="w-full bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-sm text-white">
         </div>
         <div>
           <label class="text-xs text-gray-300 block mb-1">Depósito</label>
-          <input type="number" [(ngModel)]="depositoPactado"
+          <input type="text" inputmode="numeric" appCurrencyCo [(ngModel)]="depositoPactado"
                  class="w-full bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-sm text-white">
         </div>
       </div>
@@ -288,7 +288,7 @@
         <p *ngFor="let m of depositoMovimientos">{{ m.tipo }} · $ {{ m.monto | number }} · {{ m.estado }}</p>
       </div>
       <div class="grid grid-cols-2 gap-2" *ngIf="depositoInfo.saldoPendiente > 0">
-        <input type="number" [(ngModel)]="depositoMonto"
+        <input type="text" inputmode="numeric" appCurrencyCo [(ngModel)]="depositoMonto"
                class="bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-sm text-white">
         <select [(ngModel)]="depositoMetodo"
                 class="bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-sm text-white">
@@ -307,9 +307,9 @@
           <option value="retener">Retener todo</option>
         </select>
         <div *ngIf="liquidarDecision === 'devolver_parcial'" class="grid grid-cols-2 gap-2">
-          <input type="number" [(ngModel)]="liquidarMontoDevolver" placeholder="Devolver"
+          <input type="text" inputmode="numeric" appCurrencyCo [(ngModel)]="liquidarMontoDevolver" placeholder="Devolver"
                  class="bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-sm text-white placeholder:text-gray-400">
-          <input type="number" [(ngModel)]="liquidarMontoRetener" placeholder="Retener"
+          <input type="text" inputmode="numeric" appCurrencyCo [(ngModel)]="liquidarMontoRetener" placeholder="Retener"
                  class="bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-sm text-white placeholder:text-gray-400">
         </div>
         <input [(ngModel)]="liquidarMotivo" placeholder="Motivo obligatorio"

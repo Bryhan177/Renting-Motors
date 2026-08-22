@@ -6,12 +6,13 @@ import { ContratosService, Contrato } from '../../../service/contratos.service';
 import { OperacionService, Deposito, Entrega } from '../../../service/operacion.service';
 import { Moto } from '../../../shared/interfaces/moto';
 import { Usuario } from '../../../shared/interfaces/usuario';
+import { CurrencyCoDirective } from '../../../shared/directives/currency-co.directive';
 import Swal from 'sweetalert2';
 
 @Component({
   selector: 'app-motos',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, CurrencyCoDirective],
   templateUrl: './motos.component.html',
   styleUrl: './motos.component.css',
 })

@@ -4,12 +4,13 @@ import { FormsModule } from '@angular/forms';
 import { MantenimientosService, Mantenimiento } from '../../../service/mantenimientos.service';
 import { MotosService } from '../../../service/motos.service';
 import { Moto } from '../../../shared/interfaces/moto';
+import { CurrencyCoDirective } from '../../../shared/directives/currency-co.directive';
 import Swal from 'sweetalert2';
 
 @Component({
   selector: 'app-mantenimientos',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, CurrencyCoDirective],
   templateUrl: './mantenimientos.component.html',
 })
 export class MantenimientosComponent implements OnInit {

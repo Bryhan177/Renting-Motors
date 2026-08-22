@@ -14,17 +14,24 @@ import {
 } from '../../service/cobros.service';
 import { ContratosService, Contrato } from '../../service/contratos.service';
 import { DocumentosService, Documento } from '../../service/documentos.service';
+import {
+  NovedadesService,
+  Novedad,
+  TipoNovedad,
+} from '../../service/novedades.service';
 import { Usuario } from '../../shared/interfaces/usuario';
 import { Moto } from '../../shared/interfaces/moto';
 import { WhatsappFloatComponent } from '../../shared/components/whatsapp-float/whatsapp-float.component';
+import { CurrencyCoDirective } from '../../shared/directives/currency-co.directive';
+import { diasHasta, etiquetaVencimiento as formatVencimiento } from '../../shared/date.util';
 import Swal from 'sweetalert2';
 
-type SeccionPanel = 'inicio' | 'motos' | 'cuenta' | 'documentos' | 'perfil';
+type SeccionPanel = 'inicio' | 'motos' | 'cuenta' | 'novedades' | 'documentos' | 'perfil';
 
 @Component({
   selector: 'app-home-empleados',
   standalone: true,
-  imports: [CommonModule, FormsModule, WhatsappFloatComponent],
+  imports: [CommonModule, FormsModule, WhatsappFloatComponent, CurrencyCoDirective],
   templateUrl: './home-empleados.component.html',
   styleUrl: './home-empleados.component.css',
 })
@@ -33,12 +40,14 @@ export class HomeEmpleadosComponent implements OnInit {
   cargando = true;
   guardandoPerfil = false;
   enviandoPago = false;
+  enviandoNovedad = false;
 
   usuario: Usuario | null = null;
   motos: Moto[] = [];
   cobros: Cobro[] = [];
   abonos: Abono[] = [];
   documentos: Documento[] = [];
+  novedades: Novedad[] = [];
   contrato: Contrato | null = null;
   estadoCuenta: EstadoCuenta = {
     deudaTotal: 0,
@@ -62,10 +71,20 @@ export class HomeEmpleadosComponent implements OnInit {
     observaciones: '',
   };
 
+  modalNovedadVisible = false;
+  novedadForm = {
+    tipo: 'falla' as TipoNovedad,
+    titulo: '',
+    descripcion: '',
+    motoId: '' as string,
+    foto: null as string | null,
+  };
+
   readonly navItems: { id: SeccionPanel; label: string; icon: string }[] = [
     { id: 'inicio', label: 'Inicio', icon: '📊' },
     { id: 'motos', label: 'Mi moto', icon: '🛵' },
     { id: 'cuenta', label: 'Estado de cuenta', icon: '💳' },
+    { id: 'novedades', label: 'Novedades', icon: '⚠️' },
     { id: 'documentos', label: 'Documentos', icon: '📄' },
     { id: 'perfil', label: 'Mi perfil', icon: '👤' },
   ];
@@ -77,6 +96,7 @@ export class HomeEmpleadosComponent implements OnInit {
     private cobrosService: CobrosService,
     private contratosService: ContratosService,
     private documentosService: DocumentosService,
+    private novedadesService: NovedadesService,
   ) {}
 
   ngOnInit() {
@@ -113,6 +133,39 @@ export class HomeEmpleadosComponent implements OnInit {
     return this.motos[0] || null;
   }
 
+  get alertasConductor(): { label: string; detalle: string; urgente: boolean }[] {
+    const list: { label: string; detalle: string; urgente: boolean }[] = [];
+    for (const m of this.motos) {
+      const soat = diasHasta(m.soat);
+      if (soat !== null && soat <= 15) {
+        list.push({
+          label: `SOAT · ${m.placa}`,
+          detalle: formatVencimiento(m.soat),
+          urgente: soat <= 0,
+        });
+      }
+      const tecno = diasHasta(m.tecnomecanica);
+      if (tecno !== null && tecno <= 15) {
+        list.push({
+          label: `Tecnomecánica · ${m.placa}`,
+          detalle: formatVencimiento(m.tecnomecanica),
+          urgente: tecno <= 0,
+        });
+      }
+    }
+    if (this.proximoCobro) {
+      const dias = diasHasta(this.proximoCobro.fechaVencimiento);
+      if (dias !== null && dias <= 7) {
+        list.push({
+          label: `Cuota periodo #${this.proximoCobro.numeroPeriodo}`,
+          detalle: `${formatVencimiento(this.proximoCobro.fechaVencimiento)} · ${this.formatearMoneda(this.proximoCobro.saldo)}`,
+          urgente: dias <= 0 || this.proximoCobro.enMora,
+        });
+      }
+    }
+    return list;
+  }
+
   irA(seccion: SeccionPanel) {
     this.seccion = seccion;
   }
@@ -143,8 +196,11 @@ export class HomeEmpleadosComponent implements OnInit {
       contratos: this.contratosService
         .getContratos({ conductorId: userId, estado: 'activo' })
         .pipe(catchError(() => of([]))),
+      novedades: this.novedadesService
+        .list({ conductorId: userId })
+        .pipe(catchError(() => of([]))),
     }).subscribe({
-      next: ({ usuario, motos, cobros, estado, abonos, docs, contratos }) => {
+      next: ({ usuario, motos, cobros, estado, abonos, docs, contratos, novedades }) => {
         this.usuario = usuario;
         this.motos = motos;
         this.cobros = cobros;
@@ -152,6 +208,7 @@ export class HomeEmpleadosComponent implements OnInit {
         this.abonos = abonos;
         this.documentos = docs;
         this.contrato = contratos[0] || null;
+        this.novedades = novedades;
         this.perfilForm = {
           telefono: usuario.telefono || '',
           direccion: usuario.direccion || '',
@@ -166,22 +223,11 @@ export class HomeEmpleadosComponent implements OnInit {
   }
 
   diasPara(fecha?: string | null): number | null {
-    if (!fecha) return null;
-    const target = new Date(fecha);
-    if (Number.isNaN(target.getTime())) return null;
-    const hoy = new Date();
-    hoy.setHours(0, 0, 0, 0);
-    target.setHours(0, 0, 0, 0);
-    return Math.ceil((target.getTime() - hoy.getTime()) / 86400000);
+    return diasHasta(fecha);
   }
 
   etiquetaVencimiento(fecha?: string | null): string {
-    const dias = this.diasPara(fecha);
-    if (dias === null) return 'Sin registrar';
-    if (dias < 0) return `Vencido hace ${Math.abs(dias)} días`;
-    if (dias === 0) return 'Vence hoy';
-    if (dias <= 15) return `Vence en ${dias} días`;
-    return this.formatearFecha(fecha!);
+    return formatVencimiento(fecha);
   }
 
   claseVencimiento(fecha?: string | null): string {
@@ -348,5 +394,91 @@ export class HomeEmpleadosComponent implements OnInit {
           Swal.fire('Error', e?.message || 'No se pudo guardar', 'error');
         },
       });
+  }
+
+  abrirModalNovedad() {
+    this.novedadForm = {
+      tipo: 'falla',
+      titulo: '',
+      descripcion: '',
+      motoId: this.motoPrincipal?._id || '',
+      foto: null,
+    };
+    this.modalNovedadVisible = true;
+  }
+
+  cerrarModalNovedad() {
+    this.modalNovedadVisible = false;
+  }
+
+  onFotoNovedad(event: Event) {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file) return;
+    if (file.size > 4 * 1024 * 1024) {
+      Swal.fire('Archivo grande', 'La foto debe pesar máximo 4 MB', 'warning');
+      input.value = '';
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      this.novedadForm.foto = String(reader.result || '');
+    };
+    reader.readAsDataURL(file);
+  }
+
+  enviarNovedad() {
+    if (!this.novedadForm.titulo.trim() || !this.novedadForm.descripcion.trim()) {
+      Swal.fire('Error', 'Completa título y descripción', 'error');
+      return;
+    }
+    this.enviandoNovedad = true;
+    this.novedadesService
+      .crear({
+        tipo: this.novedadForm.tipo,
+        titulo: this.novedadForm.titulo,
+        descripcion: this.novedadForm.descripcion,
+        motoId: this.novedadForm.motoId || null,
+        foto: this.novedadForm.foto,
+      })
+      .subscribe({
+        next: () => {
+          this.enviandoNovedad = false;
+          this.modalNovedadVisible = false;
+          Swal.fire('Enviado', 'Tu novedad fue registrada. Administración la verá en el panel.', 'success');
+          const userId = this.auth.getUserId();
+          if (userId) this.cargarTodo(userId);
+        },
+        error: (e) => {
+          this.enviandoNovedad = false;
+          Swal.fire(
+            'Error',
+            e?.message || e?.error?.message || 'No se pudo enviar. ¿Ejecutaste el SQL de novedades?',
+            'error',
+          );
+        },
+      });
+  }
+
+  etiquetaTipoNovedad(tipo: string): string {
+    const map: Record<string, string> = {
+      pinchazo: 'Pinchazo',
+      choque: 'Choque',
+      falla: 'Falla mecánica',
+      documento: 'Documento',
+      pago: 'Pago',
+      otro: 'Otro',
+    };
+    return map[tipo] || tipo;
+  }
+
+  etiquetaEstadoNovedad(estado: string): string {
+    const map: Record<string, string> = {
+      abierta: 'Abierta',
+      en_proceso: 'En proceso',
+      resuelta: 'Resuelta',
+      cerrada: 'Cerrada',
+    };
+    return map[estado] || estado;
   }
 }

@@ -35,7 +35,7 @@
       <option *ngFor="let m of motos" [value]="m._id">{{ m.placa }} — {{ m.marca }} {{ m.modelo }}</option>
     </select>
     <input type="date" [(ngModel)]="form.fechaIngreso" class="w-full bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-white">
-    <input type="number" [(ngModel)]="form.valor" placeholder="Valor del mantenimiento" class="w-full bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-white placeholder:text-gray-400">
+    <input type="text" inputmode="numeric" appCurrencyCo [(ngModel)]="form.valor" placeholder="Valor del mantenimiento" class="w-full bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-white placeholder:text-gray-400">
     <select [(ngModel)]="form.tipo" class="w-full bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-white">
       <option value="cambio_aceite">Cambio de aceite</option>
       <option value="reparacion">Reparación</option>

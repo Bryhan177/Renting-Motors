@@ -4,11 +4,11 @@
       <h1 class="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-emerald-400">
         Panel administrativo
       </h1>
-      <p class="text-gray-400 mt-1">Flota, contratos y cobros en un vistazo</p>
+      <p class="text-gray-400 mt-1">Flota, cobros, vencimientos y novedades</p>
     </div>
-    <div class="flex gap-2">
+    <div class="flex gap-2 flex-wrap justify-end">
       <a routerLink="/motos" class="bg-emerald-600 hover:bg-emerald-500 text-sm font-medium py-2 px-4 rounded-lg">Motos</a>
-      <a routerLink="/pagos" class="bg-blue-600 hover:bg-blue-500 text-sm font-medium py-2 px-4 rounded-lg">Cobros</a>
+      <a routerLink="/pagos" class="bg-blue-600 hover:bg-blue-500 text-sm font-medium py-2 px-4 rounded-lg">Pagos</a>
       <a routerLink="/usuarios" class="bg-gray-700 hover:bg-gray-600 text-sm font-medium py-2 px-4 rounded-lg">Usuarios</a>
     </div>
   </div>
@@ -17,16 +17,17 @@
     <div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
   </div>
 
-  <div *ngIf="!loading">
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+  <div *ngIf="!loading" class="space-y-6">
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
       <div class="bg-gray-800 rounded-xl p-5 border border-gray-700">
         <p class="text-gray-400 text-sm mb-1">Flota</p>
         <p class="text-3xl font-bold">{{ estadisticas?.totalMotos || motos.length }}</p>
         <p class="text-xs text-green-400 mt-1">{{ estadisticas?.motosDisponibles || 0 }} disponibles · {{ motosEnUso }} en uso</p>
       </div>
       <div class="bg-gray-800 rounded-xl p-5 border border-gray-700">
-        <p class="text-gray-400 text-sm mb-1">Pagado (cobros)</p>
-        <p class="text-3xl font-bold text-emerald-400">$ {{ totalPagado | number }}</p>
+        <p class="text-gray-400 text-sm mb-1">Abonos por confirmar</p>
+        <p class="text-3xl font-bold text-amber-400">{{ abonosPendientes.length }}</p>
+        <a routerLink="/pagos" class="text-xs text-blue-400 mt-1 inline-block">Ir a pagos</a>
       </div>
       <div class="bg-gray-800 rounded-xl p-5 border border-gray-700">
         <p class="text-gray-400 text-sm mb-1">Saldo pendiente</p>
@@ -34,9 +35,109 @@
         <p class="text-xs text-gray-400 mt-1">{{ cobrosPendientes.length }} cobros con saldo</p>
       </div>
       <div class="bg-gray-800 rounded-xl p-5 border border-gray-700">
-        <p class="text-gray-400 text-sm mb-1">En mora</p>
-        <p class="text-3xl font-bold text-red-400">$ {{ totalMora | number }}</p>
-        <p class="text-xs text-red-300/80 mt-1">{{ cobrosEnMora.length }} períodos</p>
+        <p class="text-gray-400 text-sm mb-1">Novedades abiertas</p>
+        <p class="text-3xl font-bold text-orange-400">{{ novedadesAbiertas.length }}</p>
+        <p class="text-xs text-gray-400 mt-1">Reportes del conductor</p>
+      </div>
+    </div>
+
+    <!-- Alertas vencimiento -->
+    <div class="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden">
+      <div class="p-5 border-b border-gray-700 flex justify-between items-center">
+        <div>
+          <h3 class="font-bold">Alertas de vencimiento</h3>
+          <p class="text-xs text-gray-400 mt-0.5">SOAT / tecnomecánica (≤15 días) y cuotas (≤7 días)</p>
+        </div>
+        <span class="text-xs px-2 py-1 rounded-full" [class]="alertas.length ? 'bg-red-500/20 text-red-300' : 'bg-emerald-500/20 text-emerald-300'">
+          {{ alertas.length || '0' }} alertas
+        </span>
+      </div>
+      <div *ngIf="alertas.length === 0" class="p-8 text-center text-gray-500 text-sm">
+        Sin vencimientos próximos. Buen estado documental.
+      </div>
+      <div class="divide-y divide-gray-700 max-h-72 overflow-y-auto">
+        <div *ngFor="let a of alertas" class="px-5 py-3 flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <p class="font-medium">
+              <span class="text-gray-400 text-xs uppercase tracking-wide mr-2">{{ a.tipo }}</span>
+              {{ a.moto.placa || '—' }}
+              <span class="text-gray-400 font-normal" *ngIf="a.moto.marca">· {{ a.moto.marca }} {{ a.moto.modelo }}</span>
+            </p>
+            <p class="text-xs text-gray-400 mt-1" *ngIf="a.detalle">{{ a.detalle }}</p>
+          </div>
+          <p class="text-sm font-medium" [ngClass]="claseAlerta(a.dias)">{{ etiquetaAlerta(a) }}</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <!-- Abonos rápidos -->
+      <div class="bg-gray-800 rounded-xl border border-amber-500/20 overflow-hidden">
+        <div class="p-5 border-b border-gray-700 flex justify-between items-center">
+          <h3 class="font-bold text-amber-300">Confirmar abonos</h3>
+          <a routerLink="/pagos" class="text-sm text-blue-400 hover:text-blue-300">Ver todos</a>
+        </div>
+        <div *ngIf="abonosPendientes.length === 0" class="p-8 text-center text-gray-500 text-sm">
+          Sin comprobantes pendientes
+        </div>
+        <div class="divide-y divide-gray-700 max-h-80 overflow-y-auto">
+          <div *ngFor="let a of abonosPendientes.slice(0, 6)" class="px-5 py-3">
+            <div class="flex justify-between gap-3">
+              <div>
+                <p class="font-medium">{{ abonoConductor(a) }}</p>
+                <p class="text-xs text-gray-400">$ {{ a.monto | number }} · {{ a.metodoPago }}</p>
+              </div>
+              <div class="flex gap-2 shrink-0">
+                <button type="button" (click)="confirmarAbono(a)" class="text-xs px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500">OK</button>
+                <button type="button" (click)="rechazarAbono(a)" class="text-xs px-2.5 py-1 rounded-lg bg-red-600/80 hover:bg-red-500">X</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Novedades -->
+      <div class="bg-gray-800 rounded-xl border border-orange-500/20 overflow-hidden">
+        <div class="p-5 border-b border-gray-700">
+          <h3 class="font-bold text-orange-300">Novedades del conductor</h3>
+          <p class="text-xs text-gray-400 mt-0.5">Pinchazos, choques, fallas y otros reportes</p>
+        </div>
+        <div *ngIf="novedadesAbiertas.length === 0" class="p-8 text-center text-gray-500 text-sm">
+          No hay novedades abiertas
+        </div>
+        <div class="divide-y divide-gray-700 max-h-80 overflow-y-auto">
+          <div *ngFor="let n of novedadesAbiertas.slice(0, 8)" class="px-5 py-3 space-y-2">
+            <div class="flex justify-between gap-2">
+              <div>
+                <p class="font-medium">{{ n.titulo }}</p>
+                <p class="text-xs text-gray-400">
+                  {{ n.conductor ? (n.conductor.nombre + ' ' + n.conductor.apellido) : 'Conductor' }}
+                  · {{ n.tipo }}
+                  <span *ngIf="n.moto">· {{ n.moto.placa }}</span>
+                </p>
+              </div>
+              <span class="text-xs px-2 py-0.5 rounded-full h-fit bg-orange-500/15 text-orange-300 capitalize">{{ n.estado.replace('_', ' ') }}</span>
+            </div>
+            <p class="text-xs text-gray-300 line-clamp-2">{{ n.descripcion }}</p>
+            <div class="flex gap-2">
+              <button
+                *ngIf="n.estado === 'abierta'"
+                type="button"
+                (click)="atenderNovedad(n, 'en_proceso')"
+                class="text-xs px-2.5 py-1 rounded-lg border border-gray-600 hover:bg-gray-700"
+              >
+                Tomar
+              </button>
+              <button
+                type="button"
+                (click)="atenderNovedad(n, 'resuelta')"
+                class="text-xs px-2.5 py-1 rounded-lg bg-emerald-600/80 hover:bg-emerald-500"
+              >
+                Resolver
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -44,10 +145,10 @@
       <div class="lg:col-span-2 bg-gray-800 rounded-xl border border-gray-700 overflow-hidden">
         <div class="p-5 border-b border-gray-700 flex justify-between items-center">
           <h3 class="font-bold">Cobros pendientes / mora</h3>
-          <a routerLink="/pagos" class="text-sm text-blue-400 hover:text-blue-300">Ir a cobros</a>
+          <a routerLink="/pagos" class="text-sm text-blue-400 hover:text-blue-300">Ir a pagos</a>
         </div>
         <div *ngIf="cobrosPendientes.length === 0" class="p-8 text-center text-gray-500 text-sm">
-          Sin cobros pendientes. Genera períodos desde Pagos tras activar contratos.
+          Sin cobros pendientes.
         </div>
         <div class="divide-y divide-gray-700 max-h-96 overflow-y-auto">
           <div *ngFor="let c of cobrosPendientes.slice(0, 8)" class="px-5 py-3 flex justify-between gap-3">

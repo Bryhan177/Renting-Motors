@@ -131,6 +131,17 @@
             </div>
           </div>
 
+          <div
+            *ngIf="alertasConductor.length"
+            class="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 space-y-2"
+          >
+            <p class="text-sm font-semibold text-amber-300">Alertas de vencimiento</p>
+            <div *ngFor="let a of alertasConductor" class="flex justify-between gap-3 text-sm">
+              <span>{{ a.label }}</span>
+              <span [class]="a.urgente ? 'text-red-400 font-medium' : 'text-amber-300'">{{ a.detalle }}</span>
+            </div>
+          </div>
+
           <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div class="lg:col-span-2 bg-gray-900 border border-gray-800 rounded-xl p-5 space-y-4">
               <div class="flex items-center justify-between gap-3">
@@ -423,6 +434,60 @@
           </div>
         </section>
 
+        <!-- NOVEDADES -->
+        <section *ngIf="seccion === 'novedades'" class="space-y-6">
+          <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+            <div>
+              <h1 class="text-2xl md:text-3xl font-bold">Novedades</h1>
+              <p class="text-gray-400 text-sm mt-1">
+                Reporta pinchazos, choques, fallas u otros problemas con tu moto.
+              </p>
+            </div>
+            <button
+              type="button"
+              (click)="abrirModalNovedad()"
+              class="inline-flex items-center justify-center gap-2 bg-orange-600 hover:bg-orange-500 text-white font-medium py-2.5 px-4 rounded-lg"
+            >
+              Reportar novedad
+            </button>
+          </div>
+
+          <div *ngIf="!novedades.length" class="bg-gray-900 border border-gray-800 rounded-xl p-10 text-center text-gray-400">
+            Aún no has reportado novedades.
+          </div>
+
+          <div class="space-y-3">
+            <div
+              *ngFor="let n of novedades"
+              class="bg-gray-900 border border-gray-800 rounded-xl p-4 space-y-2"
+            >
+              <div class="flex flex-wrap items-start justify-between gap-2">
+                <div>
+                  <p class="font-medium">{{ n.titulo }}</p>
+                  <p class="text-xs text-gray-400 mt-1">
+                    {{ etiquetaTipoNovedad(n.tipo) }}
+                    <span *ngIf="n.createdAt"> · {{ formatearFecha(n.createdAt) }}</span>
+                    <span *ngIf="n.moto"> · {{ n.moto.placa }}</span>
+                  </p>
+                </div>
+                <span class="text-xs px-2.5 py-1 rounded-full bg-orange-500/15 text-orange-300">
+                  {{ etiquetaEstadoNovedad(n.estado) }}
+                </span>
+              </div>
+              <p class="text-sm text-gray-300">{{ n.descripcion }}</p>
+              <img
+                *ngIf="n.foto"
+                [src]="n.foto"
+                alt="Foto novedad"
+                class="max-h-40 rounded-lg border border-gray-700 object-contain"
+              />
+              <p *ngIf="n.respuestaStaff" class="text-sm text-emerald-300/90 border-t border-gray-800 pt-2">
+                Respuesta: {{ n.respuestaStaff }}
+              </p>
+            </div>
+          </div>
+        </section>
+
         <!-- DOCUMENTOS -->
         <section *ngIf="seccion === 'documentos'" class="space-y-6">
           <div>
@@ -550,10 +615,11 @@
         <div>
           <label class="block text-sm text-gray-400 mb-1">Monto</label>
           <input
-            type="number"
+            type="text"
+            inputmode="numeric"
+            appCurrencyCo
             [(ngModel)]="pagoForm.monto"
             class="w-full bg-black border border-gray-600 rounded-lg px-3 py-2 text-white outline-none focus:ring-2 focus:ring-emerald-500"
-            min="1"
           />
         </div>
 
@@ -621,6 +687,93 @@
           class="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-medium disabled:opacity-50"
         >
           {{ enviandoPago ? 'Enviando...' : 'Enviar comprobante' }}
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal novedad -->
+  <div
+    *ngIf="modalNovedadVisible"
+    class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
+  >
+    <div class="bg-gray-900 rounded-2xl shadow-2xl w-full max-w-lg border border-gray-700 overflow-hidden">
+      <div class="p-5 border-b border-gray-800 flex justify-between items-center">
+        <h3 class="text-lg font-bold">Reportar novedad</h3>
+        <button type="button" (click)="cerrarModalNovedad()" class="text-gray-400 hover:text-white text-2xl leading-none">
+          &times;
+        </button>
+      </div>
+      <div class="p-5 space-y-4">
+        <div>
+          <label class="block text-sm text-gray-400 mb-1">Tipo</label>
+          <select
+            [(ngModel)]="novedadForm.tipo"
+            class="w-full bg-black border border-gray-600 rounded-lg px-3 py-2 text-white outline-none focus:ring-2 focus:ring-orange-500"
+          >
+            <option value="pinchazo">Pinchazo</option>
+            <option value="choque">Choque</option>
+            <option value="falla">Falla mecánica</option>
+            <option value="documento">Documento</option>
+            <option value="pago">Pago</option>
+            <option value="otro">Otro</option>
+          </select>
+        </div>
+        <div *ngIf="motos.length">
+          <label class="block text-sm text-gray-400 mb-1">Moto</label>
+          <select
+            [(ngModel)]="novedadForm.motoId"
+            class="w-full bg-black border border-gray-600 rounded-lg px-3 py-2 text-white outline-none focus:ring-2 focus:ring-orange-500"
+          >
+            <option value="">Sin moto</option>
+            <option *ngFor="let m of motos" [value]="m._id">{{ m.placa }} — {{ m.marca }} {{ m.modelo }}</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm text-gray-400 mb-1">Título</label>
+          <input
+            type="text"
+            [(ngModel)]="novedadForm.titulo"
+            class="w-full bg-black border border-gray-600 rounded-lg px-3 py-2 text-white outline-none focus:ring-2 focus:ring-orange-500"
+            placeholder="Ej. Pinchazo llanta trasera"
+          />
+        </div>
+        <div>
+          <label class="block text-sm text-gray-400 mb-1">Descripción</label>
+          <textarea
+            [(ngModel)]="novedadForm.descripcion"
+            rows="3"
+            class="w-full bg-black border border-gray-600 rounded-lg px-3 py-2 text-white outline-none focus:ring-2 focus:ring-orange-500"
+            placeholder="Cuéntanos qué pasó y dónde estás"
+          ></textarea>
+        </div>
+        <div>
+          <label class="block text-sm text-gray-400 mb-1">Foto (opcional)</label>
+          <input
+            type="file"
+            accept="image/*"
+            (change)="onFotoNovedad($event)"
+            class="w-full text-sm text-gray-300 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:bg-orange-600 file:text-white file:text-sm"
+          />
+          <img
+            *ngIf="novedadForm.foto"
+            [src]="novedadForm.foto"
+            alt="Preview"
+            class="mt-2 h-24 mx-auto object-contain rounded border border-gray-700"
+          />
+        </div>
+      </div>
+      <div class="p-5 border-t border-gray-800 flex justify-end gap-3">
+        <button type="button" (click)="cerrarModalNovedad()" class="px-4 py-2 rounded-lg text-gray-300 hover:bg-gray-800">
+          Cancelar
+        </button>
+        <button
+          type="button"
+          (click)="enviarNovedad()"
+          [disabled]="enviandoNovedad"
+          class="px-4 py-2 rounded-lg bg-orange-600 hover:bg-orange-500 text-white font-medium disabled:opacity-50"
+        >
+          {{ enviandoNovedad ? 'Enviando...' : 'Enviar' }}
         </button>
       </div>
     </div>

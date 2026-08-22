@@ -4,12 +4,13 @@ import { FormsModule } from '@angular/forms';
 import { CajaService, MovimientoCaja, ResumenBanco, BancoCaja } from '../../../service/caja.service';
 import { MotosService } from '../../../service/motos.service';
 import { Moto } from '../../../shared/interfaces/moto';
+import { CurrencyCoDirective } from '../../../shared/directives/currency-co.directive';
 import Swal from 'sweetalert2';
 
 @Component({
   selector: 'app-flujo-caja',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, CurrencyCoDirective],
   templateUrl: './flujo-caja.component.html',
 })
 export class FlujoCajaComponent implements OnInit {

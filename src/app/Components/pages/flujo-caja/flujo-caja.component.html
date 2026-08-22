@@ -52,7 +52,7 @@
       <option value="ingreso">Ingreso</option>
       <option value="egreso">Egreso</option>
     </select>
-    <input type="number" [(ngModel)]="form.monto" placeholder="Monto" class="w-full bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-white">
+    <input type="text" inputmode="numeric" appCurrencyCo [(ngModel)]="form.monto" placeholder="Monto" class="w-full bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-white">
     <input type="date" [(ngModel)]="form.fecha" class="w-full bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-white">
     <select [(ngModel)]="form.motoId" class="w-full bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-white">
       <option [ngValue]="null">Sin MDD</option>

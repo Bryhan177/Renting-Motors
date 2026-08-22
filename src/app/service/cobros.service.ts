@@ -42,6 +42,7 @@ export interface Abono {
   origenAbono: string;
   estado: 'pendiente_confirmacion' | 'registrado' | 'anulado';
   observaciones?: string | null;
+  conductor?: Usuario;
 }
 
 export interface ResumenCobros {
@@ -102,6 +103,18 @@ export class CobrosService {
   }
 
   private mapAbono(row: any): Abono {
+    const conductor = row.usuarios
+      ? {
+          _id: row.usuarios.id,
+          nombre: row.usuarios.nombre,
+          apellido: row.usuarios.apellido,
+          email: row.usuarios.email || '',
+          cedula: row.usuarios.cedula || 0,
+          telefono: row.usuarios.telefono || '',
+          rol: row.usuarios.rol || 'empleado',
+          activo: row.usuarios.activo !== false,
+        }
+      : undefined;
     return {
       _id: row.id,
       cobroId: row.cobro_id,
@@ -115,6 +128,7 @@ export class CobrosService {
       origenAbono: row.origen_abono,
       estado: row.estado,
       observaciones: row.observaciones,
+      conductor,
     };
   }
 
@@ -180,7 +194,10 @@ export class CobrosService {
   }
 
   getAbonos(estado?: string, conductorId?: string): Observable<Abono[]> {
-    let q = getSupabase().from('abonos').select('*').order('created_at', { ascending: false });
+    let q = getSupabase()
+      .from('abonos')
+      .select('*, usuarios:conductor_id(id,nombre,apellido,email,cedula,telefono,rol,activo)')
+      .order('created_at', { ascending: false });
     if (estado) q = q.eq('estado', estado);
     if (conductorId) q = q.eq('conductor_id', conductorId);
     return from(q).pipe(
@@ -334,12 +351,47 @@ export class CobrosService {
               confirmado_en: new Date().toISOString(),
             })
             .eq('id', id)
-            .select('*')
+            .select('*, usuarios:conductor_id(id,nombre,apellido,email,cedula,telefono,rol,activo)')
             .single(),
         ).pipe(
           switchMap(({ data: conf, error: e2 }) => {
             if (e2 || !conf) return throwError(() => ({ error: { message: e2?.message || 'No se pudo confirmar' } }));
             return this.aplicarAbonoAlCobro(conf.cobro_id).pipe(map(() => this.mapAbono(conf)));
+          }),
+        );
+      }),
+    );
+  }
+
+  rechazarAbono(id: string, motivo: string): Observable<Abono> {
+    const sb = getSupabase();
+    const actorId = this.auth.getUserId();
+    if (!actorId) return throwError(() => ({ error: { message: 'Sin sesión' } }));
+    const motivoTrim = (motivo || '').trim();
+    if (!motivoTrim) return throwError(() => ({ error: { message: 'Indica el motivo del rechazo' } }));
+
+    return from(sb.from('abonos').select('estado').eq('id', id).single()).pipe(
+      switchMap(({ data: abono, error }) => {
+        if (error || !abono) return throwError(() => ({ error: { message: 'Abono no encontrado' } }));
+        if (abono.estado !== 'pendiente_confirmacion') {
+          return throwError(() => ({ error: { message: 'El abono no está pendiente' } }));
+        }
+        return from(
+          sb
+            .from('abonos')
+            .update({
+              estado: 'anulado',
+              anulado_por: actorId,
+              anulado_en: new Date().toISOString(),
+              motivo_anulacion: motivoTrim,
+            })
+            .eq('id', id)
+            .select('*, usuarios:conductor_id(id,nombre,apellido,email,cedula,telefono,rol,activo)')
+            .single(),
+        ).pipe(
+          map(({ data, error: e2 }) => {
+            if (e2 || !data) throw e2 || new Error('No se pudo rechazar');
+            return this.mapAbono(data);
           }),
         );
       }),

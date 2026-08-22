@@ -6,5 +6,6 @@ Ejecuta en Supabase SQL Editor, en este orden si aún no lo hiciste:
 2. `20260821_emergencia_motos_rls.sql` (si aún fallaba crear MDD)
 3. `20260821_frecuencia_pago.sql`
 4. **`20260821_mdd_completo.sql`** ← campos MDD, usuarios, pagos manual, caja, mantenimientos, documentos
+5. **`20260822_novedades.sql`** ← reportes de novedad del conductor
 
 Luego cierra sesión y vuelve a entrar.
