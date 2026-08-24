@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { Router } from '@angular/router';
-import { Observable, from, switchMap, map, throwError } from 'rxjs';
-import { getSupabase } from '../supabase/supabase.client';
+import { Observable, from, switchMap, map, throwError, of } from 'rxjs';
+import { getSupabase, resetSupabaseClient } from '../supabase/supabase.client';
 import { Usuario, CreateUsuarioPayload } from '../shared/interfaces/usuario';
 
 export interface AuthResponse {
@@ -12,11 +12,62 @@ export interface AuthResponse {
 @Injectable({ providedIn: 'root' })
 export class AuthService {
   private readonly tokenKey = 'access_token';
+  private sessionReady: Promise<boolean> | null = null;
 
   constructor(private router: Router) {}
 
+  /**
+   * Sincroniza localStorage con la sesión real de Supabase.
+   * Evita el caso prod: hay access_token viejo pero RLS no ve JWT → listas vacías.
+   */
+  ensureSupabaseSession(): Promise<boolean> {
+    if (typeof window === 'undefined') return Promise.resolve(false);
+    if (!this.sessionReady) {
+      this.sessionReady = (async () => {
+        const sb = getSupabase();
+        const { data } = await sb.auth.getSession();
+        if (data.session?.access_token) {
+          localStorage.setItem(this.tokenKey, data.session.access_token);
+          if (data.session.user?.id) {
+            localStorage.setItem('userId', data.session.user.id);
+            if (!localStorage.getItem('userRole')) {
+              const { data: profile } = await sb
+                .from('usuarios')
+                .select('rol,nombre,apellido')
+                .eq('id', data.session.user.id)
+                .maybeSingle();
+              if (profile?.rol) {
+                localStorage.setItem('userRole', profile.rol);
+                localStorage.setItem(
+                  'userName',
+                  `${profile.nombre || ''} ${profile.apellido || ''}`.trim(),
+                );
+              }
+            }
+          }
+          return true;
+        }
+        // Token fantasma en localStorage sin sesión Supabase
+        if (localStorage.getItem(this.tokenKey)) {
+          localStorage.removeItem(this.tokenKey);
+          localStorage.removeItem('userName');
+          localStorage.removeItem('userId');
+          localStorage.removeItem('userRole');
+        }
+        return false;
+      })();
+    }
+    return this.sessionReady;
+  }
+
+  /** Fuerza revalidación en el próximo ensure. */
+  invalidateSessionCache(): void {
+    this.sessionReady = null;
+  }
+
   login(email: string, password: string): Observable<AuthResponse> {
     const sb = getSupabase();
+    this.invalidateSessionCache();
     return from(sb.auth.signInWithPassword({ email, password })).pipe(
       switchMap(({ data, error }) => {
         if (error || !data.session || !data.user) {
@@ -26,6 +77,7 @@ export class AuthService {
       }),
       map((res) => {
         this.persistSession(res);
+        this.sessionReady = Promise.resolve(true);
         return res;
       }),
     );
@@ -36,6 +88,7 @@ export class AuthService {
       return throwError(() => ({ error: { message: 'La contraseña es requerida' } }));
     }
     const sb = getSupabase();
+    this.invalidateSessionCache();
     const email = payload.email.toLowerCase().trim();
     return from(
       sb.auth.signUp({
@@ -48,7 +101,6 @@ export class AuthService {
           return throwError(() => ({ error: { message: error?.message || 'No se pudo registrar' } }));
         }
         const userId = data.user.id;
-        // Público siempre entra como conductor; staff cambia el rol en el panel.
         return from(
           sb
             .from('usuarios')
@@ -76,7 +128,8 @@ export class AuthService {
             const usuario = this.mapUsuario(profile);
             const res: AuthResponse = { access_token: token, usuario };
             this.persistSession(res);
-            return from(Promise.resolve(res));
+            this.sessionReady = Promise.resolve(!!token);
+            return of(res);
           }),
         );
       }),
@@ -84,6 +137,7 @@ export class AuthService {
   }
 
   logout(): void {
+    this.invalidateSessionCache();
     const sb = getSupabase();
     void sb.auth.signOut();
     if (typeof window === 'undefined') return;
@@ -91,6 +145,7 @@ export class AuthService {
     localStorage.removeItem('userName');
     localStorage.removeItem('userId');
     localStorage.removeItem('userRole');
+    resetSupabaseClient();
     this.router.navigate(['/login']);
   }
 
@@ -147,12 +202,10 @@ export class AuthService {
         if (data.activo === false) {
           return throwError(() => ({ error: { message: 'Usuario inactivo' } }));
         }
-        return from(
-          Promise.resolve({
-            access_token: accessToken,
-            usuario: this.mapUsuario(data),
-          } as AuthResponse),
-        );
+        return of({
+          access_token: accessToken,
+          usuario: this.mapUsuario(data),
+        } as AuthResponse);
       }),
     );
   }

@@ -14,8 +14,14 @@ export function getSupabase(): SupabaseClient {
         persistSession: isBrowser,
         autoRefreshToken: isBrowser,
         detectSessionInUrl: isBrowser,
+        storage: isBrowser ? window.localStorage : undefined,
       },
     });
   }
   return client;
+}
+
+/** Reinicia el cliente (p.ej. tras logout total). */
+export function resetSupabaseClient(): void {
+  client = null;
 }

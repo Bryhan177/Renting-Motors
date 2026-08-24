@@ -1,13 +1,43 @@
-.fondo{
-  background: radial-gradient(circle, rgba(0, 0, 0, 0.9) 80%, rgba(255, 255, 255, 0) 100%);
+:host {
+  display: block;
+  min-height: 100dvh;
 }
-.goHome{
-  background-color: #0d47a1;
-  color: white;
-  padding: 10px 20px;
-  border: none;
-  border-radius: 5px;
-  cursor: pointer;
-  font-size: 16px;
-  transition: background-color 0.3s ease;
+
+.panel-shell {
+  min-height: 100dvh;
+  min-height: 100svh;
+}
+
+.mobile-nav {
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.mobile-nav::-webkit-scrollbar {
+  display: none;
+}
+
+.kpi-value {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.modal-sheet {
+  max-height: min(92dvh, 92vh);
+}
+
+.modal-sheet-body {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Espacio inferior para el FAB de WhatsApp en móvil */
+.panel-content {
+  padding-bottom: calc(5.5rem + env(safe-area-inset-bottom, 0px));
+}
+
+@media (min-width: 768px) {
+  .panel-content {
+    padding-bottom: 2rem;
+  }
 }

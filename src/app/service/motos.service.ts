@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { Observable, from, map, switchMap, of, catchError } from 'rxjs';
+import { Observable, from, map, switchMap, catchError, of } from 'rxjs';
 import { getSupabase } from '../supabase/supabase.client';
 import { Moto } from '../shared/interfaces/moto';
 import { Usuario } from '../shared/interfaces/usuario';
@@ -180,12 +180,50 @@ export class MotosService {
   }
 
   deleteMoto(id: string): Observable<Moto> {
-    return from(getSupabase().from('motos').delete().eq('id', id).select('*').single()).pipe(
-      map(({ data, error }) => {
-        if (error || !data) throw error || new Error('No se pudo eliminar');
-        return this.mapMoto(data);
-      }),
-    );
+    return from(this.deleteMotoAsync(id));
+  }
+
+  private async deleteMotoAsync(id: string): Promise<Moto> {
+    const sb = getSupabase();
+
+    const { data: contratos, error: cErr } = await sb
+      .from('contratos')
+      .select('id,estado')
+      .eq('moto_id', id);
+    if (cErr) throw cErr;
+
+    const activos = (contratos || []).filter((c: { estado: string }) => c.estado === 'activo');
+    if (activos.length) {
+      throw new Error(
+        'Esta MDD tiene un contrato activo. Primero haz la devolución o finaliza el contrato.',
+      );
+    }
+
+    const contratoIds = (contratos || []).map((c: { id: string }) => c.id);
+    if (contratoIds.length) {
+      const { error: delContratosErr } = await sb.from('contratos').delete().in('id', contratoIds);
+      if (delContratosErr) throw delContratosErr;
+    }
+
+    await Promise.all([
+      sb.from('pagos').delete().eq('moto_id', id),
+      sb.from('mantenimientos').delete().eq('moto_id', id),
+      sb.from('movimientos_caja').update({ moto_id: null }).eq('moto_id', id),
+      sb.from('documentos').update({ moto_id: null }).eq('moto_id', id),
+      sb.from('novedades').update({ moto_id: null }).eq('moto_id', id),
+    ]);
+
+    const { data, error } = await sb.from('motos').delete().eq('id', id).select('*').single();
+    if (error || !data) {
+      const msg = error?.message || 'No se pudo eliminar';
+      if (String(msg).includes('foreign key') || String(msg).includes('violates')) {
+        throw new Error(
+          'No se pudo eliminar: aún hay registros ligados. Ejecuta el SQL 20260822_motos_delete_cascade.sql en Supabase y reintenta.',
+        );
+      }
+      throw error || new Error(msg);
+    }
+    return this.mapMoto(data);
   }
 
   getMotosByConductor(conductorId: string): Observable<Moto[]> {

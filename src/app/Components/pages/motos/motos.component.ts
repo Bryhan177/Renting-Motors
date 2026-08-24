@@ -524,18 +524,32 @@ export class MotosComponent implements OnInit {
   eliminarMoto(id: string) {
     Swal.fire({
       title: '¿Eliminar moto?',
+      text: 'Se borrarán también contratos en borrador/finalizados y su historial. No se puede si hay contrato activo.',
       icon: 'warning',
       showCancelButton: true,
-      confirmButtonText: 'Sí',
+      confirmButtonText: 'Sí, eliminar',
       cancelButtonText: 'Cancelar',
+      confirmButtonColor: '#b91c1c',
     }).then((r) => {
       if (!r.isConfirmed) return;
       this.motosService.deleteMoto(id).subscribe({
         next: () => {
           this.loadMotos();
-          Swal.fire({ icon: 'success', title: 'Eliminada', toast: true, timer: 1500, showConfirmButton: false, position: 'top-end' });
+          Swal.fire({
+            icon: 'success',
+            title: 'Eliminada',
+            toast: true,
+            timer: 1500,
+            showConfirmButton: false,
+            position: 'top-end',
+          });
         },
-        error: (e) => Swal.fire({ icon: 'error', title: e?.message || 'Error' }),
+        error: (e) =>
+          Swal.fire({
+            icon: 'error',
+            title: 'No se pudo eliminar',
+            text: e?.message || e?.error?.message || 'Error',
+          }),
       });
     });
   }

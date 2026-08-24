@@ -80,13 +80,18 @@ export class HomeEmpleadosComponent implements OnInit {
     foto: null as string | null,
   };
 
-  readonly navItems: { id: SeccionPanel; label: string; icon: string }[] = [
+  readonly navItems: {
+    id: SeccionPanel;
+    label: string;
+    shortLabel?: string;
+    icon: string;
+  }[] = [
     { id: 'inicio', label: 'Inicio', icon: '📊' },
     { id: 'motos', label: 'Mi moto', icon: '🛵' },
-    { id: 'cuenta', label: 'Estado de cuenta', icon: '💳' },
+    { id: 'cuenta', label: 'Estado de cuenta', shortLabel: 'Cuenta', icon: '💳' },
     { id: 'novedades', label: 'Novedades', icon: '⚠️' },
-    { id: 'documentos', label: 'Documentos', icon: '📄' },
-    { id: 'perfil', label: 'Mi perfil', icon: '👤' },
+    { id: 'documentos', label: 'Documentos', shortLabel: 'Docs', icon: '📄' },
+    { id: 'perfil', label: 'Mi perfil', shortLabel: 'Perfil', icon: '👤' },
   ];
 
   constructor(
