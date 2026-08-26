@@ -3,7 +3,6 @@ import { Observable, from, map, switchMap, throwError, of, forkJoin } from 'rxjs
 import { getSupabase } from '../supabase/supabase.client';
 import { AuthService } from '../auth/auth.service';
 import {
-  calcularEstadoCobro,
   calcularPeriodo,
   numeroPeriodoVigente,
   parseDateOnly,
@@ -11,6 +10,17 @@ import {
 } from '../shared/periodo.util';
 import { Usuario } from '../shared/interfaces/usuario';
 import { Moto } from '../shared/interfaces/moto';
+import {
+  estadoCuentaDesdeCobros,
+  mapCobroFromRow,
+  mapEstadoCuentaFromRow,
+  mapResumenFromRow,
+  parseRpcJson,
+  resumenDesdeCobros,
+} from '../shared/cobro-finanzas.mapper';
+
+/** PostgREST: * no incluye la columna computada en_mora; hay que pedirla. */
+const COBRO_SELECT = '*, en_mora, usuarios:conductor_id(*)';
 
 export interface Cobro {
   _id?: string;
@@ -73,43 +83,7 @@ export class CobrosService {
   constructor(private auth: AuthService) {}
 
   private mapCobro(row: any): Cobro {
-    const conductor = row.usuarios
-      ? {
-          _id: row.usuarios.id,
-          nombre: row.usuarios.nombre,
-          apellido: row.usuarios.apellido,
-          email: row.usuarios.email,
-          cedula: row.usuarios.cedula,
-          telefono: row.usuarios.telefono,
-          rol: row.usuarios.rol,
-          activo: row.usuarios.activo,
-        }
-      : undefined;
-    const hoy = startOfToday();
-    const venc = parseDateOnly(row.fecha_vencimiento);
-    const saldo = Number(row.saldo);
-    const enMora =
-      row.estado !== 'anulado' &&
-      row.estado !== 'pagado' &&
-      saldo > 0 &&
-      venc.getTime() < hoy.getTime();
-    return {
-      _id: row.id,
-      contratoId: row.contrato_id,
-      conductorId: conductor || row.conductor_id,
-      motoId: row.moto_id,
-      numeroPeriodo: row.numero_periodo,
-      periodoInicio: row.periodo_inicio,
-      periodoFin: row.periodo_fin,
-      fechaVencimiento: row.fecha_vencimiento,
-      montoEsperado: Number(row.monto_esperado),
-      montoPagado: Number(row.monto_pagado),
-      saldo,
-      estado: row.estado,
-      // Siempre recalcular: el flag en DB puede estar desactualizado
-      enMora,
-      conductor,
-    };
+    return mapCobroFromRow(row);
   }
 
   private mapAbono(row: any): Abono {
@@ -145,63 +119,37 @@ export class CobrosService {
   getCobros(params?: { enMora?: string; conductorId?: string }): Observable<Cobro[]> {
     let q = getSupabase()
       .from('cobros')
-      .select('*, usuarios:conductor_id(*)')
+      .select(COBRO_SELECT)
       .neq('estado', 'anulado')
       .order('periodo_inicio', { ascending: false });
     if (params?.conductorId) q = q.eq('conductor_id', params.conductorId);
     if (params?.enMora === 'true') q = q.eq('en_mora', true);
     return from(q).pipe(
-      switchMap(({ data, error }) => {
-        if (error) return throwError(() => error);
-        const rows = data || [];
-        const cobros = rows.map((r) => this.mapCobro(r));
-        // sincronizar mora en cliente y persistir flag
-        return this.syncMoraFlags(cobros, rows);
+      map(({ data, error }) => {
+        if (error) throw error;
+        return (data || []).map((r) => this.mapCobro(r));
       }),
     );
   }
 
-  private syncMoraFlags(cobros: Cobro[], rows: any[]): Observable<Cobro[]> {
-    const hoy = startOfToday();
-    const updates = cobros
-      .map((c, i) => ({ c, row: rows[i] }))
-      .filter(({ c }) => c._id && c.estado !== 'pagado' && c.estado !== 'anulado')
-      .map(({ c, row }) => {
-        const venc = parseDateOnly(c.fechaVencimiento);
-        const enMora = c.saldo > 0 && venc.getTime() < hoy.getTime();
-        c.enMora = enMora;
-        const flagDb = !!row?.en_mora;
-        if (enMora === flagDb) return of(c);
-        return from(
-          getSupabase().from('cobros').update({ en_mora: enMora }).eq('id', c._id!),
-        ).pipe(map(() => c));
-      });
-    if (!updates.length) return of(cobros);
-    return forkJoin(updates).pipe(map(() => cobros));
-  }
-
   getResumen(): Observable<ResumenCobros> {
-    return this.getCobros().pipe(
-      map((cobros) => ({
-        pagadoTotal: cobros.reduce((s, c) => s + c.montoPagado, 0),
-        pendienteTotal: cobros.reduce((s, c) => s + c.saldo, 0),
-        enMoraTotal: cobros.filter((c) => c.enMora).reduce((s, c) => s + c.saldo, 0),
-      })),
+    return from(getSupabase().rpc('resumen_cobros')).pipe(
+      switchMap(({ data, error }) => {
+        const parsed = parseRpcJson(data);
+        if (!error && parsed) return of(mapResumenFromRow(parsed));
+        return this.getCobros().pipe(map((cobros) => resumenDesdeCobros(cobros)));
+      }),
     );
   }
 
   getEstadoCuenta(conductorId: string): Observable<EstadoCuenta> {
-    return this.getCobros({ conductorId }).pipe(
-      map((cobros) => {
-        const enMora = cobros.filter((c) => c.enMora);
-        const fechas = enMora.map((c) => parseDateOnly(c.fechaVencimiento).getTime());
-        return {
-          deudaTotal: cobros.reduce((s, c) => s + c.saldo, 0),
-          deudaEnMora: enMora.reduce((s, c) => s + c.saldo, 0),
-          periodosVencidos: enMora.length,
-          enMora: enMora.length > 0,
-          fechaMoraMasAntigua: fechas.length ? new Date(Math.min(...fechas)) : null,
-        };
+    return from(
+      getSupabase().rpc('estado_cuenta_conductor', { p_conductor_id: conductorId }),
+    ).pipe(
+      switchMap(({ data, error }) => {
+        const parsed = parseRpcJson(data);
+        if (!error && parsed) return of(mapEstadoCuentaFromRow(parsed));
+        return this.getCobros({ conductorId }).pipe(map((cobros) => estadoCuentaDesdeCobros(cobros)));
       }),
     );
   }
@@ -314,13 +262,9 @@ export class CobrosService {
           periodo_fin: toDateOnlyString(p.periodoFin),
           fecha_vencimiento: toDateOnlyString(p.fechaVencimiento),
           monto_esperado: Number(contrato.cuota_semanal),
-          monto_pagado: 0,
-          saldo: Number(contrato.cuota_semanal),
-          estado: 'pendiente',
-          en_mora: false,
           generado_por: actorId,
         };
-        return from(sb.from('cobros').insert(row).select('*, usuarios:conductor_id(*)')).pipe(
+        return from(sb.from('cobros').insert(row).select(COBRO_SELECT)).pipe(
           map(({ data, error }) => {
             if (error) throw error;
             return (data || []).map((r) => this.mapCobro(r));
@@ -374,8 +318,7 @@ export class CobrosService {
         ).pipe(
           switchMap(({ data: abono, error: e2 }) => {
             if (e2 || !abono) return throwError(() => ({ error: { message: e2?.message || 'No se pudo abonar' } }));
-            if (pendiente) return of([this.mapAbono(abono)]);
-            return this.aplicarAbonoAlCobro(cobro.id).pipe(map(() => [this.mapAbono(abono)]));
+            return of([this.mapAbono(abono)]);
           }),
         );
       }),
@@ -419,7 +362,7 @@ export class CobrosService {
         ).pipe(
           switchMap(({ data: conf, error: e2 }) => {
             if (e2 || !conf) return throwError(() => ({ error: { message: e2?.message || 'No se pudo confirmar' } }));
-            return this.aplicarAbonoAlCobro(conf.cobro_id).pipe(map(() => this.mapAbono(conf)));
+            return of(this.mapAbono(conf));
           }),
         );
       }),
@@ -461,42 +404,4 @@ export class CobrosService {
     );
   }
 
-  private aplicarAbonoAlCobro(cobroId: string): Observable<void> {
-    const sb = getSupabase();
-    return from(
-      sb.from('abonos').select('monto').eq('cobro_id', cobroId).eq('estado', 'registrado'),
-    ).pipe(
-      switchMap(({ data: abonos, error }) => {
-        if (error) return throwError(() => error);
-        const pagado = (abonos || []).reduce((s: number, a: any) => s + Number(a.monto), 0);
-        return from(sb.from('cobros').select('*').eq('id', cobroId).single()).pipe(
-          switchMap(({ data: cobro, error: e2 }) => {
-            if (e2 || !cobro) return throwError(() => e2 || new Error('Cobro no encontrado'));
-            const esperado = Number(cobro.monto_esperado);
-            const saldo = Math.max(0, esperado - pagado);
-            const estado = calcularEstadoCobro(esperado, pagado);
-            const venc = parseDateOnly(cobro.fecha_vencimiento);
-            const enMora = estado !== 'pagado' && saldo > 0 && venc.getTime() < startOfToday().getTime();
-            return from(
-              sb
-                .from('cobros')
-                .update({
-                  monto_pagado: pagado,
-                  saldo,
-                  estado,
-                  en_mora: enMora,
-                })
-                .eq('id', cobroId),
-            ).pipe(map(() => void 0));
-          }),
-        );
-      }),
-    );
-  }
-}
-
-function startOfToday(): Date {
-  const d = new Date();
-  d.setHours(0, 0, 0, 0);
-  return d;
 }
