@@ -11,11 +11,11 @@ import { AuthService } from '../../../auth/auth.service';
 import { Moto } from '../../../shared/interfaces/moto';
 import { Usuario } from '../../../shared/interfaces/usuario';
 import { CurrencyCoDirective } from '../../../shared/directives/currency-co.directive';
-import { CUOTA_SEMANAL_ESTANDAR, DEPOSITO_ESTANDAR } from '../../../shared/constants';
+import { CUOTAS_ESTANDAR, CUOTA_SEMANAL_ESTANDAR, DEPOSITO_ESTANDAR } from '../../../shared/constants';
 import { FrecuenciaPago, toDateOnlyString } from '../../../shared/periodo.util';
 import {
   ContratoEstado,
-  cuotaSugeridaPorFrecuencia,
+  cuotaTrasCambioFrecuencia,
   duracionMinimaValida,
   etiquetaMoto,
   fechaFinMinima,
@@ -45,7 +45,7 @@ export class ContratosComponent implements OnInit {
   contratoVer: Contrato | null = null;
   form: CreateContratoPayload = this.formVacio();
 
-  readonly cuotaEstandar = CUOTA_SEMANAL_ESTANDAR;
+  readonly cuotasEstandar = CUOTAS_ESTANDAR;
 
   constructor(
     private contratosService: ContratosService,
@@ -149,7 +149,7 @@ export class ContratosComponent implements OnInit {
 
   onCambioFrecuencia(): void {
     const f = (this.form.frecuenciaPago || 'semanal') as FrecuenciaPago;
-    this.form.cuotaSemanal = cuotaSugeridaPorFrecuencia(f, CUOTA_SEMANAL_ESTANDAR);
+    this.form.cuotaSemanal = cuotaTrasCambioFrecuencia(this.form.cuotaSemanal, f);
   }
 
   onCambioMoto(): void {

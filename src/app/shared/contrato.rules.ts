@@ -1,4 +1,4 @@
-import { CUOTA_SEMANAL_ESTANDAR } from './constants';
+import { CUOTAS_ESTANDAR } from './constants';
 import { Moto } from './interfaces/moto';
 import { Usuario } from './interfaces/usuario';
 import { FrecuenciaPago, parseDateOnly, toDateOnlyString } from './periodo.util';
@@ -57,12 +57,26 @@ export function labelFrecuencia(frecuencia: FrecuenciaPago | string | null | und
 }
 
 export function cuotaSugeridaPorFrecuencia(
-  frecuencia: FrecuenciaPago,
-  cuotaSemanal = CUOTA_SEMANAL_ESTANDAR,
+  frecuencia: FrecuenciaPago | string | null | undefined,
 ): number {
-  if (frecuencia === 'quincenal') return cuotaSemanal * 2;
-  if (frecuencia === 'mensual') return cuotaSemanal * 4;
-  return cuotaSemanal;
+  if (frecuencia === 'quincenal') return CUOTAS_ESTANDAR.quincenal;
+  if (frecuencia === 'mensual') return CUOTAS_ESTANDAR.mensual;
+  return CUOTAS_ESTANDAR.semanal;
+}
+
+export function esCuotaEstandar(cuota: number): boolean {
+  return (Object.values(CUOTAS_ESTANDAR) as number[]).includes(cuota);
+}
+
+/** En un contrato nuevo: sigue 160/320/640 salvo que el usuario ya haya escrito una cuota distinta. */
+export function cuotaTrasCambioFrecuencia(
+  cuotaActual: number | null | undefined,
+  frecuenciaNueva: FrecuenciaPago | string | null | undefined,
+): number {
+  if (cuotaActual == null || cuotaActual <= 0 || esCuotaEstandar(cuotaActual)) {
+    return cuotaSugeridaPorFrecuencia(frecuenciaNueva);
+  }
+  return cuotaActual;
 }
 
 export function mensajeErrorContrato(error: unknown): string {

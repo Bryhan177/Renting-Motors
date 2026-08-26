@@ -7,6 +7,8 @@ import { OperacionService, Deposito, Entrega } from '../../../service/operacion.
 import { Moto } from '../../../shared/interfaces/moto';
 import { Usuario } from '../../../shared/interfaces/usuario';
 import { CurrencyCoDirective } from '../../../shared/directives/currency-co.directive';
+import { CUOTA_SEMANAL_ESTANDAR, DEPOSITO_ESTANDAR } from '../../../shared/constants';
+import { cuotaTrasCambioFrecuencia } from '../../../shared/contrato.rules';
 import Swal from 'sweetalert2';
 
 @Component({
@@ -37,7 +39,7 @@ export class MotosComponent implements OnInit {
       placa: '',
       precio: 0,
       precioCompra: 0,
-      precioCobro: 180000,
+      precioCobro: CUOTA_SEMANAL_ESTANDAR,
       soat: null,
       tecnomecanica: null,
       aceite: '',
@@ -50,8 +52,8 @@ export class MotosComponent implements OnInit {
       imagen: undefined,
     };
   }
-  cuotaSemanal = 180000;
-  depositoPactado = 300000;
+  cuotaSemanal = CUOTA_SEMANAL_ESTANDAR;
+  depositoPactado = DEPOSITO_ESTANDAR;
   frecuenciaPago: 'semanal' | 'quincenal' | 'mensual' = 'semanal';
   fechaInicioContrato = new Date().toISOString().slice(0, 10);
   pasoAsignar = 1;
@@ -120,7 +122,7 @@ export class MotosComponent implements OnInit {
       ...this.motoForm,
       precio: Number(this.motoForm.precioCompra ?? this.motoForm.precio) || 0,
       precioCompra: Number(this.motoForm.precioCompra ?? this.motoForm.precio) || 0,
-      precioCobro: Number(this.motoForm.precioCobro) || 180000,
+      precioCobro: Number(this.motoForm.precioCobro) || CUOTA_SEMANAL_ESTANDAR,
       conductorId:
         this.conductorCreacion === 'sin_conductor' ? null : this.conductorCreacion || null,
       estado:
@@ -161,9 +163,7 @@ export class MotosComponent implements OnInit {
   }
 
   onCambioFrecuencia(): void {
-    if (this.frecuenciaPago === 'semanal') this.cuotaSemanal = 180000;
-    else if (this.frecuenciaPago === 'quincenal') this.cuotaSemanal = 360000;
-    else this.cuotaSemanal = 720000;
+    this.cuotaSemanal = cuotaTrasCambioFrecuencia(this.cuotaSemanal, this.frecuenciaPago);
   }
 
   abrirModalAsignar(moto: Moto) {
@@ -175,8 +175,8 @@ export class MotosComponent implements OnInit {
     this.entregaId = null;
     this.entregaForm = this.entregaVacia();
     this.frecuenciaPago = 'semanal';
-    this.cuotaSemanal = moto.precioCobro || 180000;
-    this.depositoPactado = 300000;
+    this.cuotaSemanal = moto.precioCobro || CUOTA_SEMANAL_ESTANDAR;
+    this.depositoPactado = DEPOSITO_ESTANDAR;
     this.fechaInicioContrato = new Date().toISOString().slice(0, 10);
     this.loadConductoresDisponibles();
     this.operacionService.sugerencias().subscribe({

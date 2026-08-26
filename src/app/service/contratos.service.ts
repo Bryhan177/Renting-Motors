@@ -1,12 +1,13 @@
 import { Injectable } from '@angular/core';
 import { Observable, from, map, of, switchMap, throwError } from 'rxjs';
 import { getSupabase } from '../supabase/supabase.client';
-import { CUOTA_SEMANAL_ESTANDAR, DEPOSITO_ESTANDAR } from '../shared/constants';
+import { DEPOSITO_ESTANDAR } from '../shared/constants';
 import { Usuario } from '../shared/interfaces/usuario';
 import { Moto } from '../shared/interfaces/moto';
 import { FrecuenciaPago } from '../shared/periodo.util';
 import {
   ContratoEstado,
+  cuotaSugeridaPorFrecuencia,
   duracionMinimaValida,
   fechaFinMinima,
   mensajeErrorContrato,
@@ -93,9 +94,9 @@ export class ContratosService {
 
   create(payload: CreateContratoPayload): Observable<Contrato> {
     const sb = getSupabase();
-    const cuota = payload.cuotaSemanal ?? CUOTA_SEMANAL_ESTANDAR;
-    const deposito = payload.depositoPactado ?? DEPOSITO_ESTANDAR;
     const frecuencia = payload.frecuenciaPago || 'semanal';
+    const cuota = payload.cuotaSemanal ?? cuotaSugeridaPorFrecuencia(frecuencia);
+    const deposito = payload.depositoPactado ?? DEPOSITO_ESTANDAR;
     const fechaFin = payload.fechaFin || fechaFinMinima(payload.fechaInicio);
 
     if (!duracionMinimaValida(payload.fechaInicio, fechaFin)) {
