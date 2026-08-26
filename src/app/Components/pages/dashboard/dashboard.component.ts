@@ -3,13 +3,23 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { MotosService } from '../../../service/motos.service';
-import { ContratosService, Contrato } from '../../../service/contratos.service';
-import { CobrosService, Abono, Cobro, IngresoMensual } from '../../../service/cobros.service';
+import { CobrosService, Abono, Cobro } from '../../../service/cobros.service';
 import { NovedadesService, Novedad, EstadoNovedad } from '../../../service/novedades.service';
+import { DashboardService } from '../../../service/dashboard.service';
 import { Moto } from '../../../shared/interfaces/moto';
-import { Estadisticas } from '../../../shared/interfaces/pago';
 import { diasHasta, etiquetaVencimiento } from '../../../shared/date.util';
-import { cobroPeriodoVigente, parseDateOnly } from '../../../shared/periodo.util';
+import { parseDateOnly } from '../../../shared/periodo.util';
+import { formatCop } from '../../../shared/currency-co.util';
+import {
+  PeriodoDashboard,
+  ResumenDashboard,
+  emptyResumenDashboard,
+  etiquetaPeriodo,
+  ingresosMensualesVisibles,
+  alturaBarra as pctBarra,
+  maxMontoSerie,
+  porcentajeDisponibles,
+} from '../../../shared/dashboard-kpis';
 import Swal from 'sweetalert2';
 
 interface AlertaVencimiento {
@@ -29,29 +39,22 @@ interface AlertaVencimiento {
 })
 export class DashboardComponent implements OnInit {
   motos: Moto[] = [];
-  contratosActivos: Contrato[] = [];
-  private todosLosCobros: Cobro[] = [];
   cobrosPendientes: Cobro[] = [];
-  cobrosEnMora: Cobro[] = [];
   abonosPendientes: Abono[] = [];
   novedadesAbiertas: Novedad[] = [];
   alertas: AlertaVencimiento[] = [];
-  estadisticas: Estadisticas | null = null;
   loading = true;
-  totalPagado = 0;
-  totalPendiente = 0;
-  totalMora = 0;
+  sqlPendiente = false;
 
-  /** Métricas de crecimiento */
+  periodo: PeriodoDashboard = 'mes';
+  kpis: ResumenDashboard = emptyResumenDashboard('mes');
   mesesCrecimiento: 6 | 12 = 12;
-  ingresosMensuales: IngresoMensual[] = [];
-  cargandoCrecimiento = false;
 
   constructor(
     private motosService: MotosService,
     private cobrosService: CobrosService,
-    private contratosService: ContratosService,
     private novedadesService: NovedadesService,
+    private dashboardService: DashboardService,
   ) {}
 
   ngOnInit(): void {
@@ -59,18 +62,35 @@ export class DashboardComponent implements OnInit {
   }
 
   loadData(): void {
-    this.loading = true;
+    this.cargarKpis();
+    this.cargarOperativo();
+  }
 
-    this.motosService.getEstadisticas().subscribe({
-      next: (estadisticas) => {
-        this.estadisticas = estadisticas;
+  setPeriodo(periodo: PeriodoDashboard): void {
+    if (this.periodo === periodo) return;
+    this.periodo = periodo;
+    this.cargarKpis();
+  }
+
+  cargarKpis(): void {
+    this.loading = true;
+    this.sqlPendiente = false;
+    this.dashboardService.getResumen(this.periodo).subscribe({
+      next: (kpis) => {
+        this.kpis = kpis;
         this.loading = false;
       },
-      error: () => {
+      error: (e) => {
+        this.kpis = emptyResumenDashboard(this.periodo);
         this.loading = false;
+        const msg = String(e?.message || e?.error?.message || '');
+        this.sqlPendiente =
+          /resumen_dashboard|could not find the function|schema cache/i.test(msg);
       },
     });
+  }
 
+  cargarOperativo(): void {
     this.motosService.getMotos().subscribe({
       next: (motos) => {
         this.motos = motos;
@@ -79,28 +99,19 @@ export class DashboardComponent implements OnInit {
       error: () => {},
     });
 
-    this.contratosService.getContratos({ estado: 'activo' }).subscribe({
-      next: (contratos) => {
-        this.contratosActivos = contratos;
-        this.actualizarCobrosVigentes();
-        this.recalcularAlertas();
-      },
-      error: () => {
-        this.contratosActivos = [];
-        this.actualizarCobrosVigentes();
-      },
-    });
-
-    this.cobrosService.getCobros().subscribe({
+    this.cobrosService.getCobros({ soloConSaldo: true }).subscribe({
       next: (cobros) => {
-        this.todosLosCobros = cobros;
-        this.actualizarCobrosVigentes();
+        this.cobrosPendientes = [...cobros].sort((a, b) => {
+          if (a.enMora !== b.enMora) return a.enMora ? -1 : 1;
+          return (
+            parseDateOnly(a.fechaVencimiento).getTime() -
+            parseDateOnly(b.fechaVencimiento).getTime()
+          );
+        });
         this.recalcularAlertas();
       },
       error: () => {
-        this.todosLosCobros = [];
         this.cobrosPendientes = [];
-        this.cobrosEnMora = [];
       },
     });
 
@@ -116,99 +127,49 @@ export class DashboardComponent implements OnInit {
         )),
       error: () => (this.novedadesAbiertas = []),
     });
-
-    this.cargarCrecimiento();
-  }
-
-  cargarCrecimiento(): void {
-    this.cargandoCrecimiento = true;
-    this.cobrosService.getIngresosMensuales(this.mesesCrecimiento).subscribe({
-      next: (series) => {
-        this.ingresosMensuales = series;
-        this.cargandoCrecimiento = false;
-      },
-      error: () => {
-        this.ingresosMensuales = [];
-        this.cargandoCrecimiento = false;
-      },
-    });
   }
 
   setMesesCrecimiento(meses: 6 | 12): void {
-    if (this.mesesCrecimiento === meses) return;
     this.mesesCrecimiento = meses;
-    this.cargarCrecimiento();
   }
 
-  get totalIngresosPeriodo(): number {
+  get ingresosMensuales() {
+    return ingresosMensualesVisibles(this.kpis.ingresosMensuales, this.mesesCrecimiento);
+  }
+
+  get totalIngresosPeriodoChart(): number {
     return this.ingresosMensuales.reduce((s, m) => s + m.monto, 0);
   }
 
   get maxIngresoMensual(): number {
-    return Math.max(0, ...this.ingresosMensuales.map((m) => m.monto));
+    return maxMontoSerie(this.ingresosMensuales);
   }
 
-  get mesActual(): IngresoMensual | null {
-    if (!this.ingresosMensuales.length) return null;
-    return this.ingresosMensuales[this.ingresosMensuales.length - 1];
-  }
-
-  get mesAnterior(): IngresoMensual | null {
-    if (this.ingresosMensuales.length < 2) return null;
-    return this.ingresosMensuales[this.ingresosMensuales.length - 2];
-  }
-
-  /** Variación % del mes actual vs el anterior. null si no hay base. */
-  get variacionMensualPct(): number | null {
-    const actual = this.mesActual?.monto ?? 0;
-    const anterior = this.mesAnterior?.monto ?? 0;
-    if (anterior <= 0) return actual > 0 ? 100 : null;
-    return Math.round(((actual - anterior) / anterior) * 100);
-  }
-
-  get mejorMes(): IngresoMensual | null {
+  get mejorMes() {
     if (!this.ingresosMensuales.length) return null;
     return this.ingresosMensuales.reduce((best, m) => (m.monto > best.monto ? m : best));
   }
 
+  get etiquetaRango(): string {
+    return etiquetaPeriodo(this.kpis.periodo || this.periodo, this.kpis.periodoDesde, this.kpis.periodoHasta);
+  }
+
   alturaBarra(monto: number): number {
-    const max = this.maxIngresoMensual;
-    if (max <= 0) return 0;
-    return Math.max(4, Math.round((monto / max) * 100));
+    return pctBarra(monto, this.maxIngresoMensual);
   }
 
-  /** Solo la cuota del periodo vigente por contrato activo. */
-  private cobrosCuotaActual(cobros: Cobro[]): Cobro[] {
-    const items: Cobro[] = [];
-    for (const contrato of this.contratosActivos) {
-      if (!contrato._id) continue;
-      const cobro = cobroPeriodoVigente(
-        cobros,
-        contrato._id,
-        contrato.fechaInicio,
-        contrato.frecuenciaPago || 'semanal',
-      );
-      if (!cobro || cobro.saldo <= 0 || cobro.estado === 'anulado' || cobro.estado === 'pagado') {
-        continue;
-      }
-      items.push(cobro);
-    }
-    return items;
+  alturaBarraPlan(ingresos: number): number {
+    const max = Math.max(0, ...this.kpis.planes.map((p) => p.ingresos));
+    return pctBarra(ingresos, max);
   }
 
-  private actualizarCobrosVigentes(): void {
-    const vigentes = this.cobrosCuotaActual(this.todosLosCobros);
-    this.cobrosPendientes = vigentes.sort((a, b) => {
-      if (a.enMora !== b.enMora) return a.enMora ? -1 : 1;
-      return (
-        parseDateOnly(a.fechaVencimiento).getTime() -
-        parseDateOnly(b.fechaVencimiento).getTime()
-      );
-    });
-    this.cobrosEnMora = this.cobrosPendientes.filter((c) => c.enMora);
-    this.totalPagado = this.todosLosCobros.reduce((s, c) => s + c.montoPagado, 0);
-    this.totalPendiente = this.cobrosPendientes.reduce((s, c) => s + c.saldo, 0);
-    this.totalMora = this.cobrosEnMora.reduce((s, c) => s + c.saldo, 0);
+  cop(value: number | null | undefined): string {
+    const n = Number(value) || 0;
+    return `$ ${formatCop(n) || '0'}`;
+  }
+
+  getMotosDisponiblesPorcentaje(): number {
+    return porcentajeDisponibles(this.kpis);
   }
 
   private recalcularAlertas(): void {
@@ -248,22 +209,12 @@ export class DashboardComponent implements OnInit {
         tipo: 'Cuota',
         fecha: c.fechaVencimiento,
         dias,
-        detalle: `Periodo #${c.numeroPeriodo} · ${this.conductorNombre(c)} · $ ${c.saldo.toLocaleString('es-CO')}`,
+        detalle: `Periodo #${c.numeroPeriodo} · ${this.conductorNombre(c)} · ${this.cop(c.saldo)}`,
       });
     }
 
     alertas.sort((a, b) => a.dias - b.dias);
     this.alertas = alertas.slice(0, 12);
-  }
-
-  get motosEnUso(): number {
-    return this.motos.filter((m) => m.estado === 'en_uso').length;
-  }
-
-  getMotosDisponiblesPorcentaje(): number {
-    const total = this.estadisticas?.totalMotos || 0;
-    const disp = this.estadisticas?.motosDisponibles || 0;
-    return total > 0 ? Math.round((disp / total) * 100) : 0;
   }
 
   getEstadoClass(estado: string): string {

@@ -44,6 +44,7 @@ export class CajaService {
     let q = getSupabase()
       .from('movimientos_caja')
       .select('*, motos:moto_id(placa)')
+      .neq('estado', 'anulado')
       .order('fecha', { ascending: false })
       .limit(200);
     if (banco) q = q.eq('banco', banco);

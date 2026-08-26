@@ -57,6 +57,7 @@ export class PagosService {
       getSupabase()
         .from('pagos')
         .select('*, motos:moto_id(*)')
+        .neq('estado', 'anulado')
         .order('fecha_pago', { ascending: false }),
     ).pipe(
       map(({ data, error }) => {
@@ -68,7 +69,7 @@ export class PagosService {
 
   getPagosBySemana(semana: string): Observable<PagoManual[]> {
     return from(
-      getSupabase().from('pagos').select('*, motos:moto_id(*)').eq('semana', semana),
+      getSupabase().from('pagos').select('*, motos:moto_id(*)').eq('semana', semana).neq('estado', 'anulado'),
     ).pipe(
       map(({ data, error }) => {
         if (error) throw error;
@@ -83,6 +84,7 @@ export class PagosService {
         .from('pagos')
         .select('*, motos:moto_id(*)')
         .eq('conductor_id', conductorId)
+        .neq('estado', 'anulado')
         .order('fecha_pago', { ascending: false }),
     ).pipe(
       map(({ data, error }) => {

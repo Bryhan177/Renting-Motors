@@ -341,6 +341,7 @@ export class PagosComponent implements OnInit {
           Swal.fire({ icon: 'success', title: 'Abono confirmado', timer: 1600, showConfirmButton: false });
           this.cargarAbonosPendientes();
           this.cargarCartera(true);
+          this.cargar();
         },
         error: (e) =>
           Swal.fire({
@@ -424,6 +425,7 @@ export class PagosComponent implements OnInit {
           });
           this.cargarCartera(true);
           this.cargarAbonosPendientes();
+          this.cargar();
         },
         error: (e) =>
           Swal.fire({

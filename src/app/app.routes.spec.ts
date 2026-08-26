@@ -19,6 +19,14 @@ describe('app.routes contratos', () => {
     expect(talleres?.canActivate).toEqual(motos?.canActivate);
   });
 
+  it('deja /dashboard solo para administrador y asesor (no empleado)', () => {
+    const dashboard = staffChildren.find((c) => c.path === 'dashboard');
+    const motos = staffChildren.find((c) => c.path === 'motos');
+    expect(dashboard).toBeTruthy();
+    expect(dashboard?.data).toEqual({ roles: ['administrador', 'asesor'] });
+    expect(dashboard?.canActivate).toEqual(motos?.canActivate);
+  });
+
   it('deja /empleados solo para rol empleado', () => {
     const empleados = routes.find((r) => r.path === 'empleados');
     expect(empleados).toBeTruthy();
