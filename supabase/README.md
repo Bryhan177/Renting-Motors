@@ -10,8 +10,35 @@ Ejecuta en Supabase SQL Editor, en este orden si aún no lo hiciste:
 6. **`20260822_motos_delete_cascade.sql`** ← permite eliminar MDD con historial (sin contrato activo)
 7. **`20260826_cobros_finanzas_derivadas.sql`** ← mora, saldo y pagado se calculan en Postgres (Angular solo lee)
 8. **`20260827_contratos_unicidad_activa.sql`** ← un conductor / una moto no pueden tener dos contratos activos (índice único parcial); duración mínima 3 meses; al activar se asigna la moto
+9. **`20260828_planes_catalogo.sql`** ← catálogo `planes` + snapshot en contrato (`plan_id`, `plan_nombre`, `cuota_inicial`, `duracion_meses`); quita el DEFAULT 180000 de `cuota_semanal`. **No reescribe montos de contratos/cobros existentes. No toca mora.**
 
 Luego cierra sesión y vuelve a entrar.
+
+## Planes (20260828) — cómo aplicar y probar
+
+1. Abre Supabase → **SQL Editor** → New query.
+2. Pega el contenido de `supabase/migrations/20260828_planes_catalogo.sql` → **Run**.
+3. Verifica:
+   ```sql
+   select nombre, valor_sugerido, periodicidades_permitidas, activo from public.planes order by nombre;
+   -- Personal 115000, Trabajo 180000, Propietario 0 (a convenir)
+
+   select column_name, column_default
+   from information_schema.columns
+   where table_schema = 'public' and table_name = 'contratos'
+     and column_name in ('cuota_semanal', 'plan_id', 'plan_nombre', 'cuota_inicial', 'duracion_meses');
+   -- cuota_semanal.column_default debe ser NULL (ya no 180000)
+   ```
+4. Contratos viejos: `plan_id` y `plan_nombre` quedan NULL (la UI muestra **Sin plan**). `cuota_semanal` **no cambia**.
+5. En la app (admin/asesor): menú **Planes**. Edita, crea, activa/desactiva. Los tres de semilla son editables.
+6. **Contratos → Nuevo contrato**:
+   - Sin plan no deja guardar.
+   - Elige **Personal** → sugerido $115.000 semanal (editable).
+   - Elige frecuencia de la lista del plan.
+   - El valor que guardes se congela en `contratos.cuota_semanal`.
+7. Prueba de no-reescribir: anota la `cuota_semanal` de un contrato viejo. En **Planes**, cambia el `valor_sugerido` de Trabajo o Personal. Recarga el contrato: la cuota pactada **sigue igual**. Los cobros nuevos de ese contrato siguen copiando `contrato.cuota_semanal` (no el plan).
+
+El plan **sugiere**. No hay tarifa global $160.000 / $180.000 para contratos.
 
 ## Si en producción no ves usuarios / pagos / caja / documentos
 

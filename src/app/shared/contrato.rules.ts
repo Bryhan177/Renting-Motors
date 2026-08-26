@@ -1,4 +1,3 @@
-import { CUOTA_SEMANAL_ESTANDAR } from './constants';
 import { Moto } from './interfaces/moto';
 import { Usuario } from './interfaces/usuario';
 import { FrecuenciaPago, parseDateOnly, toDateOnlyString } from './periodo.util';
@@ -16,13 +15,18 @@ export function addCalendarMonths(date: Date, months: number): Date {
   return new Date(year, month, Math.min(day, lastDay));
 }
 
-export function fechaFinMinima(fechaInicio: string | Date): string {
-  return toDateOnlyString(addCalendarMonths(parseDateOnly(fechaInicio), DURACION_MINIMA_MESES));
+export function fechaFinMinima(fechaInicio: string | Date, meses = DURACION_MINIMA_MESES): string {
+  const n = Math.max(Number(meses) || DURACION_MINIMA_MESES, DURACION_MINIMA_MESES);
+  return toDateOnlyString(addCalendarMonths(parseDateOnly(fechaInicio), n));
 }
 
-export function duracionMinimaValida(fechaInicio: string | Date, fechaFin: string | Date): boolean {
+export function duracionMinimaValida(
+  fechaInicio: string | Date,
+  fechaFin: string | Date,
+  meses = DURACION_MINIMA_MESES,
+): boolean {
   const fin = parseDateOnly(fechaFin);
-  const minimo = parseDateOnly(fechaFinMinima(fechaInicio));
+  const minimo = parseDateOnly(fechaFinMinima(fechaInicio, meses));
   return fin.getTime() >= minimo.getTime();
 }
 
@@ -56,13 +60,12 @@ export function labelFrecuencia(frecuencia: FrecuenciaPago | string | null | und
   }
 }
 
-export function cuotaSugeridaPorFrecuencia(
-  frecuencia: FrecuenciaPago,
-  cuotaSemanal = CUOTA_SEMANAL_ESTANDAR,
-): number {
-  if (frecuencia === 'quincenal') return cuotaSemanal * 2;
-  if (frecuencia === 'mensual') return cuotaSemanal * 4;
-  return cuotaSemanal;
+/** Escala el valor semanal SUGERIDO del plan a la frecuencia elegida. No hay tarifa global. */
+export function cuotaSugeridaPorFrecuencia(frecuencia: FrecuenciaPago, valorSugeridoSemanal: number): number {
+  const base = Number(valorSugeridoSemanal) || 0;
+  if (frecuencia === 'quincenal') return base * 2;
+  if (frecuencia === 'mensual') return base * 4;
+  return base;
 }
 
 export function mensajeErrorContrato(error: unknown): string {

@@ -132,7 +132,16 @@
       <p class="text-sm text-gray-300">Moto {{ motoSeleccionada?.placa }}</p>
     </div>
     <div class="overflow-y-auto p-6 space-y-4" *ngIf="pasoAsignar === 1">
-      <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div class="md:col-span-2">
+          <label class="text-xs text-gray-300 block mb-1">Plan</label>
+          <select [(ngModel)]="planId" (ngModelChange)="onCambioPlan()"
+                  class="w-full bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-sm text-white">
+            <option value="">Selecciona un plan...</option>
+            <option *ngFor="let p of planes" [value]="p._id">{{ p.nombre }}{{ p.valorSugerido > 0 ? ' · sugerido $' + p.valorSugerido : ' · valor a convenir' }}</option>
+          </select>
+          <p *ngIf="planSeleccionado" class="text-xs text-gray-400 mt-1">{{ planSeleccionado.descripcion }}</p>
+        </div>
         <div>
           <label class="text-xs text-gray-300 block mb-1">Fecha inicio</label>
           <input type="date" [(ngModel)]="fechaInicioContrato"
@@ -140,25 +149,31 @@
         </div>
         <div>
           <label class="text-xs text-gray-300 block mb-1">Frecuencia de pago</label>
-          <select [(ngModel)]="frecuenciaPago" (ngModelChange)="onCambioFrecuencia()"
-                  class="w-full bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-sm text-white">
-            <option value="semanal">Semanal</option>
-            <option value="quincenal">Quincenal</option>
-            <option value="mensual">Mensual</option>
+          <select [(ngModel)]="frecuenciaPago" (ngModelChange)="onCambioFrecuencia()" [disabled]="!planSeleccionado"
+                  class="w-full bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-sm text-white disabled:opacity-50">
+            <option *ngFor="let f of frecuenciasDelPlan" [value]="f">
+              {{ f === 'quincenal' ? 'Quincenal' : f === 'mensual' ? 'Mensual' : 'Semanal' }}
+            </option>
           </select>
         </div>
         <div>
           <label class="text-xs text-gray-300 block mb-1">{{ labelCuota() }}</label>
           <input type="text" inputmode="numeric" appCurrencyCo [(ngModel)]="cuotaSemanal"
-                 class="w-full bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-sm text-white">
+                 [disabled]="!planSeleccionado || !permiteNegociar"
+                 class="w-full bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-sm text-white disabled:opacity-50">
         </div>
         <div>
           <label class="text-xs text-gray-300 block mb-1">Depósito</label>
           <input type="text" inputmode="numeric" appCurrencyCo [(ngModel)]="depositoPactado"
                  class="w-full bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-sm text-white">
         </div>
+        <div *ngIf="muestraCuotaInicial" class="md:col-span-2">
+          <label class="text-xs text-gray-300 block mb-1">Cuota inicial (opcional)</label>
+          <input type="text" inputmode="numeric" appCurrencyCo [(ngModel)]="cuotaInicial"
+                 class="w-full bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-sm text-white">
+        </div>
       </div>
-      <p class="text-xs text-gray-300">Crear contrato no activa ni genera cobro. La frecuencia define cada cuántos días se cobra.</p>
+      <p class="text-xs text-gray-300">Crear contrato no activa ni genera cobro. El valor pactado se congela; editar el plan después no lo cambia.</p>
       <button
         *ngFor="let c of conductoresDisponibles"
         type="button"

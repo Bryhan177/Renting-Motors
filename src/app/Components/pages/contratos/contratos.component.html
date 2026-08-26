@@ -51,7 +51,8 @@
         <tr class="bg-gray-900/60 text-gray-300 text-xs uppercase border-b border-gray-700">
           <th class="px-4 py-3">Conductor</th>
           <th class="px-4 py-3">Moto</th>
-          <th class="px-4 py-3">Cuota</th>
+          <th class="px-4 py-3">Plan</th>
+          <th class="px-4 py-3">Cuota pactada</th>
           <th class="px-4 py-3">Frecuencia</th>
           <th class="px-4 py-3">Fechas</th>
           <th class="px-4 py-3 text-center">Estado</th>
@@ -64,6 +65,7 @@
             <p class="font-semibold text-white">{{ nombreDe(c) }}</p>
           </td>
           <td class="px-4 py-3 text-sm text-gray-200">{{ motoDe(c) }}</td>
+          <td class="px-4 py-3 text-sm text-gray-300">{{ planDe(c) }}</td>
           <td class="px-4 py-3 text-sm text-blue-300 font-semibold">
             $ {{ c.cuotaSemanal | number:'1.0-0':'es-CO' }}
           </td>
@@ -103,7 +105,7 @@
           </td>
         </tr>
         <tr *ngIf="!cargando && contratosFiltrados.length === 0">
-          <td colspan="7" class="px-4 py-8 text-center text-gray-400 text-sm">
+          <td colspan="8" class="px-4 py-8 text-center text-gray-400 text-sm">
             No hay contratos con ese filtro. Crea uno o entrega una MDD desde Motos.
           </td>
         </tr>
@@ -121,8 +123,8 @@
     </div>
     <div class="p-5 space-y-3 overflow-y-auto">
       <p class="text-xs text-amber-200">
-        Queda en borrador. Al activar se asigna la moto al conductor. Duración mínima 3 meses.
-        Cuota por defecto ${{ cuotaEstandar | number:'1.0-0':'es-CO' }} semanal.
+        Queda en borrador. Al activar se asigna la moto al conductor.
+        Elige un plan, una frecuencia permitida y el valor <strong>pactado</strong> (el plan solo sugiere).
       </p>
       <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
         <div>
@@ -137,12 +139,30 @@
         </div>
         <div>
           <label class="text-xs text-gray-300 block mb-1">Moto</label>
-          <select [(ngModel)]="form.motoId" (ngModelChange)="onCambioMoto()" class="w-full bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-white">
+          <select [(ngModel)]="form.motoId" class="w-full bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-white">
             <option value="">Selecciona...</option>
             <option *ngFor="let m of motosLibres" [value]="m._id">{{ m.placa }} · {{ m.marca }} {{ m.modelo }}</option>
           </select>
           <p *ngIf="motosLibres.length === 0" class="text-xs text-amber-200 mt-1">
             No hay motos disponibles sin contrato activo.
+          </p>
+        </div>
+        <div class="md:col-span-2">
+          <label class="text-xs text-gray-300 block mb-1">Plan</label>
+          <select
+            [(ngModel)]="form.planId"
+            (ngModelChange)="onCambioPlan()"
+            class="w-full bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-white"
+          >
+            <option value="">Selecciona un plan...</option>
+            <option *ngFor="let p of planes" [value]="p._id">{{ etiquetaOpcionPlan(p) }}</option>
+          </select>
+          <p *ngIf="planes.length === 0" class="text-xs text-amber-200 mt-1">
+            No hay planes activos. Créalos en Planes o ejecuta el SQL 20260828.
+          </p>
+          <p *ngIf="planSeleccionado" class="text-xs text-gray-400 mt-1">
+            {{ planSeleccionado.descripcion }}
+            <span *ngIf="planSeleccionado.condicionesUso"> · {{ planSeleccionado.condicionesUso }}</span>
           </p>
         </div>
         <div>
@@ -155,7 +175,7 @@
           />
         </div>
         <div>
-          <label class="text-xs text-gray-300 block mb-1">Fecha fin (mín. 3 meses)</label>
+          <label class="text-xs text-gray-300 block mb-1">Fecha fin (mín. {{ form.duracionMeses || 3 }} meses)</label>
           <input
             type="date"
             [(ngModel)]="form.fechaFin"
@@ -165,10 +185,15 @@
         </div>
         <div>
           <label class="text-xs text-gray-300 block mb-1">Frecuencia de pago</label>
-          <select [(ngModel)]="form.frecuenciaPago" (ngModelChange)="onCambioFrecuencia()" class="w-full bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-white">
-            <option value="semanal">Semanal</option>
-            <option value="quincenal">Quincenal</option>
-            <option value="mensual">Mensual</option>
+          <select
+            [(ngModel)]="form.frecuenciaPago"
+            (ngModelChange)="onCambioFrecuencia()"
+            [disabled]="!planSeleccionado"
+            class="w-full bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-white disabled:opacity-50"
+          >
+            <option *ngFor="let f of frecuenciasDelPlan" [value]="f">
+              {{ f === 'quincenal' ? 'Quincenal' : f === 'mensual' ? 'Mensual' : 'Semanal' }}
+            </option>
           </select>
         </div>
         <div>
@@ -178,10 +203,27 @@
             inputmode="numeric"
             appCurrencyCo
             [(ngModel)]="form.cuotaSemanal"
+            [disabled]="!planSeleccionado || !permiteNegociar"
+            class="w-full bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-white disabled:opacity-50"
+          />
+          <p class="text-xs text-gray-500 mt-1" *ngIf="planSeleccionado?.permiteNegociacion">
+            Sugerido del plan; puedes pactar otro valor. Queda congelado en este contrato.
+          </p>
+          <p class="text-xs text-gray-500 mt-1" *ngIf="planSeleccionado && !planSeleccionado.permiteNegociacion">
+            Este plan no permite negociar: se usa el valor sugerido.
+          </p>
+        </div>
+        <div *ngIf="muestraCuotaInicial">
+          <label class="text-xs text-gray-300 block mb-1">Cuota inicial (opcional)</label>
+          <input
+            type="text"
+            inputmode="numeric"
+            appCurrencyCo
+            [(ngModel)]="form.cuotaInicial"
             class="w-full bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-white"
           />
         </div>
-        <div class="md:col-span-2">
+        <div [class.md:col-span-2]="!muestraCuotaInicial">
           <label class="text-xs text-gray-300 block mb-1">Depósito pactado</label>
           <input
             type="text"
@@ -218,13 +260,22 @@
       </div>
       <div class="flex justify-between gap-4"><span class="text-gray-400">Conductor</span><span>{{ nombreDe(contratoVer) }}</span></div>
       <div class="flex justify-between gap-4"><span class="text-gray-400">Moto</span><span>{{ motoDe(contratoVer) }}</span></div>
+      <div class="flex justify-between gap-4"><span class="text-gray-400">Plan</span><span>{{ planDe(contratoVer) }}</span></div>
       <div class="flex justify-between">
-        <span class="text-gray-400">Cuota</span>
+        <span class="text-gray-400">Cuota pactada</span>
         <span>$ {{ contratoVer.cuotaSemanal | number:'1.0-0':'es-CO' }} · {{ frecuenciaDe(contratoVer) }}</span>
+      </div>
+      <div class="flex justify-between" *ngIf="contratoVer.cuotaInicial">
+        <span class="text-gray-400">Cuota inicial</span>
+        <span>$ {{ contratoVer.cuotaInicial | number:'1.0-0':'es-CO' }}</span>
       </div>
       <div class="flex justify-between">
         <span class="text-gray-400">Depósito</span>
         <span>$ {{ contratoVer.depositoPactado | number:'1.0-0':'es-CO' }}</span>
+      </div>
+      <div class="flex justify-between" *ngIf="contratoVer.duracionMeses">
+        <span class="text-gray-400">Duración</span>
+        <span>{{ contratoVer.duracionMeses }} meses</span>
       </div>
       <div class="flex justify-between">
         <span class="text-gray-400">Vigencia</span>
