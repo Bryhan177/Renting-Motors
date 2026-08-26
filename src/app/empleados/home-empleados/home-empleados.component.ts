@@ -24,6 +24,7 @@ import { Moto } from '../../shared/interfaces/moto';
 import { WhatsappFloatComponent } from '../../shared/components/whatsapp-float/whatsapp-float.component';
 import { CurrencyCoDirective } from '../../shared/directives/currency-co.directive';
 import { diasHasta, etiquetaVencimiento as formatVencimiento } from '../../shared/date.util';
+import { cobroPeriodoVigente, parseDateOnly } from '../../shared/periodo.util';
 import Swal from 'sweetalert2';
 
 type SeccionPanel = 'inicio' | 'motos' | 'cuenta' | 'novedades' | 'documentos' | 'perfil';
@@ -127,9 +128,21 @@ export class HomeEmpleadosComponent implements OnInit {
   }
 
   get proximoCobro(): Cobro | null {
+    if (this.contrato?._id) {
+      const vigente = cobroPeriodoVigente(
+        this.cobros,
+        this.contrato._id,
+        this.contrato.fechaInicio,
+        this.contrato.frecuenciaPago || 'semanal',
+      );
+      if (vigente && vigente.saldo > 0 && vigente.estado !== 'anulado' && vigente.estado !== 'pagado') {
+        return vigente;
+      }
+      return null;
+    }
     const pendientes = [...this.cobrosPendientes].sort(
       (a, b) =>
-        new Date(a.fechaVencimiento).getTime() - new Date(b.fechaVencimiento).getTime(),
+        parseDateOnly(a.fechaVencimiento).getTime() - parseDateOnly(b.fechaVencimiento).getTime(),
     );
     return pendientes[0] || null;
   }

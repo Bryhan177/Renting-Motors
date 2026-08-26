@@ -3,11 +3,13 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { MotosService } from '../../../service/motos.service';
-import { CobrosService, Abono, Cobro } from '../../../service/cobros.service';
+import { ContratosService, Contrato } from '../../../service/contratos.service';
+import { CobrosService, Abono, Cobro, IngresoMensual } from '../../../service/cobros.service';
 import { NovedadesService, Novedad, EstadoNovedad } from '../../../service/novedades.service';
 import { Moto } from '../../../shared/interfaces/moto';
 import { Estadisticas } from '../../../shared/interfaces/pago';
 import { diasHasta, etiquetaVencimiento } from '../../../shared/date.util';
+import { cobroPeriodoVigente, parseDateOnly } from '../../../shared/periodo.util';
 import Swal from 'sweetalert2';
 
 interface AlertaVencimiento {
@@ -27,6 +29,8 @@ interface AlertaVencimiento {
 })
 export class DashboardComponent implements OnInit {
   motos: Moto[] = [];
+  contratosActivos: Contrato[] = [];
+  private todosLosCobros: Cobro[] = [];
   cobrosPendientes: Cobro[] = [];
   cobrosEnMora: Cobro[] = [];
   abonosPendientes: Abono[] = [];
@@ -38,9 +42,15 @@ export class DashboardComponent implements OnInit {
   totalPendiente = 0;
   totalMora = 0;
 
+  /** Métricas de crecimiento */
+  mesesCrecimiento: 6 | 12 = 12;
+  ingresosMensuales: IngresoMensual[] = [];
+  cargandoCrecimiento = false;
+
   constructor(
     private motosService: MotosService,
     private cobrosService: CobrosService,
+    private contratosService: ContratosService,
     private novedadesService: NovedadesService,
   ) {}
 
@@ -69,16 +79,26 @@ export class DashboardComponent implements OnInit {
       error: () => {},
     });
 
-    this.cobrosService.getCobros().subscribe({
-      next: (cobros) => {
-        this.cobrosPendientes = cobros.filter((c) => c.saldo > 0);
-        this.cobrosEnMora = cobros.filter((c) => c.enMora);
-        this.totalPagado = cobros.reduce((s, c) => s + c.montoPagado, 0);
-        this.totalPendiente = cobros.reduce((s, c) => s + c.saldo, 0);
-        this.totalMora = this.cobrosEnMora.reduce((s, c) => s + c.saldo, 0);
+    this.contratosService.getContratos({ estado: 'activo' }).subscribe({
+      next: (contratos) => {
+        this.contratosActivos = contratos;
+        this.actualizarCobrosVigentes();
         this.recalcularAlertas();
       },
       error: () => {
+        this.contratosActivos = [];
+        this.actualizarCobrosVigentes();
+      },
+    });
+
+    this.cobrosService.getCobros().subscribe({
+      next: (cobros) => {
+        this.todosLosCobros = cobros;
+        this.actualizarCobrosVigentes();
+        this.recalcularAlertas();
+      },
+      error: () => {
+        this.todosLosCobros = [];
         this.cobrosPendientes = [];
         this.cobrosEnMora = [];
       },
@@ -96,6 +116,99 @@ export class DashboardComponent implements OnInit {
         )),
       error: () => (this.novedadesAbiertas = []),
     });
+
+    this.cargarCrecimiento();
+  }
+
+  cargarCrecimiento(): void {
+    this.cargandoCrecimiento = true;
+    this.cobrosService.getIngresosMensuales(this.mesesCrecimiento).subscribe({
+      next: (series) => {
+        this.ingresosMensuales = series;
+        this.cargandoCrecimiento = false;
+      },
+      error: () => {
+        this.ingresosMensuales = [];
+        this.cargandoCrecimiento = false;
+      },
+    });
+  }
+
+  setMesesCrecimiento(meses: 6 | 12): void {
+    if (this.mesesCrecimiento === meses) return;
+    this.mesesCrecimiento = meses;
+    this.cargarCrecimiento();
+  }
+
+  get totalIngresosPeriodo(): number {
+    return this.ingresosMensuales.reduce((s, m) => s + m.monto, 0);
+  }
+
+  get maxIngresoMensual(): number {
+    return Math.max(0, ...this.ingresosMensuales.map((m) => m.monto));
+  }
+
+  get mesActual(): IngresoMensual | null {
+    if (!this.ingresosMensuales.length) return null;
+    return this.ingresosMensuales[this.ingresosMensuales.length - 1];
+  }
+
+  get mesAnterior(): IngresoMensual | null {
+    if (this.ingresosMensuales.length < 2) return null;
+    return this.ingresosMensuales[this.ingresosMensuales.length - 2];
+  }
+
+  /** Variación % del mes actual vs el anterior. null si no hay base. */
+  get variacionMensualPct(): number | null {
+    const actual = this.mesActual?.monto ?? 0;
+    const anterior = this.mesAnterior?.monto ?? 0;
+    if (anterior <= 0) return actual > 0 ? 100 : null;
+    return Math.round(((actual - anterior) / anterior) * 100);
+  }
+
+  get mejorMes(): IngresoMensual | null {
+    if (!this.ingresosMensuales.length) return null;
+    return this.ingresosMensuales.reduce((best, m) => (m.monto > best.monto ? m : best));
+  }
+
+  alturaBarra(monto: number): number {
+    const max = this.maxIngresoMensual;
+    if (max <= 0) return 0;
+    return Math.max(4, Math.round((monto / max) * 100));
+  }
+
+  /** Solo la cuota del periodo vigente por contrato activo. */
+  private cobrosCuotaActual(cobros: Cobro[]): Cobro[] {
+    const items: Cobro[] = [];
+    for (const contrato of this.contratosActivos) {
+      if (!contrato._id) continue;
+      const cobro = cobroPeriodoVigente(
+        cobros,
+        contrato._id,
+        contrato.fechaInicio,
+        contrato.frecuenciaPago || 'semanal',
+      );
+      if (!cobro || cobro.saldo <= 0 || cobro.estado === 'anulado' || cobro.estado === 'pagado') {
+        continue;
+      }
+      items.push(cobro);
+    }
+    return items;
+  }
+
+  private actualizarCobrosVigentes(): void {
+    const vigentes = this.cobrosCuotaActual(this.todosLosCobros);
+    this.cobrosPendientes = vigentes.sort((a, b) => {
+      if (a.enMora !== b.enMora) return a.enMora ? -1 : 1;
+      return (
+        parseDateOnly(a.fechaVencimiento).getTime() -
+        parseDateOnly(b.fechaVencimiento).getTime()
+      );
+    });
+    this.cobrosEnMora = this.cobrosPendientes.filter((c) => c.enMora);
+    this.totalPagado = this.todosLosCobros.reduce((s, c) => s + c.montoPagado, 0);
+    this.totalPendiente = this.cobrosPendientes.reduce((s, c) => s + c.saldo, 0);
+    this.totalMora = this.cobrosEnMora.reduce((s, c) => s + c.saldo, 0);
   }
 
   private recalcularAlertas(): void {
@@ -195,6 +308,16 @@ export class DashboardComponent implements OnInit {
 
   etiquetaAlerta(a: AlertaVencimiento): string {
     return etiquetaVencimiento(a.fecha);
+  }
+
+  formatearFechaCorta(fecha: string | Date): string {
+    const d = parseDateOnly(fecha);
+    if (Number.isNaN(d.getTime())) return '—';
+    return d.toLocaleDateString('es-CO', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    });
   }
 
   claseAlerta(dias: number): string {

@@ -81,6 +81,19 @@ export function numeroPeriodoVigente(
   return Math.floor(dias / largo) + 1;
 }
 
+/** Cobro del periodo vigente (semana / quincena / mes actual) de un contrato. */
+export function cobroPeriodoVigente<T extends { contratoId: string; numeroPeriodo: number }>(
+  cobros: T[],
+  contratoId: string,
+  fechaInicio: string | Date,
+  frecuencia: FrecuenciaPago = 'semanal',
+  hoy: Date = new Date(),
+): T | undefined {
+  const n = numeroPeriodoVigente(parseDateOnly(fechaInicio), hoy, frecuencia);
+  if (n < 1) return undefined;
+  return cobros.find((c) => c.contratoId === contratoId && c.numeroPeriodo === n);
+}
+
 export function calcularEstadoCobro(
   montoEsperado: number,
   montoPagado: number,

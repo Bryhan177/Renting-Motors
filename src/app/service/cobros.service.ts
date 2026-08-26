@@ -59,6 +59,15 @@ export interface EstadoCuenta {
   fechaMoraMasAntigua: Date | null;
 }
 
+export interface IngresoMensual {
+  /** Clave YYYY-MM */
+  key: string;
+  /** Etiqueta corta ej. "ene 2026" */
+  label: string;
+  monto: number;
+  cantidadAbonos: number;
+}
+
 @Injectable({ providedIn: 'root' })
 export class CobrosService {
   constructor(private auth: AuthService) {}
@@ -97,7 +106,8 @@ export class CobrosService {
       montoPagado: Number(row.monto_pagado),
       saldo,
       estado: row.estado,
-      enMora: !!row.en_mora || enMora,
+      // Siempre recalcular: el flag en DB puede estar desactualizado
+      enMora,
       conductor,
     };
   }
@@ -143,22 +153,25 @@ export class CobrosService {
     return from(q).pipe(
       switchMap(({ data, error }) => {
         if (error) return throwError(() => error);
-        const cobros = (data || []).map((r) => this.mapCobro(r));
+        const rows = data || [];
+        const cobros = rows.map((r) => this.mapCobro(r));
         // sincronizar mora en cliente y persistir flag
-        return this.syncMoraFlags(cobros);
+        return this.syncMoraFlags(cobros, rows);
       }),
     );
   }
 
-  private syncMoraFlags(cobros: Cobro[]): Observable<Cobro[]> {
+  private syncMoraFlags(cobros: Cobro[], rows: any[]): Observable<Cobro[]> {
     const hoy = startOfToday();
     const updates = cobros
-      .filter((c) => c._id && c.estado !== 'pagado' && c.estado !== 'anulado')
-      .map((c) => {
+      .map((c, i) => ({ c, row: rows[i] }))
+      .filter(({ c }) => c._id && c.estado !== 'pagado' && c.estado !== 'anulado')
+      .map(({ c, row }) => {
         const venc = parseDateOnly(c.fechaVencimiento);
         const enMora = c.saldo > 0 && venc.getTime() < hoy.getTime();
-        if (enMora === c.enMora) return of(c);
         c.enMora = enMora;
+        const flagDb = !!row?.en_mora;
+        if (enMora === flagDb) return of(c);
         return from(
           getSupabase().from('cobros').update({ en_mora: enMora }).eq('id', c._id!),
         ).pipe(map(() => c));
@@ -208,6 +221,59 @@ export class CobrosService {
     );
   }
 
+  /**
+   * Ingresos confirmados (abonos registrados) agrupados por mes.
+   * Incluye todos los meses del rango aunque el monto sea 0.
+   */
+  getIngresosMensuales(meses = 12): Observable<IngresoMensual[]> {
+    const hoy = new Date();
+    const desde = new Date(hoy.getFullYear(), hoy.getMonth() - (meses - 1), 1);
+    const desdeStr = toDateOnlyString(desde);
+
+    return from(
+      getSupabase()
+        .from('abonos')
+        .select('monto, fecha_pago')
+        .eq('estado', 'registrado')
+        .gte('fecha_pago', desdeStr),
+    ).pipe(
+      map(({ data, error }) => {
+        if (error) throw error;
+
+        const buckets = new Map<string, { monto: number; cantidad: number }>();
+        for (let i = 0; i < meses; i++) {
+          const d = new Date(desde.getFullYear(), desde.getMonth() + i, 1);
+          const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+          buckets.set(key, { monto: 0, cantidad: 0 });
+        }
+
+        for (const row of data || []) {
+          const fecha = String(row.fecha_pago || '').slice(0, 10);
+          if (!fecha || fecha.length < 7) continue;
+          const key = fecha.slice(0, 7);
+          const bucket = buckets.get(key);
+          if (!bucket) continue;
+          bucket.monto += Number(row.monto) || 0;
+          bucket.cantidad += 1;
+        }
+
+        return Array.from(buckets.entries()).map(([key, v]) => {
+          const [y, m] = key.split('-').map(Number);
+          const label = new Date(y, m - 1, 1).toLocaleDateString('es-CO', {
+            month: 'short',
+            year: '2-digit',
+          });
+          return {
+            key,
+            label: label.replace('.', ''),
+            monto: v.monto,
+            cantidadAbonos: v.cantidad,
+          };
+        });
+      }),
+    );
+  }
+
   /** Genera cobros faltantes de todos los contratos activos. */
   generarPendientes(): Observable<Cobro[]> {
     const sb = getSupabase();
@@ -231,33 +297,30 @@ export class CobrosService {
     const vigente = numeroPeriodoVigente(parseDateOnly(contrato.fecha_inicio), new Date(), frecuencia);
     if (vigente < 1) return of([]);
 
-    const nums = Array.from({ length: vigente }, (_, i) => i + 1);
     return from(
       sb.from('cobros').select('numero_periodo').eq('contrato_id', contrato.id),
     ).pipe(
       switchMap(({ data: existentes }) => {
         const tiene = new Set((existentes || []).map((e: any) => e.numero_periodo));
-        const faltan = nums.filter((n) => !tiene.has(n));
-        if (!faltan.length) return of([]);
-        const rows = faltan.map((n) => {
-          const p = calcularPeriodo(parseDateOnly(contrato.fecha_inicio), n, frecuencia);
-          return {
-            contrato_id: contrato.id,
-            conductor_id: contrato.conductor_id,
-            moto_id: contrato.moto_id,
-            numero_periodo: n,
-            periodo_inicio: toDateOnlyString(p.periodoInicio),
-            periodo_fin: toDateOnlyString(p.periodoFin),
-            fecha_vencimiento: toDateOnlyString(p.fechaVencimiento),
-            monto_esperado: Number(contrato.cuota_semanal),
-            monto_pagado: 0,
-            saldo: Number(contrato.cuota_semanal),
-            estado: 'pendiente',
-            en_mora: false,
-            generado_por: actorId,
-          };
-        });
-        return from(sb.from('cobros').insert(rows).select('*, usuarios:conductor_id(*)')).pipe(
+        // Solo genera el periodo vigente (cuota de esta semana / quincena / mes)
+        if (tiene.has(vigente)) return of([]);
+        const p = calcularPeriodo(parseDateOnly(contrato.fecha_inicio), vigente, frecuencia);
+        const row = {
+          contrato_id: contrato.id,
+          conductor_id: contrato.conductor_id,
+          moto_id: contrato.moto_id,
+          numero_periodo: vigente,
+          periodo_inicio: toDateOnlyString(p.periodoInicio),
+          periodo_fin: toDateOnlyString(p.periodoFin),
+          fecha_vencimiento: toDateOnlyString(p.fechaVencimiento),
+          monto_esperado: Number(contrato.cuota_semanal),
+          monto_pagado: 0,
+          saldo: Number(contrato.cuota_semanal),
+          estado: 'pendiente',
+          en_mora: false,
+          generado_por: actorId,
+        };
+        return from(sb.from('cobros').insert(row).select('*, usuarios:conductor_id(*)')).pipe(
           map(({ data, error }) => {
             if (error) throw error;
             return (data || []).map((r) => this.mapCobro(r));
