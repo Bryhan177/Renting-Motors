@@ -52,8 +52,8 @@ export class MotosComponent implements OnInit {
       imagen: undefined,
     };
   }
-  cuotaSemanal = CUOTA_SEMANAL_ESTANDAR;
-  depositoPactado = DEPOSITO_ESTANDAR;
+  cuotaSemanal: number = CUOTA_SEMANAL_ESTANDAR;
+  depositoPactado: number = DEPOSITO_ESTANDAR;
   frecuenciaPago: 'semanal' | 'quincenal' | 'mensual' = 'semanal';
   fechaInicioContrato = new Date().toISOString().slice(0, 10);
   pasoAsignar = 1;
