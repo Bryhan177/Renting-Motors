@@ -9,21 +9,14 @@ import { Moto } from '../../../shared/interfaces/moto';
 import { Usuario } from '../../../shared/interfaces/usuario';
 import { Plan } from '../../../shared/interfaces/plan';
 import { CurrencyCoDirective } from '../../../shared/directives/currency-co.directive';
-import { DEPOSITO_ESTANDAR } from '../../../shared/constants';
-import { FrecuenciaPago } from '../../../shared/periodo.util';
-import { DURACION_MINIMA_MESES, fechaFinMinima } from '../../../shared/contrato.rules';
-import {
-  cuotaSugeridaDelPlan,
-  frecuenciaInicialDelPlan,
-  periodicidadesDe,
-  planPermiteFrecuencia,
-} from '../../../shared/plan-economia';
+import { ContratoWizardComponent } from '../../../shared/components/contrato-wizard/contrato-wizard.component';
+import { ContratoWizardForm, formularioListoParaCrear, planDeFormulario } from '../../../shared/contrato-wizard';
 import Swal from 'sweetalert2';
 
 @Component({
   selector: 'app-motos',
   standalone: true,
-  imports: [CommonModule, FormsModule, CurrencyCoDirective],
+  imports: [CommonModule, FormsModule, CurrencyCoDirective, ContratoWizardComponent],
   templateUrl: './motos.component.html',
   styleUrl: './motos.component.css',
 })
@@ -61,20 +54,13 @@ export class MotosComponent implements OnInit {
       imagen: undefined,
     };
   }
-  cuotaSemanal = 0;
-  depositoPactado = DEPOSITO_ESTANDAR;
-  frecuenciaPago: FrecuenciaPago = 'semanal';
-  fechaInicioContrato = new Date().toISOString().slice(0, 10);
   pasoAsignar = 1;
-  conductorSeleccionado: Usuario | null = null;
   contratoActual: Contrato | null = null;
   entregaForm = this.entregaVacia();
   entregaId: string | null = null;
   sugerencias = { accesorios: [] as string[], documentos: [] as string[] };
   planes: Plan[] = [];
-  planId = '';
-  cuotaInicial = 0;
-  duracionMeses = DURACION_MINIMA_MESES;
+  guardandoContrato = false;
 
   modalDevolverVisible = false;
   devolucionForm: any = null;
@@ -165,71 +151,14 @@ export class MotosComponent implements OnInit {
     });
   }
 
-  get planSeleccionado(): Plan | null {
-    return this.planes.find((p) => p._id === this.planId) || null;
-  }
-
-  get frecuenciasDelPlan(): FrecuenciaPago[] {
-    return this.planSeleccionado ? periodicidadesDe(this.planSeleccionado) : [];
-  }
-
-  get permiteNegociar(): boolean {
-    return this.planSeleccionado?.permiteNegociacion !== false;
-  }
-
-  get muestraCuotaInicial(): boolean {
-    return !!this.planSeleccionado?.requiereCuotaInicial;
-  }
-
-  labelCuota(): string {
-    switch (this.frecuenciaPago) {
-      case 'quincenal':
-        return 'Valor pactado (quincenal)';
-      case 'mensual':
-        return 'Valor pactado (mensual)';
-      default:
-        return 'Valor pactado (semanal)';
-    }
-  }
-
-  onCambioPlan(): void {
-    const plan = this.planSeleccionado;
-    if (!plan) {
-      this.cuotaSemanal = 0;
-      this.cuotaInicial = 0;
-      this.duracionMeses = DURACION_MINIMA_MESES;
-      return;
-    }
-    this.duracionMeses = plan.duracionMinimaMeses || DURACION_MINIMA_MESES;
-    this.frecuenciaPago = frecuenciaInicialDelPlan(plan);
-    this.cuotaSemanal = cuotaSugeridaDelPlan(plan, this.frecuenciaPago);
-    if (!plan.requiereCuotaInicial) this.cuotaInicial = 0;
-  }
-
-  onCambioFrecuencia(): void {
-    const plan = this.planSeleccionado;
-    if (!plan) return;
-    if (!planPermiteFrecuencia(plan, this.frecuenciaPago)) {
-      this.frecuenciaPago = frecuenciaInicialDelPlan(plan);
-    }
-    this.cuotaSemanal = cuotaSugeridaDelPlan(plan, this.frecuenciaPago);
-  }
-
   abrirModalAsignar(moto: Moto) {
     this.motoSeleccionada = moto;
     this.modalAsignarVisible = true;
     this.pasoAsignar = 1;
-    this.conductorSeleccionado = null;
+    this.guardandoContrato = false;
     this.contratoActual = null;
     this.entregaId = null;
     this.entregaForm = this.entregaVacia();
-    this.planId = '';
-    this.frecuenciaPago = 'semanal';
-    this.cuotaSemanal = 0;
-    this.cuotaInicial = 0;
-    this.duracionMeses = DURACION_MINIMA_MESES;
-    this.depositoPactado = DEPOSITO_ESTANDAR;
-    this.fechaInicioContrato = new Date().toISOString().slice(0, 10);
     this.loadConductoresDisponibles();
     this.planesService.getActivos().subscribe({
       next: (p) => (this.planes = p),
@@ -251,52 +180,34 @@ export class MotosComponent implements OnInit {
     this.modalAsignarVisible = false;
     this.motoSeleccionada = null;
     this.pasoAsignar = 1;
+    this.guardandoContrato = false;
   }
 
-  seleccionarConductor(c: Usuario) {
-    this.conductorSeleccionado = c;
-  }
-
-  crearContratoYContinuar() {
-    if (!this.motoSeleccionada || !this.conductorSeleccionado?._id) {
-      Swal.fire({ icon: 'error', title: 'Selecciona un conductor' });
+  crearContratoYContinuar(payload: ContratoWizardForm) {
+    if (!this.motoSeleccionada?._id) {
+      Swal.fire({ icon: 'error', title: 'Selecciona una moto' });
       return;
     }
-    const plan = this.planSeleccionado;
-    if (!plan?._id) {
-      Swal.fire({ icon: 'warning', title: 'Elige un plan' });
+    const datos: ContratoWizardForm = { ...payload, motoId: this.motoSeleccionada._id };
+    const plan = planDeFormulario(this.planes, datos);
+    const check = formularioListoParaCrear(datos, plan, { omitirMoto: true });
+    if (!check.ok) {
+      Swal.fire({ icon: 'warning', title: check.mensaje || 'Completa los pasos del contrato' });
       return;
     }
-    if (!this.cuotaSemanal || this.cuotaSemanal <= 0) {
-      Swal.fire({
-        icon: 'warning',
-        title: 'Indica el valor pactado',
-        text: 'El plan solo sugiere. El contrato no se crea sin un valor acordado.',
-      });
-      return;
-    }
-    this.contratosService
-      .create({
-        motoId: this.motoSeleccionada._id!,
-        conductorId: this.conductorSeleccionado._id,
-        fechaInicio: this.fechaInicioContrato,
-        fechaFin: fechaFinMinima(this.fechaInicioContrato, this.duracionMeses),
-        cuotaSemanal: this.cuotaSemanal,
-        depositoPactado: this.depositoPactado,
-        frecuenciaPago: this.frecuenciaPago,
-        planId: plan._id,
-        planNombre: plan.nombre,
-        cuotaInicial: this.cuotaInicial,
-        duracionMeses: this.duracionMeses,
-      })
-      .subscribe({
-        next: (contrato) => {
-          this.contratoActual = contrato;
-          this.pasoAsignar = 2;
-          this.prefillAccesorios();
-        },
-        error: (e) => Swal.fire({ icon: 'error', title: e?.error?.message || e?.message || 'No se pudo crear el contrato' }),
-      });
+    this.guardandoContrato = true;
+    this.contratosService.create(datos).subscribe({
+      next: (contrato) => {
+        this.contratoActual = contrato;
+        this.pasoAsignar = 2;
+        this.guardandoContrato = false;
+        this.prefillAccesorios();
+      },
+      error: (e) => {
+        this.guardandoContrato = false;
+        Swal.fire({ icon: 'error', title: e?.error?.message || e?.message || 'No se pudo crear el contrato' });
+      },
+    });
   }
 
   prefillAccesorios() {
