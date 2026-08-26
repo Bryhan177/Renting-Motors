@@ -266,6 +266,8 @@
               </button>
             </div>
           </div>
+
+          <app-talleres-confianza modo="resumen" (verTodos)="irA('talleres')"></app-talleres-confianza>
         </section>
 
         <!-- MOTOS -->
@@ -505,6 +507,11 @@
               </p>
             </div>
           </div>
+        </section>
+
+        <!-- TALLERES -->
+        <section *ngIf="seccion === 'talleres'">
+          <app-talleres-confianza modo="completo"></app-talleres-confianza>
         </section>
 
         <!-- DOCUMENTOS -->

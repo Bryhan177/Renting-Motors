@@ -63,6 +63,9 @@ export class SidebarComponent implements OnInit {
   goPlanes(): void {
     this.go('/planes');
   }
+  goTalleres(): void {
+    this.go('/talleres');
+  }
   goUsuarios(): void {
     this.go('/usuarios');
   }
