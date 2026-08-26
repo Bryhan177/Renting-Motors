@@ -13,6 +13,12 @@ Ejecuta en Supabase SQL Editor, en este orden si aún no lo hiciste:
 
 Luego cierra sesión y vuelve a entrar.
 
+## Tarifas por defecto (solo formularios)
+
+Nuevos contratos: **$160.000 semanal / $320.000 quincenal / $640.000 mensual** (`src/app/shared/constants.ts` → `CUOTAS_ESTANDAR`).
+
+No se actualizan `contratos.cuota_semanal` ni cobros ya guardados. El personal puede poner otra cuota en cada contrato.
+
 ## Si en producción no ves usuarios / pagos / caja / documentos
 
 Suele ser **sesión expirada**: el menú te deja entrar (token viejo en localStorage) pero Supabase RLS no recibe JWT y las listas salen vacías.

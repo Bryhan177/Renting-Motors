@@ -4,6 +4,7 @@ import { getSupabase } from '../supabase/supabase.client';
 import { Moto } from '../shared/interfaces/moto';
 import { Usuario } from '../shared/interfaces/usuario';
 import { Estadisticas } from '../shared/interfaces/pago';
+import { CUOTA_SEMANAL_ESTANDAR } from '../shared/constants';
 
 @Injectable({ providedIn: 'root' })
 export class MotosService {
@@ -31,7 +32,7 @@ export class MotosService {
       placa: row.placa,
       precio: precioCompra,
       precioCompra,
-      precioCobro: Number(row.precio_cobro) || 180000,
+      precioCobro: Number(row.precio_cobro) || CUOTA_SEMANAL_ESTANDAR,
       soat: row.soat || null,
       tecnomecanica: row.tecnomecanica || null,
       aceite: row.aceite || null,

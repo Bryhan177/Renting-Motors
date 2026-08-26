@@ -1,4 +1,18 @@
-export const CUOTA_SEMANAL_ESTANDAR = 180_000;
+/**
+ * Cuotas por defecto de contratos NUEVOS / formularios.
+ * Los contratos existentes conservan `cuota_semanal`; no se reescriben cobros.
+ * El personal puede poner otra cuota en cada contrato.
+ */
+export const CUOTAS_ESTANDAR = {
+  semanal: 160_000,
+  quincenal: 320_000,
+  mensual: 640_000,
+} as const;
+
+export const CUOTA_SEMANAL_ESTANDAR = CUOTAS_ESTANDAR.semanal;
+export const CUOTA_QUINCENAL_ESTANDAR = CUOTAS_ESTANDAR.quincenal;
+export const CUOTA_MENSUAL_ESTANDAR = CUOTAS_ESTANDAR.mensual;
+
 export const DEPOSITO_ESTANDAR = 300_000;
 
 /** Número de WhatsApp GoRenting (código país + celular, sin + ni espacios). */

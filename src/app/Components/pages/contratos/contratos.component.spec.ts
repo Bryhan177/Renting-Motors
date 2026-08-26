@@ -44,12 +44,28 @@ describe('ContratosComponent', () => {
     expect(component).toBeTruthy();
   });
 
-  it('el formulario nuevo usa cuota estándar 180000 y fin a 3 meses', () => {
+  it('el formulario nuevo usa cuota estándar 160000 y fin a 3 meses', () => {
     const form = component.formVacio();
     expect(form.cuotaSemanal).toBe(CUOTA_SEMANAL_ESTANDAR);
-    expect(form.cuotaSemanal).toBe(180000);
+    expect(form.cuotaSemanal).toBe(160000);
     expect(form.fechaFin).toBe(fechaFinMinima(form.fechaInicio));
     expect(form.frecuenciaPago).toBe('semanal');
+  });
+
+  it('al cambiar frecuencia usa 160/320/640 salvo cuota personalizada', () => {
+    component.form = component.formVacio();
+    component.form.frecuenciaPago = 'quincenal';
+    component.onCambioFrecuencia();
+    expect(component.form.cuotaSemanal).toBe(320000);
+
+    component.form.frecuenciaPago = 'mensual';
+    component.onCambioFrecuencia();
+    expect(component.form.cuotaSemanal).toBe(640000);
+
+    component.form.cuotaSemanal = 200000;
+    component.form.frecuenciaPago = 'semanal';
+    component.onCambioFrecuencia();
+    expect(component.form.cuotaSemanal).toBe(200000);
   });
 
   it('filtra por estado activo', () => {

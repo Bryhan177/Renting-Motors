@@ -122,7 +122,9 @@
     <div class="p-5 space-y-3 overflow-y-auto">
       <p class="text-xs text-amber-200">
         Queda en borrador. Al activar se asigna la moto al conductor. Duración mínima 3 meses.
-        Cuota por defecto ${{ cuotaEstandar | number:'1.0-0':'es-CO' }} semanal.
+        Cuota por defecto ${{ cuotasEstandar.semanal | number:'1.0-0':'es-CO' }} semanal,
+        ${{ cuotasEstandar.quincenal | number:'1.0-0':'es-CO' }} quincenal,
+        ${{ cuotasEstandar.mensual | number:'1.0-0':'es-CO' }} mensual. Editable por contrato.
       </p>
       <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
         <div>

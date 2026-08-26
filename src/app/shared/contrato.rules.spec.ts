@@ -1,6 +1,7 @@
 import {
   addCalendarMonths,
   cuotaSugeridaPorFrecuencia,
+  cuotaTrasCambioFrecuencia,
   duracionMinimaValida,
   etiquetaMoto,
   fechaFinMinima,
@@ -9,7 +10,7 @@ import {
   mensajeErrorContrato,
   nombreConductor,
 } from './contrato.rules';
-import { CUOTA_SEMANAL_ESTANDAR } from './constants';
+import { CUOTAS_ESTANDAR, CUOTA_SEMANAL_ESTANDAR } from './constants';
 import { parseDateOnly } from './periodo.util';
 
 describe('contrato.rules', () => {
@@ -82,10 +83,19 @@ describe('contrato.rules', () => {
     expect(labelFrecuencia('quincenal')).toBe('Quincenal');
   });
 
-  it('cuota sugerida usa la cuota estándar semanal de constants (180000)', () => {
-    expect(CUOTA_SEMANAL_ESTANDAR).toBe(180000);
-    expect(cuotaSugeridaPorFrecuencia('semanal')).toBe(180000);
-    expect(cuotaSugeridaPorFrecuencia('quincenal')).toBe(360000);
-    expect(cuotaSugeridaPorFrecuencia('mensual')).toBe(720000);
+  it('cuota sugerida usa CUOTAS_ESTANDAR (160000 / 320000 / 640000)', () => {
+    expect(CUOTA_SEMANAL_ESTANDAR).toBe(160000);
+    expect(CUOTAS_ESTANDAR).toEqual({ semanal: 160000, quincenal: 320000, mensual: 640000 });
+    expect(cuotaSugeridaPorFrecuencia('semanal')).toBe(CUOTAS_ESTANDAR.semanal);
+    expect(cuotaSugeridaPorFrecuencia('quincenal')).toBe(CUOTAS_ESTANDAR.quincenal);
+    expect(cuotaSugeridaPorFrecuencia('mensual')).toBe(CUOTAS_ESTANDAR.mensual);
+  });
+
+  it('al cambiar frecuencia sigue 160/320/640 salvo cuota personalizada', () => {
+    expect(cuotaTrasCambioFrecuencia(160000, 'quincenal')).toBe(320000);
+    expect(cuotaTrasCambioFrecuencia(320000, 'mensual')).toBe(640000);
+    expect(cuotaTrasCambioFrecuencia(640000, 'semanal')).toBe(160000);
+    expect(cuotaTrasCambioFrecuencia(200000, 'quincenal')).toBe(200000);
+    expect(cuotaTrasCambioFrecuencia(180000, 'mensual')).toBe(180000);
   });
 });
