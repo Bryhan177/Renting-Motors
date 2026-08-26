@@ -4,6 +4,7 @@ import { DashboardComponent } from './Components/pages/dashboard/dashboard.compo
 import { UsuariosComponent } from './Components/pages/usuarios/usuarios.component';
 import { MotosComponent } from './Components/pages/motos/motos.component';
 import { PagosComponent } from './Components/pages/pagos/pagos.component';
+import { ContratosComponent } from './Components/pages/contratos/contratos.component';
 import { MantenimientosComponent } from './Components/pages/mantenimientos/mantenimientos.component';
 import { FlujoCajaComponent } from './Components/pages/flujo-caja/flujo-caja.component';
 import { HomeComponent } from './Components/home/home.component';
@@ -41,6 +42,12 @@ export const routes: Routes = [
       {
         path: 'motos',
         component: MotosComponent,
+        canActivate: [authGuard, roleGuard],
+        data: staff,
+      },
+      {
+        path: 'contratos',
+        component: ContratosComponent,
         canActivate: [authGuard, roleGuard],
         data: staff,
       },

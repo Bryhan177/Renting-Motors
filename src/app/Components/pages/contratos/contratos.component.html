@@ -1,0 +1,260 @@
+<div class="min-h-screen bg-gray-900 text-white p-6 rounded-xl">
+  <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-8 gap-4">
+    <div>
+      <h1 class="text-3xl font-bold text-white">Contratos</h1>
+      <p class="text-gray-300 mt-1">Moto → Contrato → Cobros → Pagos · un conductor y una moto, un activo</p>
+    </div>
+    <button (click)="abrirCrear()" class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 px-5 rounded-lg">
+      Nuevo contrato
+    </button>
+  </div>
+
+  <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+    <div class="bg-gray-800 border border-gray-700 rounded-xl p-4">
+      <p class="text-xs text-gray-300">Total</p>
+      <p class="text-2xl font-bold">{{ contratos.length }}</p>
+    </div>
+    <div class="bg-gray-800 border border-gray-700 rounded-xl p-4">
+      <p class="text-xs text-gray-300">Activos</p>
+      <p class="text-2xl font-bold text-green-400">{{ totalActivos }}</p>
+    </div>
+    <div class="bg-gray-800 border border-gray-700 rounded-xl p-4">
+      <p class="text-xs text-gray-300">Borradores</p>
+      <p class="text-2xl font-bold text-amber-300">{{ totalBorradores }}</p>
+    </div>
+    <div class="bg-gray-800 border border-gray-700 rounded-xl p-4">
+      <p class="text-xs text-gray-300">Cerrados</p>
+      <p class="text-2xl font-bold text-gray-300">{{ totalCerrados }}</p>
+    </div>
+  </div>
+
+  <div class="flex flex-col md:flex-row gap-3 mb-4">
+    <input
+      [(ngModel)]="busqueda"
+      placeholder="Buscar conductor, placa o estado..."
+      class="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-sm text-white"
+    />
+    <select [(ngModel)]="filtroEstado" class="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white">
+      <option value="todos">Todos</option>
+      <option value="activo">Activos</option>
+      <option value="borrador">Borradores</option>
+      <option value="finalizado">Finalizados</option>
+      <option value="anulado">Anulados</option>
+    </select>
+  </div>
+
+  <p *ngIf="cargando" class="text-sm text-gray-400 mb-3">Cargando contratos...</p>
+
+  <div class="bg-gray-800 rounded-xl border border-gray-700 overflow-x-auto">
+    <table class="w-full text-left">
+      <thead>
+        <tr class="bg-gray-900/60 text-gray-300 text-xs uppercase border-b border-gray-700">
+          <th class="px-4 py-3">Conductor</th>
+          <th class="px-4 py-3">Moto</th>
+          <th class="px-4 py-3">Cuota</th>
+          <th class="px-4 py-3">Frecuencia</th>
+          <th class="px-4 py-3">Fechas</th>
+          <th class="px-4 py-3 text-center">Estado</th>
+          <th class="px-4 py-3 text-right">Acciones</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-gray-700">
+        <tr *ngFor="let c of contratosFiltrados" class="hover:bg-gray-700/40">
+          <td class="px-4 py-3">
+            <p class="font-semibold text-white">{{ nombreDe(c) }}</p>
+          </td>
+          <td class="px-4 py-3 text-sm text-gray-200">{{ motoDe(c) }}</td>
+          <td class="px-4 py-3 text-sm text-blue-300 font-semibold">
+            $ {{ c.cuotaSemanal | number:'1.0-0':'es-CO' }}
+          </td>
+          <td class="px-4 py-3 text-sm text-gray-300">{{ frecuenciaDe(c) }}</td>
+          <td class="px-4 py-3 text-sm text-gray-300">
+            <p>{{ fechaCorta(c.fechaInicio) }} → {{ fechaCorta(c.fechaFin) }}</p>
+            <p class="text-xs text-gray-500" *ngIf="c.activadoEn">Activo {{ fechaCorta(c.activadoEn) }}</p>
+          </td>
+          <td class="px-4 py-3 text-center">
+            <span class="px-2 py-1 rounded-full text-xs border" [ngClass]="estadoClass(c.estado)">
+              {{ estadoLabel(c.estado) }}
+            </span>
+          </td>
+          <td class="px-4 py-3 text-right space-x-1 whitespace-nowrap">
+            <button (click)="ver(c)" class="px-3 py-1.5 text-sm bg-gray-700 rounded-lg text-white">Ver</button>
+            <button
+              *ngIf="c.estado === 'borrador'"
+              (click)="activar(c)"
+              class="px-3 py-1.5 text-sm bg-emerald-700 rounded-lg text-white"
+            >
+              Activar
+            </button>
+            <button
+              *ngIf="c.estado === 'activo'"
+              (click)="finalizar(c)"
+              class="px-3 py-1.5 text-sm bg-orange-700 rounded-lg text-white"
+            >
+              Finalizar
+            </button>
+            <button
+              *ngIf="c.estado === 'borrador'"
+              (click)="anular(c)"
+              class="px-3 py-1.5 text-sm bg-red-700 rounded-lg text-white"
+            >
+              Anular
+            </button>
+          </td>
+        </tr>
+        <tr *ngIf="!cargando && contratosFiltrados.length === 0">
+          <td colspan="7" class="px-4 py-8 text-center text-gray-400 text-sm">
+            No hay contratos con ese filtro. Crea uno o entrega una MDD desde Motos.
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Crear -->
+<div *ngIf="modalCrear" class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
+  <div class="bg-gray-800 rounded-2xl w-full max-w-2xl border border-gray-600 text-white max-h-[92vh] flex flex-col">
+    <div class="p-5 border-b border-gray-600 flex justify-between">
+      <h3 class="text-xl font-bold">Nuevo contrato</h3>
+      <button (click)="cerrarCrear()" class="text-2xl">&times;</button>
+    </div>
+    <div class="p-5 space-y-3 overflow-y-auto">
+      <p class="text-xs text-amber-200">
+        Queda en borrador. Al activar se asigna la moto al conductor. Duración mínima 3 meses.
+        Cuota por defecto ${{ cuotaEstandar | number:'1.0-0':'es-CO' }} semanal.
+      </p>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div>
+          <label class="text-xs text-gray-300 block mb-1">Conductor</label>
+          <select [(ngModel)]="form.conductorId" class="w-full bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-white">
+            <option value="">Selecciona...</option>
+            <option *ngFor="let u of conductoresLibres" [value]="u._id">{{ u.nombre }} {{ u.apellido }}</option>
+          </select>
+          <p *ngIf="conductoresLibres.length === 0" class="text-xs text-amber-200 mt-1">
+            No hay conductores libres (sin contrato activo).
+          </p>
+        </div>
+        <div>
+          <label class="text-xs text-gray-300 block mb-1">Moto</label>
+          <select [(ngModel)]="form.motoId" (ngModelChange)="onCambioMoto()" class="w-full bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-white">
+            <option value="">Selecciona...</option>
+            <option *ngFor="let m of motosLibres" [value]="m._id">{{ m.placa }} · {{ m.marca }} {{ m.modelo }}</option>
+          </select>
+          <p *ngIf="motosLibres.length === 0" class="text-xs text-amber-200 mt-1">
+            No hay motos disponibles sin contrato activo.
+          </p>
+        </div>
+        <div>
+          <label class="text-xs text-gray-300 block mb-1">Fecha inicio</label>
+          <input
+            type="date"
+            [(ngModel)]="form.fechaInicio"
+            (ngModelChange)="onCambioInicio()"
+            class="w-full bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-white"
+          />
+        </div>
+        <div>
+          <label class="text-xs text-gray-300 block mb-1">Fecha fin (mín. 3 meses)</label>
+          <input
+            type="date"
+            [(ngModel)]="form.fechaFin"
+            [attr.min]="form.fechaInicio"
+            class="w-full bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-white"
+          />
+        </div>
+        <div>
+          <label class="text-xs text-gray-300 block mb-1">Frecuencia de pago</label>
+          <select [(ngModel)]="form.frecuenciaPago" (ngModelChange)="onCambioFrecuencia()" class="w-full bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-white">
+            <option value="semanal">Semanal</option>
+            <option value="quincenal">Quincenal</option>
+            <option value="mensual">Mensual</option>
+          </select>
+        </div>
+        <div>
+          <label class="text-xs text-gray-300 block mb-1">{{ labelCuota() }}</label>
+          <input
+            type="text"
+            inputmode="numeric"
+            appCurrencyCo
+            [(ngModel)]="form.cuotaSemanal"
+            class="w-full bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-white"
+          />
+        </div>
+        <div class="md:col-span-2">
+          <label class="text-xs text-gray-300 block mb-1">Depósito pactado</label>
+          <input
+            type="text"
+            inputmode="numeric"
+            appCurrencyCo
+            [(ngModel)]="form.depositoPactado"
+            class="w-full bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-white"
+          />
+        </div>
+      </div>
+    </div>
+    <div class="p-4 border-t border-gray-600 flex justify-end gap-2">
+      <button (click)="cerrarCrear()" class="px-4 py-2 text-white">Cancelar</button>
+      <button (click)="guardar()" [disabled]="guardando" class="px-4 py-2 bg-blue-600 rounded-lg text-white disabled:opacity-50">
+        {{ guardando ? 'Guardando...' : 'Crear borrador' }}
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Ver -->
+<div *ngIf="modalVer && contratoVer" class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
+  <div class="bg-gray-800 rounded-2xl w-full max-w-lg border border-gray-600 text-white">
+    <div class="p-5 border-b border-gray-600 flex justify-between">
+      <h3 class="text-xl font-bold">Contrato</h3>
+      <button (click)="modalVer = false" class="text-2xl">&times;</button>
+    </div>
+    <div class="p-5 space-y-3 text-sm">
+      <div class="flex justify-between">
+        <span class="text-gray-400">Estado</span>
+        <span class="px-2 py-1 rounded-full text-xs border" [ngClass]="estadoClass(contratoVer.estado)">
+          {{ estadoLabel(contratoVer.estado) }}
+        </span>
+      </div>
+      <div class="flex justify-between gap-4"><span class="text-gray-400">Conductor</span><span>{{ nombreDe(contratoVer) }}</span></div>
+      <div class="flex justify-between gap-4"><span class="text-gray-400">Moto</span><span>{{ motoDe(contratoVer) }}</span></div>
+      <div class="flex justify-between">
+        <span class="text-gray-400">Cuota</span>
+        <span>$ {{ contratoVer.cuotaSemanal | number:'1.0-0':'es-CO' }} · {{ frecuenciaDe(contratoVer) }}</span>
+      </div>
+      <div class="flex justify-between">
+        <span class="text-gray-400">Depósito</span>
+        <span>$ {{ contratoVer.depositoPactado | number:'1.0-0':'es-CO' }}</span>
+      </div>
+      <div class="flex justify-between">
+        <span class="text-gray-400">Vigencia</span>
+        <span>{{ fechaCorta(contratoVer.fechaInicio) }} → {{ fechaCorta(contratoVer.fechaFin) }}</span>
+      </div>
+      <div class="flex justify-between" *ngIf="contratoVer.activadoEn">
+        <span class="text-gray-400">Activado</span>
+        <span>{{ fechaCorta(contratoVer.activadoEn) }}</span>
+      </div>
+      <div class="flex justify-between" *ngIf="contratoVer.finalizadoEn">
+        <span class="text-gray-400">Finalizado</span>
+        <span>{{ fechaCorta(contratoVer.finalizadoEn) }}</span>
+      </div>
+    </div>
+    <div class="p-4 border-t border-gray-600 flex justify-end gap-2">
+      <button
+        *ngIf="contratoVer.estado === 'borrador'"
+        (click)="modalVer = false; activar(contratoVer)"
+        class="px-4 py-2 bg-emerald-700 rounded-lg"
+      >
+        Activar
+      </button>
+      <button
+        *ngIf="contratoVer.estado === 'activo'"
+        (click)="modalVer = false; finalizar(contratoVer)"
+        class="px-4 py-2 bg-orange-700 rounded-lg"
+      >
+        Finalizar
+      </button>
+      <button (click)="modalVer = false" class="px-4 py-2 bg-gray-700 rounded-lg">Cerrar</button>
+    </div>
+  </div>
+</div>

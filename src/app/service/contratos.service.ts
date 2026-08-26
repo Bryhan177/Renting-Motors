@@ -1,10 +1,16 @@
 import { Injectable } from '@angular/core';
-import { Observable, from, map, switchMap, throwError } from 'rxjs';
+import { Observable, from, map, of, switchMap, throwError } from 'rxjs';
 import { getSupabase } from '../supabase/supabase.client';
 import { CUOTA_SEMANAL_ESTANDAR, DEPOSITO_ESTANDAR } from '../shared/constants';
 import { Usuario } from '../shared/interfaces/usuario';
 import { Moto } from '../shared/interfaces/moto';
 import { FrecuenciaPago } from '../shared/periodo.util';
+import {
+  ContratoEstado,
+  duracionMinimaValida,
+  fechaFinMinima,
+  mensajeErrorContrato,
+} from '../shared/contrato.rules';
 
 export interface Contrato {
   _id?: string;
@@ -15,7 +21,7 @@ export interface Contrato {
   cuotaSemanal: number;
   depositoPactado: number;
   frecuenciaPago: FrecuenciaPago;
-  estado: 'borrador' | 'activo' | 'finalizado' | 'anulado';
+  estado: ContratoEstado;
   saldoAFavor?: number;
   activadoEn?: string | null;
   finalizadoEn?: string | null;
@@ -25,6 +31,7 @@ export interface CreateContratoPayload {
   conductorId: string;
   motoId: string;
   fechaInicio: string;
+  fechaFin?: string;
   cuotaSemanal?: number;
   depositoPactado?: number;
   frecuenciaPago?: FrecuenciaPago;
@@ -47,6 +54,10 @@ export class ContratosService {
       activadoEn: row.activado_en,
       finalizadoEn: row.finalizado_en,
     };
+  }
+
+  private fail(message: string) {
+    return throwError(() => ({ error: { message } }));
   }
 
   getContratos(params?: { estado?: string; motoId?: string; conductorId?: string }): Observable<Contrato[]> {
@@ -85,6 +96,11 @@ export class ContratosService {
     const cuota = payload.cuotaSemanal ?? CUOTA_SEMANAL_ESTANDAR;
     const deposito = payload.depositoPactado ?? DEPOSITO_ESTANDAR;
     const frecuencia = payload.frecuenciaPago || 'semanal';
+    const fechaFin = payload.fechaFin || fechaFinMinima(payload.fechaInicio);
+
+    if (!duracionMinimaValida(payload.fechaInicio, fechaFin)) {
+      return this.fail('La duración mínima del contrato es 3 meses.');
+    }
 
     return from(
       sb
@@ -93,6 +109,7 @@ export class ContratosService {
           conductor_id: payload.conductorId,
           moto_id: payload.motoId,
           fecha_inicio: payload.fechaInicio,
+          fecha_fin: fechaFin,
           cuota_semanal: cuota,
           deposito_pactado: deposito,
           frecuencia_pago: frecuencia,
@@ -103,7 +120,7 @@ export class ContratosService {
     ).pipe(
       switchMap(({ data: contrato, error }) => {
         if (error || !contrato) {
-          return throwError(() => ({ error: { message: error?.message || 'No se pudo crear contrato' } }));
+          return this.fail(mensajeErrorContrato(error || { message: 'No se pudo crear contrato' }));
         }
         return from(
           sb.from('depositos').insert({
@@ -125,26 +142,30 @@ export class ContratosService {
     );
   }
 
-  /** Activación real (solo desde confirmar entrega). */
-  activarDesdeEntrega(contratoId: string, actorId: string): Observable<Contrato> {
+  /**
+   * Activa un contrato en borrador: unicidad la rechaza Postgres (índice parcial)
+   * y la moto queda asignada al conductor.
+   */
+  activar(contratoId: string, _actorId?: string): Observable<Contrato> {
     const sb = getSupabase();
     return from(sb.from('contratos').select('*').eq('id', contratoId).single()).pipe(
       switchMap(({ data: c, error }) => {
-        if (error || !c) return throwError(() => ({ error: { message: 'Contrato no encontrado' } }));
-        if (c.estado === 'activo') return throwError(() => ({ error: { message: 'El contrato ya está activo' } }));
-        if (c.estado !== 'borrador') {
-          return throwError(() => ({ error: { message: 'Solo se activa un contrato en borrador' } }));
-        }
-        return from(
-          sb
-            .from('contratos')
-            .update({ estado: 'activo', activado_en: new Date().toISOString() })
-            .eq('id', contratoId)
-            .select('*')
-            .single(),
-        ).pipe(
+        if (error || !c) return this.fail('Contrato no encontrado');
+        if (c.estado === 'activo') return this.fail('El contrato ya está activo');
+        if (c.estado !== 'borrador') return this.fail('Solo se activa un contrato en borrador');
+        return this.assertSinActivoDuplicado(c.conductor_id, c.moto_id, contratoId).pipe(
+          switchMap(() =>
+            from(
+              sb
+                .from('contratos')
+                .update({ estado: 'activo', activado_en: new Date().toISOString() })
+                .eq('id', contratoId)
+                .select('*')
+                .single(),
+            ),
+          ),
           switchMap(({ data: act, error: e2 }) => {
-            if (e2 || !act) return throwError(() => ({ error: { message: e2?.message || 'No se pudo activar' } }));
+            if (e2 || !act) return this.fail(mensajeErrorContrato(e2 || { message: 'No se pudo activar' }));
             return from(
               sb
                 .from('motos')
@@ -157,6 +178,11 @@ export class ContratosService {
     );
   }
 
+  /** Alias usado por el flujo de entrega (Motos). */
+  activarDesdeEntrega(contratoId: string, actorId: string): Observable<Contrato> {
+    return this.activar(contratoId, actorId);
+  }
+
   finalizarDesdeDevolucion(
     contratoId: string,
     condicionMoto: 'disponible' | 'en_mantenimiento' | 'fuera_servicio',
@@ -164,24 +190,21 @@ export class ContratosService {
     const sb = getSupabase();
     return from(sb.from('contratos').select('*').eq('id', contratoId).single()).pipe(
       switchMap(({ data: c, error }) => {
-        if (error || !c) return throwError(() => ({ error: { message: 'Contrato no encontrado' } }));
-        if (c.estado !== 'activo') {
-          return throwError(() => ({ error: { message: 'Solo se finaliza un contrato activo' } }));
-        }
+        if (error || !c) return this.fail('Contrato no encontrado');
+        if (c.estado !== 'activo') return this.fail('Solo se finaliza un contrato activo');
         return from(
           sb
             .from('contratos')
             .update({
               estado: 'finalizado',
               finalizado_en: new Date().toISOString(),
-              fecha_fin: c.fecha_fin || new Date().toISOString().slice(0, 10),
             })
             .eq('id', contratoId)
             .select('*')
             .single(),
         ).pipe(
           switchMap(({ data: fin, error: e2 }) => {
-            if (e2 || !fin) return throwError(() => ({ error: { message: e2?.message || 'No se pudo finalizar' } }));
+            if (e2 || !fin) return this.fail(e2?.message || 'No se pudo finalizar');
             return from(
               sb
                 .from('motos')
@@ -190,6 +213,46 @@ export class ContratosService {
             ).pipe(map(() => this.map(fin)));
           }),
         );
+      }),
+    );
+  }
+
+  anular(contratoId: string): Observable<Contrato> {
+    const sb = getSupabase();
+    return from(sb.from('contratos').select('*').eq('id', contratoId).single()).pipe(
+      switchMap(({ data: c, error }) => {
+        if (error || !c) return this.fail('Contrato no encontrado');
+        if (c.estado !== 'borrador') return this.fail('Solo se anula un contrato en borrador');
+        return from(
+          sb.from('contratos').update({ estado: 'anulado' }).eq('id', contratoId).select('*').single(),
+        ).pipe(
+          map(({ data, error: e2 }) => {
+            if (e2 || !data) throw e2 || new Error('No se pudo anular');
+            return this.map(data);
+          }),
+        );
+      }),
+    );
+  }
+
+  private assertSinActivoDuplicado(
+    conductorId: string,
+    motoId: string,
+    excludeId: string,
+  ): Observable<void> {
+    const sb = getSupabase();
+    return from(
+      Promise.all([
+        sb.from('contratos').select('id').eq('estado', 'activo').eq('conductor_id', conductorId),
+        sb.from('contratos').select('id').eq('estado', 'activo').eq('moto_id', motoId),
+      ]),
+    ).pipe(
+      switchMap(([condRes, motoRes]) => {
+        const otroConductor = (condRes.data || []).some((r: { id: string }) => r.id !== excludeId);
+        const otraMoto = (motoRes.data || []).some((r: { id: string }) => r.id !== excludeId);
+        if (otroConductor) return this.fail('Ese conductor ya tiene un contrato activo.');
+        if (otraMoto) return this.fail('Esa moto ya tiene un contrato activo.');
+        return of(undefined);
       }),
     );
   }
