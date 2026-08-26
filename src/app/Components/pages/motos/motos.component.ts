@@ -4,9 +4,20 @@ import { FormsModule } from '@angular/forms';
 import { MotosService } from '../../../service/motos.service';
 import { ContratosService, Contrato } from '../../../service/contratos.service';
 import { OperacionService, Deposito, Entrega } from '../../../service/operacion.service';
+import { PlanesService } from '../../../service/planes.service';
 import { Moto } from '../../../shared/interfaces/moto';
 import { Usuario } from '../../../shared/interfaces/usuario';
+import { Plan } from '../../../shared/interfaces/plan';
 import { CurrencyCoDirective } from '../../../shared/directives/currency-co.directive';
+import { DEPOSITO_ESTANDAR } from '../../../shared/constants';
+import { FrecuenciaPago } from '../../../shared/periodo.util';
+import { DURACION_MINIMA_MESES, fechaFinMinima } from '../../../shared/contrato.rules';
+import {
+  cuotaSugeridaDelPlan,
+  frecuenciaInicialDelPlan,
+  periodicidadesDe,
+  planPermiteFrecuencia,
+} from '../../../shared/plan-economia';
 import Swal from 'sweetalert2';
 
 @Component({
@@ -50,9 +61,9 @@ export class MotosComponent implements OnInit {
       imagen: undefined,
     };
   }
-  cuotaSemanal = 180000;
-  depositoPactado = 300000;
-  frecuenciaPago: 'semanal' | 'quincenal' | 'mensual' = 'semanal';
+  cuotaSemanal = 0;
+  depositoPactado = DEPOSITO_ESTANDAR;
+  frecuenciaPago: FrecuenciaPago = 'semanal';
   fechaInicioContrato = new Date().toISOString().slice(0, 10);
   pasoAsignar = 1;
   conductorSeleccionado: Usuario | null = null;
@@ -60,6 +71,10 @@ export class MotosComponent implements OnInit {
   entregaForm = this.entregaVacia();
   entregaId: string | null = null;
   sugerencias = { accesorios: [] as string[], documentos: [] as string[] };
+  planes: Plan[] = [];
+  planId = '';
+  cuotaInicial = 0;
+  duracionMeses = DURACION_MINIMA_MESES;
 
   modalDevolverVisible = false;
   devolucionForm: any = null;
@@ -80,6 +95,7 @@ export class MotosComponent implements OnInit {
     private motosService: MotosService,
     private contratosService: ContratosService,
     private operacionService: OperacionService,
+    private planesService: PlanesService,
   ) {}
 
   ngOnInit(): void {
@@ -149,21 +165,54 @@ export class MotosComponent implements OnInit {
     });
   }
 
+  get planSeleccionado(): Plan | null {
+    return this.planes.find((p) => p._id === this.planId) || null;
+  }
+
+  get frecuenciasDelPlan(): FrecuenciaPago[] {
+    return this.planSeleccionado ? periodicidadesDe(this.planSeleccionado) : [];
+  }
+
+  get permiteNegociar(): boolean {
+    return this.planSeleccionado?.permiteNegociacion !== false;
+  }
+
+  get muestraCuotaInicial(): boolean {
+    return !!this.planSeleccionado?.requiereCuotaInicial;
+  }
+
   labelCuota(): string {
     switch (this.frecuenciaPago) {
       case 'quincenal':
-        return 'Cuota quincenal';
+        return 'Valor pactado (quincenal)';
       case 'mensual':
-        return 'Cuota mensual';
+        return 'Valor pactado (mensual)';
       default:
-        return 'Cuota semanal';
+        return 'Valor pactado (semanal)';
     }
   }
 
+  onCambioPlan(): void {
+    const plan = this.planSeleccionado;
+    if (!plan) {
+      this.cuotaSemanal = 0;
+      this.cuotaInicial = 0;
+      this.duracionMeses = DURACION_MINIMA_MESES;
+      return;
+    }
+    this.duracionMeses = plan.duracionMinimaMeses || DURACION_MINIMA_MESES;
+    this.frecuenciaPago = frecuenciaInicialDelPlan(plan);
+    this.cuotaSemanal = cuotaSugeridaDelPlan(plan, this.frecuenciaPago);
+    if (!plan.requiereCuotaInicial) this.cuotaInicial = 0;
+  }
+
   onCambioFrecuencia(): void {
-    if (this.frecuenciaPago === 'semanal') this.cuotaSemanal = 180000;
-    else if (this.frecuenciaPago === 'quincenal') this.cuotaSemanal = 360000;
-    else this.cuotaSemanal = 720000;
+    const plan = this.planSeleccionado;
+    if (!plan) return;
+    if (!planPermiteFrecuencia(plan, this.frecuenciaPago)) {
+      this.frecuenciaPago = frecuenciaInicialDelPlan(plan);
+    }
+    this.cuotaSemanal = cuotaSugeridaDelPlan(plan, this.frecuenciaPago);
   }
 
   abrirModalAsignar(moto: Moto) {
@@ -174,11 +223,25 @@ export class MotosComponent implements OnInit {
     this.contratoActual = null;
     this.entregaId = null;
     this.entregaForm = this.entregaVacia();
+    this.planId = '';
     this.frecuenciaPago = 'semanal';
-    this.cuotaSemanal = moto.precioCobro || 180000;
-    this.depositoPactado = 300000;
+    this.cuotaSemanal = 0;
+    this.cuotaInicial = 0;
+    this.duracionMeses = DURACION_MINIMA_MESES;
+    this.depositoPactado = DEPOSITO_ESTANDAR;
     this.fechaInicioContrato = new Date().toISOString().slice(0, 10);
     this.loadConductoresDisponibles();
+    this.planesService.getActivos().subscribe({
+      next: (p) => (this.planes = p),
+      error: () => {
+        this.planes = [];
+        Swal.fire({
+          icon: 'warning',
+          title: 'No se pudieron cargar planes',
+          text: 'Ejecuta el SQL 20260828_planes_catalogo.sql en Supabase.',
+        });
+      },
+    });
     this.operacionService.sugerencias().subscribe({
       next: (s) => (this.sugerencias = s),
     });
@@ -199,14 +262,32 @@ export class MotosComponent implements OnInit {
       Swal.fire({ icon: 'error', title: 'Selecciona un conductor' });
       return;
     }
+    const plan = this.planSeleccionado;
+    if (!plan?._id) {
+      Swal.fire({ icon: 'warning', title: 'Elige un plan' });
+      return;
+    }
+    if (!this.cuotaSemanal || this.cuotaSemanal <= 0) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'Indica el valor pactado',
+        text: 'El plan solo sugiere. El contrato no se crea sin un valor acordado.',
+      });
+      return;
+    }
     this.contratosService
       .create({
         motoId: this.motoSeleccionada._id!,
         conductorId: this.conductorSeleccionado._id,
         fechaInicio: this.fechaInicioContrato,
+        fechaFin: fechaFinMinima(this.fechaInicioContrato, this.duracionMeses),
         cuotaSemanal: this.cuotaSemanal,
         depositoPactado: this.depositoPactado,
         frecuenciaPago: this.frecuenciaPago,
+        planId: plan._id,
+        planNombre: plan.nombre,
+        cuotaInicial: this.cuotaInicial,
+        duracionMeses: this.duracionMeses,
       })
       .subscribe({
         next: (contrato) => {

@@ -7,15 +7,17 @@ import { ContratosService, Contrato, CreateContratoPayload } from '../../../serv
 import { CobrosService } from '../../../service/cobros.service';
 import { MotosService } from '../../../service/motos.service';
 import { UsuariosService } from '../../../service/usuarios.service';
+import { PlanesService } from '../../../service/planes.service';
 import { AuthService } from '../../../auth/auth.service';
 import { Moto } from '../../../shared/interfaces/moto';
 import { Usuario } from '../../../shared/interfaces/usuario';
+import { Plan } from '../../../shared/interfaces/plan';
 import { CurrencyCoDirective } from '../../../shared/directives/currency-co.directive';
-import { CUOTA_SEMANAL_ESTANDAR, DEPOSITO_ESTANDAR } from '../../../shared/constants';
+import { DEPOSITO_ESTANDAR } from '../../../shared/constants';
 import { FrecuenciaPago, toDateOnlyString } from '../../../shared/periodo.util';
 import {
   ContratoEstado,
-  cuotaSugeridaPorFrecuencia,
+  DURACION_MINIMA_MESES,
   duracionMinimaValida,
   etiquetaMoto,
   fechaFinMinima,
@@ -24,6 +26,13 @@ import {
   mensajeErrorContrato,
   nombreConductor,
 } from '../../../shared/contrato.rules';
+import {
+  cuotaSugeridaDelPlan,
+  etiquetaPlan,
+  frecuenciaInicialDelPlan,
+  periodicidadesDe,
+  planPermiteFrecuencia,
+} from '../../../shared/plan-economia';
 
 @Component({
   selector: 'app-contratos',
@@ -35,6 +44,7 @@ export class ContratosComponent implements OnInit {
   contratos: Contrato[] = [];
   motos: Moto[] = [];
   conductores: Usuario[] = [];
+  planes: Plan[] = [];
   cargando = false;
   guardando = false;
   busqueda = '';
@@ -45,13 +55,12 @@ export class ContratosComponent implements OnInit {
   contratoVer: Contrato | null = null;
   form: CreateContratoPayload = this.formVacio();
 
-  readonly cuotaEstandar = CUOTA_SEMANAL_ESTANDAR;
-
   constructor(
     private contratosService: ContratosService,
     private cobrosService: CobrosService,
     private motosService: MotosService,
     private usuariosService: UsuariosService,
+    private planesService: PlanesService,
     private auth: AuthService,
   ) {}
 
@@ -66,10 +75,30 @@ export class ContratosComponent implements OnInit {
       motoId: '',
       fechaInicio: inicio,
       fechaFin: fechaFinMinima(inicio),
-      cuotaSemanal: CUOTA_SEMANAL_ESTANDAR,
+      cuotaSemanal: 0,
       depositoPactado: DEPOSITO_ESTANDAR,
       frecuenciaPago: 'semanal',
+      planId: '',
+      planNombre: '',
+      cuotaInicial: 0,
+      duracionMeses: DURACION_MINIMA_MESES,
     };
+  }
+
+  get planSeleccionado(): Plan | null {
+    return this.planes.find((p) => p._id === this.form.planId) || null;
+  }
+
+  get frecuenciasDelPlan(): FrecuenciaPago[] {
+    return this.planSeleccionado ? periodicidadesDe(this.planSeleccionado) : [];
+  }
+
+  get permiteNegociar(): boolean {
+    return this.planSeleccionado?.permiteNegociacion !== false;
+  }
+
+  get muestraCuotaInicial(): boolean {
+    return !!this.planSeleccionado?.requiereCuotaInicial;
   }
 
   get contratosFiltrados(): Contrato[] {
@@ -80,6 +109,7 @@ export class ContratosComponent implements OnInit {
       return (
         this.nombreDe(c).toLowerCase().includes(q) ||
         this.motoDe(c).toLowerCase().includes(q) ||
+        this.planDe(c).toLowerCase().includes(q) ||
         c.estado.toLowerCase().includes(q)
       );
     });
@@ -117,11 +147,13 @@ export class ContratosComponent implements OnInit {
       contratos: this.contratosService.getContratos().pipe(catchError(() => of([] as Contrato[]))),
       motos: this.motosService.getMotos().pipe(catchError(() => of([] as Moto[]))),
       usuarios: this.usuariosService.getUsuarios(false).pipe(catchError(() => of([] as Usuario[]))),
+      planes: this.planesService.getActivos().pipe(catchError(() => of([] as Plan[]))),
     }).subscribe({
-      next: ({ contratos, motos, usuarios }) => {
+      next: ({ contratos, motos, usuarios, planes }) => {
         this.contratos = contratos;
         this.motos = motos;
         this.conductores = usuarios.filter((u) => u.rol === 'empleado' && u.activo);
+        this.planes = planes;
         this.cargando = false;
       },
       error: (e) => {
@@ -142,29 +174,48 @@ export class ContratosComponent implements OnInit {
   }
 
   onCambioInicio(): void {
-    if (!duracionMinimaValida(this.form.fechaInicio, this.form.fechaFin || '')) {
-      this.form.fechaFin = fechaFinMinima(this.form.fechaInicio);
+    const meses = this.form.duracionMeses || DURACION_MINIMA_MESES;
+    if (!duracionMinimaValida(this.form.fechaInicio, this.form.fechaFin || '', meses)) {
+      this.form.fechaFin = fechaFinMinima(this.form.fechaInicio, meses);
     }
   }
 
-  onCambioFrecuencia(): void {
-    const f = (this.form.frecuenciaPago || 'semanal') as FrecuenciaPago;
-    this.form.cuotaSemanal = cuotaSugeridaPorFrecuencia(f, CUOTA_SEMANAL_ESTANDAR);
+  onCambioPlan(): void {
+    const plan = this.planSeleccionado;
+    if (!plan) {
+      this.form.planNombre = '';
+      this.form.cuotaSemanal = 0;
+      this.form.cuotaInicial = 0;
+      this.form.duracionMeses = DURACION_MINIMA_MESES;
+      return;
+    }
+    this.form.planNombre = plan.nombre;
+    this.form.duracionMeses = plan.duracionMinimaMeses || DURACION_MINIMA_MESES;
+    const freq = frecuenciaInicialDelPlan(plan);
+    this.form.frecuenciaPago = freq;
+    this.form.cuotaSemanal = cuotaSugeridaDelPlan(plan, freq);
+    if (!plan.requiereCuotaInicial) this.form.cuotaInicial = 0;
+    this.form.fechaFin = fechaFinMinima(this.form.fechaInicio, this.form.duracionMeses);
   }
 
-  onCambioMoto(): void {
-    const moto = this.motos.find((m) => m._id === this.form.motoId);
-    if (moto?.precioCobro) this.form.cuotaSemanal = moto.precioCobro;
+  onCambioFrecuencia(): void {
+    const plan = this.planSeleccionado;
+    const f = this.form.frecuenciaPago;
+    if (!plan || !f) return;
+    if (!planPermiteFrecuencia(plan, f)) {
+      this.form.frecuenciaPago = frecuenciaInicialDelPlan(plan);
+    }
+    this.form.cuotaSemanal = cuotaSugeridaDelPlan(plan, this.form.frecuenciaPago);
   }
 
   labelCuota(): string {
     switch (this.form.frecuenciaPago) {
       case 'quincenal':
-        return 'Cuota quincenal';
+        return 'Valor pactado (quincenal)';
       case 'mensual':
-        return 'Cuota mensual';
+        return 'Valor pactado (mensual)';
       default:
-        return 'Cuota semanal';
+        return 'Valor pactado (semanal)';
     }
   }
 
@@ -173,16 +224,25 @@ export class ContratosComponent implements OnInit {
       Swal.fire({ icon: 'warning', title: 'Elige conductor y moto' });
       return;
     }
-    if (!this.form.fechaFin || !duracionMinimaValida(this.form.fechaInicio, this.form.fechaFin)) {
+    if (!this.form.planId) {
+      Swal.fire({ icon: 'warning', title: 'Elige un plan' });
+      return;
+    }
+    const meses = this.form.duracionMeses || DURACION_MINIMA_MESES;
+    if (!this.form.fechaFin || !duracionMinimaValida(this.form.fechaInicio, this.form.fechaFin, meses)) {
       Swal.fire({
         icon: 'warning',
-        title: 'Duración mínima 3 meses',
-        text: `La fecha fin debe ser al menos ${fechaFinMinima(this.form.fechaInicio)}.`,
+        title: `Duración mínima ${meses} meses`,
+        text: `La fecha fin debe ser al menos ${fechaFinMinima(this.form.fechaInicio, meses)}.`,
       });
       return;
     }
     if (!this.form.cuotaSemanal || this.form.cuotaSemanal <= 0) {
-      Swal.fire({ icon: 'warning', title: 'La cuota debe ser mayor a 0' });
+      Swal.fire({
+        icon: 'warning',
+        title: 'Indica el valor pactado',
+        text: 'El plan solo sugiere. El contrato no se crea sin un valor acordado.',
+      });
       return;
     }
     this.guardando = true;
@@ -313,6 +373,17 @@ export class ContratosComponent implements OnInit {
 
   motoDe(c: Contrato): string {
     return etiquetaMoto(c.motoId);
+  }
+
+  planDe(c: Contrato): string {
+    return etiquetaPlan(c.planNombre);
+  }
+
+  etiquetaOpcionPlan(p: Plan): string {
+    if (p.valorSugerido > 0) {
+      return `${p.nombre} · sugerido $ ${p.valorSugerido.toLocaleString('es-CO')}/sem`;
+    }
+    return `${p.nombre} · valor a convenir`;
   }
 
   frecuenciaDe(c: Contrato): string {

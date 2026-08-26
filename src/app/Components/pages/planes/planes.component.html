@@ -1,0 +1,175 @@
+<div class="min-h-screen bg-gray-900 text-white p-6 rounded-xl">
+  <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-8 gap-4">
+    <div>
+      <h1 class="text-3xl font-bold text-white">Planes</h1>
+      <p class="text-gray-300 mt-1">
+        El plan sugiere condiciones. El precio final se pacta y se congela en el contrato.
+      </p>
+    </div>
+    <button (click)="abrirCrear()" class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 px-5 rounded-lg">
+      Nuevo plan
+    </button>
+  </div>
+
+  <div class="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
+    <div class="bg-gray-800 border border-gray-700 rounded-xl p-4">
+      <p class="text-xs text-gray-300">Total</p>
+      <p class="text-2xl font-bold">{{ planes.length }}</p>
+    </div>
+    <div class="bg-gray-800 border border-gray-700 rounded-xl p-4">
+      <p class="text-xs text-gray-300">Activos</p>
+      <p class="text-2xl font-bold text-green-400">{{ totalActivos }}</p>
+    </div>
+    <div class="bg-gray-800 border border-gray-700 rounded-xl p-4">
+      <p class="text-xs text-gray-300">Inactivos</p>
+      <p class="text-2xl font-bold text-gray-300">{{ planes.length - totalActivos }}</p>
+    </div>
+  </div>
+
+  <div class="flex flex-col md:flex-row gap-3 mb-4">
+    <input
+      [(ngModel)]="busqueda"
+      placeholder="Buscar plan..."
+      class="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-sm text-white"
+    />
+    <label class="flex items-center gap-2 text-sm text-gray-300 px-2">
+      <input type="checkbox" [(ngModel)]="mostrarInactivos" /> Inactivos
+    </label>
+  </div>
+
+  <p *ngIf="cargando" class="text-sm text-gray-400 mb-3">Cargando planes...</p>
+
+  <div class="bg-gray-800 rounded-xl border border-gray-700 overflow-x-auto">
+    <table class="w-full text-left">
+      <thead>
+        <tr class="bg-gray-900/60 text-gray-300 text-xs uppercase border-b border-gray-700">
+          <th class="px-4 py-3">Plan</th>
+          <th class="px-4 py-3">Sugerido (semanal)</th>
+          <th class="px-4 py-3">Frecuencias</th>
+          <th class="px-4 py-3">Negociación</th>
+          <th class="px-4 py-3 text-center">Estado</th>
+          <th class="px-4 py-3 text-right">Acciones</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-gray-700">
+        <tr *ngFor="let p of planesFiltrados" class="hover:bg-gray-700/40">
+          <td class="px-4 py-3">
+            <p class="font-semibold text-white">{{ p.nombre }}</p>
+            <p class="text-xs text-gray-400 max-w-xs">{{ p.descripcion }}</p>
+          </td>
+          <td class="px-4 py-3 text-sm text-blue-300 font-semibold">
+            <ng-container *ngIf="p.valorSugerido > 0; else aConvenir">
+              $ {{ p.valorSugerido | number:'1.0-0':'es-CO' }}
+            </ng-container>
+            <ng-template #aConvenir>
+              <span class="text-amber-200 font-medium">A convenir</span>
+            </ng-template>
+          </td>
+          <td class="px-4 py-3 text-sm text-gray-300">{{ frecuenciasDe(p) }}</td>
+          <td class="px-4 py-3 text-sm text-gray-300">
+            {{ p.permiteNegociacion ? 'Valor editable' : 'Solo sugerido' }}
+            <p class="text-xs text-gray-500" *ngIf="p.requiereCuotaInicial">Cuota inicial opcional</p>
+          </td>
+          <td class="px-4 py-3 text-center" [class.text-green-400]="p.activo" [class.text-red-400]="!p.activo">
+            {{ p.activo ? 'Activo' : 'Inactivo' }}
+          </td>
+          <td class="px-4 py-3 text-right space-x-1 whitespace-nowrap">
+            <button (click)="abrirEditar(p)" class="px-3 py-1.5 text-sm bg-gray-700 rounded-lg text-white">
+              Editar
+            </button>
+            <button
+              *ngIf="p.activo"
+              (click)="toggleActivo(p)"
+              class="px-3 py-1.5 text-sm bg-red-700 rounded-lg text-white"
+            >
+              Desactivar
+            </button>
+            <button
+              *ngIf="!p.activo"
+              (click)="toggleActivo(p)"
+              class="px-3 py-1.5 text-sm bg-emerald-700 rounded-lg text-white"
+            >
+              Activar
+            </button>
+          </td>
+        </tr>
+        <tr *ngIf="!cargando && planesFiltrados.length === 0">
+          <td colspan="6" class="px-4 py-8 text-center text-gray-400 text-sm">
+            No hay planes. Crea uno o ejecuta el SQL 20260828_planes_catalogo.sql en Supabase.
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div *ngIf="modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
+  <div class="bg-gray-800 rounded-2xl w-full max-w-2xl border border-gray-600 text-white max-h-[92vh] flex flex-col">
+    <div class="p-5 border-b border-gray-600 flex justify-between">
+      <h3 class="text-xl font-bold">{{ modoEdicion ? 'Editar plan' : 'Nuevo plan' }}</h3>
+      <button (click)="cerrar()" class="text-2xl">&times;</button>
+    </div>
+    <div class="p-5 space-y-3 overflow-y-auto">
+      <p class="text-xs text-amber-200">
+        Estos valores son sugeridos. Cambiarlos no reescribe contratos ni cobros ya guardados.
+      </p>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div class="md:col-span-2">
+          <label class="text-xs text-gray-300 block mb-1">Nombre</label>
+          <input [(ngModel)]="form.nombre" class="w-full bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-white" />
+        </div>
+        <div class="md:col-span-2">
+          <label class="text-xs text-gray-300 block mb-1">Descripción</label>
+          <textarea [(ngModel)]="form.descripcion" rows="2" class="w-full bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-white"></textarea>
+        </div>
+        <div class="md:col-span-2">
+          <label class="text-xs text-gray-300 block mb-1">Condiciones de uso</label>
+          <textarea [(ngModel)]="form.condicionesUso" rows="2" class="w-full bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-white"></textarea>
+        </div>
+        <div>
+          <label class="text-xs text-gray-300 block mb-1">Valor sugerido (semanal)</label>
+          <input
+            type="text"
+            inputmode="numeric"
+            appCurrencyCo
+            [(ngModel)]="form.valorSugerido"
+            class="w-full bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-white"
+          />
+          <p class="text-xs text-gray-500 mt-1">0 = a convenir al crear el contrato.</p>
+        </div>
+        <div>
+          <label class="text-xs text-gray-300 block mb-1">Duración mínima (meses)</label>
+          <input
+            type="number"
+            min="1"
+            [(ngModel)]="form.duracionMinimaMeses"
+            class="w-full bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-white"
+          />
+        </div>
+        <div class="md:col-span-2">
+          <p class="text-xs text-gray-300 mb-2">Frecuencias permitidas</p>
+          <div class="flex flex-wrap gap-3">
+            <label *ngFor="let f of periodicidades" class="flex items-center gap-2 text-sm">
+              <input type="checkbox" [checked]="tienePeriodicidad(f)" (change)="togglePeriodicidad(f)" />
+              {{ labelFrecuencia(f) }}
+            </label>
+          </div>
+        </div>
+        <label class="flex items-center gap-2 text-sm text-gray-200">
+          <input type="checkbox" [(ngModel)]="form.permiteNegociacion" />
+          Permite negociar el valor al crear el contrato
+        </label>
+        <label class="flex items-center gap-2 text-sm text-gray-200">
+          <input type="checkbox" [(ngModel)]="form.requiereCuotaInicial" />
+          Mostrar cuota inicial (puede ser $0)
+        </label>
+      </div>
+    </div>
+    <div class="p-4 border-t border-gray-600 flex justify-end gap-2">
+      <button (click)="cerrar()" class="px-4 py-2 text-white">Cancelar</button>
+      <button (click)="guardar()" [disabled]="guardando" class="px-4 py-2 bg-blue-600 rounded-lg text-white disabled:opacity-50">
+        {{ guardando ? 'Guardando...' : 'Guardar' }}
+      </button>
+    </div>
+  </div>
+</div>

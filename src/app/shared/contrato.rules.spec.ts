@@ -9,13 +9,12 @@ import {
   mensajeErrorContrato,
   nombreConductor,
 } from './contrato.rules';
-import { CUOTA_SEMANAL_ESTANDAR } from './constants';
 import { parseDateOnly } from './periodo.util';
 
 describe('contrato.rules', () => {
   describe('addCalendarMonths / fechaFinMinima', () => {
-    it('suma 3 meses de calendario (15 ene → 15 abr)', () => {
-      expect(fechaFinMinima('2026-01-15')).toBe('2026-04-15');
+    it('respeta duración del plan si es mayor a 3 meses (15 ene + 6 = 15 jul)', () => {
+      expect(fechaFinMinima('2026-01-15', 6)).toBe('2026-07-15');
     });
 
     it('ajusta fin de mes como Postgres interval 3 months (31 ene → 30 abr)', () => {
@@ -82,10 +81,10 @@ describe('contrato.rules', () => {
     expect(labelFrecuencia('quincenal')).toBe('Quincenal');
   });
 
-  it('cuota sugerida usa la cuota estándar semanal de constants (180000)', () => {
-    expect(CUOTA_SEMANAL_ESTANDAR).toBe(180000);
-    expect(cuotaSugeridaPorFrecuencia('semanal')).toBe(180000);
-    expect(cuotaSugeridaPorFrecuencia('quincenal')).toBe(360000);
-    expect(cuotaSugeridaPorFrecuencia('mensual')).toBe(720000);
+  it('cuota sugerida escala el valor del plan; no hay tarifa global 160/180', () => {
+    expect(cuotaSugeridaPorFrecuencia('semanal', 115000)).toBe(115000);
+    expect(cuotaSugeridaPorFrecuencia('quincenal', 115000)).toBe(230000);
+    expect(cuotaSugeridaPorFrecuencia('mensual', 180000)).toBe(720000);
+    expect(cuotaSugeridaPorFrecuencia('semanal', 0)).toBe(0);
   });
 });

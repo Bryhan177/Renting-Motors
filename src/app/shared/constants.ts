@@ -1,3 +1,7 @@
+/**
+ * Default de catálogo MDD (`motos.precio_cobro`), NO regla de negocio para contratos.
+ * El valor pactado del contrato sale del plan + acuerdo congelado en `contratos.cuota_semanal`.
+ */
 export const CUOTA_SEMANAL_ESTANDAR = 180_000;
 export const DEPOSITO_ESTANDAR = 300_000;
 

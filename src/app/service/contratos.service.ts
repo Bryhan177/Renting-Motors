@@ -1,16 +1,19 @@
 import { Injectable } from '@angular/core';
 import { Observable, from, map, of, switchMap, throwError } from 'rxjs';
 import { getSupabase } from '../supabase/supabase.client';
-import { CUOTA_SEMANAL_ESTANDAR, DEPOSITO_ESTANDAR } from '../shared/constants';
+import { DEPOSITO_ESTANDAR } from '../shared/constants';
 import { Usuario } from '../shared/interfaces/usuario';
 import { Moto } from '../shared/interfaces/moto';
 import { FrecuenciaPago } from '../shared/periodo.util';
 import {
   ContratoEstado,
+  DURACION_MINIMA_MESES,
   duracionMinimaValida,
   fechaFinMinima,
   mensajeErrorContrato,
 } from '../shared/contrato.rules';
+import { planPermiteFrecuencia, cuotaSugeridaDelPlan } from '../shared/plan-economia';
+import { Plan } from '../shared/interfaces/plan';
 
 export interface Contrato {
   _id?: string;
@@ -25,6 +28,10 @@ export interface Contrato {
   saldoAFavor?: number;
   activadoEn?: string | null;
   finalizadoEn?: string | null;
+  planId?: string | null;
+  planNombre?: string | null;
+  cuotaInicial?: number;
+  duracionMeses?: number | null;
 }
 
 export interface CreateContratoPayload {
@@ -32,9 +39,13 @@ export interface CreateContratoPayload {
   motoId: string;
   fechaInicio: string;
   fechaFin?: string;
-  cuotaSemanal?: number;
+  cuotaSemanal: number;
   depositoPactado?: number;
-  frecuenciaPago?: FrecuenciaPago;
+  frecuenciaPago: FrecuenciaPago;
+  planId: string;
+  planNombre?: string;
+  cuotaInicial?: number;
+  duracionMeses?: number;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -53,6 +64,10 @@ export class ContratosService {
       saldoAFavor: Number(row.saldo_a_favor || 0),
       activadoEn: row.activado_en,
       finalizadoEn: row.finalizado_en,
+      planId: row.plan_id || null,
+      planNombre: row.plan_nombre || null,
+      cuotaInicial: Number(row.cuota_inicial || 0),
+      duracionMeses: row.duracion_meses == null ? null : Number(row.duracion_meses),
     };
   }
 
@@ -93,30 +108,79 @@ export class ContratosService {
 
   create(payload: CreateContratoPayload): Observable<Contrato> {
     const sb = getSupabase();
-    const cuota = payload.cuotaSemanal ?? CUOTA_SEMANAL_ESTANDAR;
+    const cuota = Number(payload.cuotaSemanal);
     const deposito = payload.depositoPactado ?? DEPOSITO_ESTANDAR;
-    const frecuencia = payload.frecuenciaPago || 'semanal';
-    const fechaFin = payload.fechaFin || fechaFinMinima(payload.fechaInicio);
+    const frecuencia = payload.frecuenciaPago;
+    const cuotaInicial = Number(payload.cuotaInicial) || 0;
+    const duracionMeses = Number(payload.duracionMeses) || DURACION_MINIMA_MESES;
+    const fechaFin = payload.fechaFin || fechaFinMinima(payload.fechaInicio, duracionMeses);
 
-    if (!duracionMinimaValida(payload.fechaInicio, fechaFin)) {
-      return this.fail('La duración mínima del contrato es 3 meses.');
+    if (!payload.planId) {
+      return this.fail('Debes elegir un plan.');
+    }
+    if (!frecuencia) {
+      return this.fail('Debes elegir la frecuencia de pago del plan.');
+    }
+    if (!Number.isFinite(cuota) || cuota <= 0) {
+      return this.fail('Debes indicar el valor pactado del contrato. El plan solo sugiere.');
+    }
+    if (cuotaInicial < 0) {
+      return this.fail('La cuota inicial no puede ser negativa.');
+    }
+    if (!duracionMinimaValida(payload.fechaInicio, fechaFin, duracionMeses)) {
+      return this.fail(`La duración mínima del contrato es ${duracionMeses} meses.`);
     }
 
-    return from(
-      sb
-        .from('contratos')
-        .insert({
-          conductor_id: payload.conductorId,
-          moto_id: payload.motoId,
-          fecha_inicio: payload.fechaInicio,
-          fecha_fin: fechaFin,
-          cuota_semanal: cuota,
-          deposito_pactado: deposito,
-          frecuencia_pago: frecuencia,
-          estado: 'borrador',
-        })
-        .select('*')
-        .single(),
+    return from(sb.from('planes').select('*').eq('id', payload.planId).single()).pipe(
+      switchMap(({ data: planRow, error: planErr }) => {
+        if (planErr || !planRow) return this.fail('El plan seleccionado no existe.');
+        if (planRow.activo === false) return this.fail('Ese plan está inactivo. Elige otro.');
+        const plan: Plan = {
+          _id: planRow.id,
+          nombre: planRow.nombre,
+          descripcion: planRow.descripcion || '',
+          condicionesUso: planRow.condiciones_uso || '',
+          periodicidadesPermitidas: planRow.periodicidades_permitidas || [],
+          valorSugerido: Number(planRow.valor_sugerido) || 0,
+          permiteNegociacion: planRow.permite_negociacion !== false,
+          duracionMinimaMeses: Number(planRow.duracion_minima_meses) || DURACION_MINIMA_MESES,
+          requiereCuotaInicial: !!planRow.requiere_cuota_inicial,
+          activo: planRow.activo !== false,
+        };
+        if (!planPermiteFrecuencia(plan, frecuencia)) {
+          return this.fail('Esa frecuencia no está permitida en el plan elegido.');
+        }
+        if (!plan.permiteNegociacion) {
+          const sugerida = cuotaSugeridaDelPlan(plan, frecuencia);
+          if (cuota !== sugerida) {
+            return this.fail('Este plan no permite negociar el valor. Usa el sugerido o elige otro plan.');
+          }
+        }
+        const minMeses = Math.max(plan.duracionMinimaMeses || DURACION_MINIMA_MESES, DURACION_MINIMA_MESES);
+        if (!duracionMinimaValida(payload.fechaInicio, fechaFin, minMeses)) {
+          return this.fail(`La duración mínima de este plan es ${minMeses} meses.`);
+        }
+        return from(
+          sb
+            .from('contratos')
+            .insert({
+              conductor_id: payload.conductorId,
+              moto_id: payload.motoId,
+              fecha_inicio: payload.fechaInicio,
+              fecha_fin: fechaFin,
+              cuota_semanal: cuota,
+              deposito_pactado: deposito,
+              frecuencia_pago: frecuencia,
+              estado: 'borrador',
+              plan_id: plan._id,
+              plan_nombre: plan.nombre,
+              cuota_inicial: cuotaInicial,
+              duracion_meses: duracionMeses,
+            })
+            .select('*')
+            .single(),
+        );
+      }),
     ).pipe(
       switchMap(({ data: contrato, error }) => {
         if (error || !contrato) {
