@@ -1,0 +1,225 @@
+<div class="flex flex-col min-h-0 flex-1">
+  <div class="px-5 pt-4">
+    <div class="flex items-center gap-1 overflow-x-auto pb-2">
+      <button
+        *ngFor="let p of pasos; let i = index"
+        type="button"
+        (click)="irA(i)"
+        [disabled]="!puedeClickPaso(i)"
+        [attr.aria-current]="i === pasoIndex ? 'step' : null"
+        [attr.aria-label]="'Paso ' + (i + 1) + ': ' + etiqueta(p)"
+        class="flex-none w-8 h-8 rounded-full text-xs font-bold border transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+        [ngClass]="{
+          'bg-blue-600 border-blue-400 text-white': i === pasoIndex,
+          'bg-emerald-700 border-emerald-400 text-white': i < pasoIndex || (pasoVisitado(p) && i !== pasoIndex),
+          'bg-gray-900 border-gray-600 text-gray-400': i > pasoIndex && !pasoVisitado(p)
+        }"
+      >
+        {{ i + 1 }}
+      </button>
+    </div>
+    <p class="text-sm text-gray-300">
+      Paso {{ pasoIndex + 1 }} de {{ pasos.length }} ·
+      <span class="font-semibold text-white">{{ etiqueta(pasoActual) }}</span>
+    </p>
+    <p class="text-xs text-amber-200 mt-1">
+      El contrato queda en borrador. El valor pactado se congela; editar el plan después no lo cambia.
+    </p>
+  </div>
+
+  <div class="p-5 space-y-3 overflow-y-auto flex-1 min-h-0">
+    <!-- 1. Conductor -->
+    <div *ngIf="pasoActual === 'conductor'" class="space-y-2">
+      <p *ngIf="conductores.length === 0" class="text-xs text-amber-200">
+        No hay conductores libres (sin contrato activo).
+      </p>
+      <button
+        *ngFor="let u of conductores"
+        type="button"
+        (click)="seleccionarConductor(u)"
+        class="w-full flex items-center gap-3 p-3 rounded-xl text-left border hover:bg-gray-700"
+        [ngClass]="{
+          'border-blue-400 bg-blue-900/50': form.conductorId === u._id,
+          'border-gray-600': form.conductorId !== u._id
+        }"
+      >
+        <div class="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center font-bold">
+          {{ (u.nombre || '?').charAt(0) }}
+        </div>
+        <div>
+          <h4 class="font-medium text-white">{{ nombreDe(u) }}</h4>
+          <p class="text-xs text-gray-400" *ngIf="u.cedula">{{ u.cedula }}</p>
+        </div>
+      </button>
+    </div>
+
+    <!-- 2. Moto -->
+    <div *ngIf="pasoActual === 'moto'" class="space-y-2">
+      <p *ngIf="motos.length === 0" class="text-xs text-amber-200">
+        No hay motos disponibles sin contrato activo.
+      </p>
+      <button
+        *ngFor="let m of motos"
+        type="button"
+        (click)="seleccionarMoto(m)"
+        class="w-full p-3 rounded-xl text-left border hover:bg-gray-700"
+        [ngClass]="{
+          'border-blue-400 bg-blue-900/50': form.motoId === m._id,
+          'border-gray-600': form.motoId !== m._id
+        }"
+      >
+        <p class="font-medium text-white">{{ motoDe(m) }}</p>
+        <p class="text-xs text-gray-400">{{ m.estado }}</p>
+      </button>
+    </div>
+
+    <!-- 3. Plan -->
+    <div *ngIf="pasoActual === 'plan'" class="space-y-2">
+      <p *ngIf="planes.length === 0" class="text-xs text-amber-200">
+        No hay planes activos. Créalos en Planes.
+      </p>
+      <button
+        *ngFor="let p of planes"
+        type="button"
+        (click)="seleccionarPlan(p)"
+        class="w-full p-3 rounded-xl text-left border hover:bg-gray-700"
+        [ngClass]="{
+          'border-blue-400 bg-blue-900/50': form.planId === p._id,
+          'border-gray-600': form.planId !== p._id
+        }"
+      >
+        <p class="font-medium text-white">{{ etiquetaPlanCard(p) }}</p>
+        <p class="text-xs text-gray-400 mt-0.5">{{ p.descripcion }}</p>
+        <p class="text-xs text-gray-500 mt-1" *ngIf="p.condicionesUso">{{ p.condicionesUso }}</p>
+      </button>
+    </div>
+
+    <!-- 4. Frecuencia -->
+    <div *ngIf="pasoActual === 'frecuencia'" class="space-y-2">
+      <p class="text-xs text-gray-400">Solo las periodicidades del plan elegido.</p>
+      <button
+        *ngFor="let f of frecuencias"
+        type="button"
+        (click)="elegirFrecuencia(f)"
+        class="w-full p-3 rounded-xl text-left border hover:bg-gray-700"
+        [ngClass]="{
+          'border-blue-400 bg-blue-900/50': form.frecuenciaPago === f,
+          'border-gray-600': form.frecuenciaPago !== f
+        }"
+      >
+        {{ labelFrecuencia(f) }}
+      </button>
+    </div>
+
+    <!-- 5. Valor pactado -->
+    <div *ngIf="pasoActual === 'valor'" class="space-y-2">
+      <label class="text-xs text-gray-300 block mb-1">{{ labelCuota() }}</label>
+      <input
+        type="text"
+        inputmode="numeric"
+        appCurrencyCo
+        [(ngModel)]="form.cuotaSemanal"
+        [disabled]="!planSeleccionado || !permiteNegociar"
+        class="w-full bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-white disabled:opacity-50"
+      />
+      <p class="text-xs text-gray-500" *ngIf="planSeleccionado?.permiteNegociacion">
+        Sugerido del plan; puedes pactar otro valor. Queda congelado en este contrato.
+      </p>
+      <p class="text-xs text-gray-500" *ngIf="planSeleccionado && !planSeleccionado.permiteNegociacion">
+        Este plan no permite negociar: se usa el valor sugerido.
+      </p>
+    </div>
+
+    <!-- 6. Fecha inicio -->
+    <div *ngIf="pasoActual === 'fechaInicio'" class="space-y-2">
+      <label class="text-xs text-gray-300 block mb-1">Fecha de inicio</label>
+      <input
+        type="date"
+        [(ngModel)]="form.fechaInicio"
+        (ngModelChange)="onCambioInicio()"
+        class="w-full bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-white"
+      />
+    </div>
+
+    <!-- 7. Duración -->
+    <div *ngIf="pasoActual === 'duracion'" class="space-y-2">
+      <label class="text-xs text-gray-300 block mb-1">
+        Duración en meses (mín. {{ minDuracion }})
+      </label>
+      <input
+        type="number"
+        min="{{ minDuracion }}"
+        step="1"
+        [(ngModel)]="form.duracionMeses"
+        (ngModelChange)="onCambioDuracion()"
+        class="w-full bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-white"
+      />
+      <p class="text-xs text-gray-400">
+        Fecha fin: <span class="text-white">{{ fechaCorta(form.fechaFin) }}</span>
+      </p>
+    </div>
+
+    <!-- 8. Cuota inicial (Propietario) -->
+    <div *ngIf="pasoActual === 'cuotaInicial'" class="space-y-2">
+      <label class="text-xs text-gray-300 block mb-1">Cuota inicial (Propietario)</label>
+      <input
+        type="text"
+        inputmode="numeric"
+        appCurrencyCo
+        [(ngModel)]="form.cuotaInicial"
+        class="w-full bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-white"
+      />
+      <p class="text-xs text-gray-500">Opcional. 0 si no se cobra entrada.</p>
+    </div>
+
+    <!-- 9. Resumen -->
+    <div *ngIf="pasoActual === 'resumen'" class="space-y-3">
+      <div
+        *ngFor="let linea of lineasResumen"
+        class="flex justify-between gap-4 text-sm border-b border-gray-700/80 pb-2"
+      >
+        <span class="text-gray-400">{{ linea.label }}</span>
+        <span class="text-white text-right">{{ linea.value }}</span>
+      </div>
+      <div>
+        <label class="text-xs text-gray-300 block mb-1">Depósito pactado</label>
+        <input
+          type="text"
+          inputmode="numeric"
+          appCurrencyCo
+          [(ngModel)]="form.depositoPactado"
+          class="w-full bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-white"
+        />
+      </div>
+    </div>
+  </div>
+
+  <div class="p-4 border-t border-gray-600 flex justify-end gap-2">
+    <button type="button" (click)="cancelar.emit()" class="px-4 py-2 text-white">Cancelar</button>
+    <button
+      *ngIf="pasoIndex > 0"
+      type="button"
+      (click)="atras()"
+      class="px-4 py-2 bg-gray-700 rounded-lg text-white"
+    >
+      Atrás
+    </button>
+    <button
+      *ngIf="!esResumen"
+      type="button"
+      (click)="siguiente()"
+      class="px-4 py-2 bg-blue-600 rounded-lg text-white"
+    >
+      Siguiente
+    </button>
+    <button
+      *ngIf="esResumen"
+      type="button"
+      (click)="confirmar()"
+      [disabled]="guardando"
+      class="px-4 py-2 bg-blue-600 rounded-lg text-white disabled:opacity-50"
+    >
+      {{ guardando ? 'Guardando...' : confirmLabel }}
+    </button>
+  </div>
+</div>

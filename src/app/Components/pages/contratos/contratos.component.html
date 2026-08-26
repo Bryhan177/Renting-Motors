@@ -114,133 +114,23 @@
   </div>
 </div>
 
-<!-- Crear -->
+<!-- Crear: wizard de pasos -->
 <div *ngIf="modalCrear" class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
   <div class="bg-gray-800 rounded-2xl w-full max-w-2xl border border-gray-600 text-white max-h-[92vh] flex flex-col">
     <div class="p-5 border-b border-gray-600 flex justify-between">
       <h3 class="text-xl font-bold">Nuevo contrato</h3>
-      <button (click)="cerrarCrear()" class="text-2xl">&times;</button>
+      <button type="button" (click)="cerrarCrear()" class="text-2xl">&times;</button>
     </div>
-    <div class="p-5 space-y-3 overflow-y-auto">
-      <p class="text-xs text-amber-200">
-        Queda en borrador. Al activar se asigna la moto al conductor.
-        Elige un plan, una frecuencia permitida y el valor <strong>pactado</strong> (el plan solo sugiere).
-      </p>
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-        <div>
-          <label class="text-xs text-gray-300 block mb-1">Conductor</label>
-          <select [(ngModel)]="form.conductorId" class="w-full bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-white">
-            <option value="">Selecciona...</option>
-            <option *ngFor="let u of conductoresLibres" [value]="u._id">{{ u.nombre }} {{ u.apellido }}</option>
-          </select>
-          <p *ngIf="conductoresLibres.length === 0" class="text-xs text-amber-200 mt-1">
-            No hay conductores libres (sin contrato activo).
-          </p>
-        </div>
-        <div>
-          <label class="text-xs text-gray-300 block mb-1">Moto</label>
-          <select [(ngModel)]="form.motoId" class="w-full bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-white">
-            <option value="">Selecciona...</option>
-            <option *ngFor="let m of motosLibres" [value]="m._id">{{ m.placa }} · {{ m.marca }} {{ m.modelo }}</option>
-          </select>
-          <p *ngIf="motosLibres.length === 0" class="text-xs text-amber-200 mt-1">
-            No hay motos disponibles sin contrato activo.
-          </p>
-        </div>
-        <div class="md:col-span-2">
-          <label class="text-xs text-gray-300 block mb-1">Plan</label>
-          <select
-            [(ngModel)]="form.planId"
-            (ngModelChange)="onCambioPlan()"
-            class="w-full bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-white"
-          >
-            <option value="">Selecciona un plan...</option>
-            <option *ngFor="let p of planes" [value]="p._id">{{ etiquetaOpcionPlan(p) }}</option>
-          </select>
-          <p *ngIf="planes.length === 0" class="text-xs text-amber-200 mt-1">
-            No hay planes activos. Créalos en Planes o ejecuta el SQL 20260828.
-          </p>
-          <p *ngIf="planSeleccionado" class="text-xs text-gray-400 mt-1">
-            {{ planSeleccionado.descripcion }}
-            <span *ngIf="planSeleccionado.condicionesUso"> · {{ planSeleccionado.condicionesUso }}</span>
-          </p>
-        </div>
-        <div>
-          <label class="text-xs text-gray-300 block mb-1">Fecha inicio</label>
-          <input
-            type="date"
-            [(ngModel)]="form.fechaInicio"
-            (ngModelChange)="onCambioInicio()"
-            class="w-full bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-white"
-          />
-        </div>
-        <div>
-          <label class="text-xs text-gray-300 block mb-1">Fecha fin (mín. {{ form.duracionMeses || 3 }} meses)</label>
-          <input
-            type="date"
-            [(ngModel)]="form.fechaFin"
-            [attr.min]="form.fechaInicio"
-            class="w-full bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-white"
-          />
-        </div>
-        <div>
-          <label class="text-xs text-gray-300 block mb-1">Frecuencia de pago</label>
-          <select
-            [(ngModel)]="form.frecuenciaPago"
-            (ngModelChange)="onCambioFrecuencia()"
-            [disabled]="!planSeleccionado"
-            class="w-full bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-white disabled:opacity-50"
-          >
-            <option *ngFor="let f of frecuenciasDelPlan" [value]="f">
-              {{ f === 'quincenal' ? 'Quincenal' : f === 'mensual' ? 'Mensual' : 'Semanal' }}
-            </option>
-          </select>
-        </div>
-        <div>
-          <label class="text-xs text-gray-300 block mb-1">{{ labelCuota() }}</label>
-          <input
-            type="text"
-            inputmode="numeric"
-            appCurrencyCo
-            [(ngModel)]="form.cuotaSemanal"
-            [disabled]="!planSeleccionado || !permiteNegociar"
-            class="w-full bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-white disabled:opacity-50"
-          />
-          <p class="text-xs text-gray-500 mt-1" *ngIf="planSeleccionado?.permiteNegociacion">
-            Sugerido del plan; puedes pactar otro valor. Queda congelado en este contrato.
-          </p>
-          <p class="text-xs text-gray-500 mt-1" *ngIf="planSeleccionado && !planSeleccionado.permiteNegociacion">
-            Este plan no permite negociar: se usa el valor sugerido.
-          </p>
-        </div>
-        <div *ngIf="muestraCuotaInicial">
-          <label class="text-xs text-gray-300 block mb-1">Cuota inicial (opcional)</label>
-          <input
-            type="text"
-            inputmode="numeric"
-            appCurrencyCo
-            [(ngModel)]="form.cuotaInicial"
-            class="w-full bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-white"
-          />
-        </div>
-        <div [class.md:col-span-2]="!muestraCuotaInicial">
-          <label class="text-xs text-gray-300 block mb-1">Depósito pactado</label>
-          <input
-            type="text"
-            inputmode="numeric"
-            appCurrencyCo
-            [(ngModel)]="form.depositoPactado"
-            class="w-full bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-white"
-          />
-        </div>
-      </div>
-    </div>
-    <div class="p-4 border-t border-gray-600 flex justify-end gap-2">
-      <button (click)="cerrarCrear()" class="px-4 py-2 text-white">Cancelar</button>
-      <button (click)="guardar()" [disabled]="guardando" class="px-4 py-2 bg-blue-600 rounded-lg text-white disabled:opacity-50">
-        {{ guardando ? 'Guardando...' : 'Crear borrador' }}
-      </button>
-    </div>
+    <app-contrato-wizard
+      class="flex-1 min-h-0 flex flex-col"
+      [conductores]="conductoresLibres"
+      [motos]="motosLibres"
+      [planes]="planes"
+      [guardando]="guardando"
+      confirmLabel="Crear borrador"
+      (cancelar)="cerrarCrear()"
+      (crear)="crearDesdeWizard($event)"
+    />
   </div>
 </div>
 

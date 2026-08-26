@@ -127,71 +127,27 @@
 <!-- Modal entrega / contrato -->
 <div *ngIf="modalAsignarVisible" class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
   <div class="bg-gray-800 rounded-2xl w-full max-w-2xl border border-gray-600 max-h-[90vh] flex flex-col text-white">
-    <div class="p-6 border-b border-gray-600">
-      <h3 class="text-xl font-bold text-white">{{ pasoAsignar === 1 ? '1. Contrato (borrador)' : '2. Acta de entrega' }}</h3>
-      <p class="text-sm text-gray-300">Moto {{ motoSeleccionada?.placa }}</p>
-    </div>
-    <div class="overflow-y-auto p-6 space-y-4" *ngIf="pasoAsignar === 1">
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-        <div class="md:col-span-2">
-          <label class="text-xs text-gray-300 block mb-1">Plan</label>
-          <select [(ngModel)]="planId" (ngModelChange)="onCambioPlan()"
-                  class="w-full bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-sm text-white">
-            <option value="">Selecciona un plan...</option>
-            <option *ngFor="let p of planes" [value]="p._id">{{ p.nombre }}{{ p.valorSugerido > 0 ? ' · sugerido $' + p.valorSugerido : ' · valor a convenir' }}</option>
-          </select>
-          <p *ngIf="planSeleccionado" class="text-xs text-gray-400 mt-1">{{ planSeleccionado.descripcion }}</p>
-        </div>
-        <div>
-          <label class="text-xs text-gray-300 block mb-1">Fecha inicio</label>
-          <input type="date" [(ngModel)]="fechaInicioContrato"
-                 class="w-full bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-sm text-white">
-        </div>
-        <div>
-          <label class="text-xs text-gray-300 block mb-1">Frecuencia de pago</label>
-          <select [(ngModel)]="frecuenciaPago" (ngModelChange)="onCambioFrecuencia()" [disabled]="!planSeleccionado"
-                  class="w-full bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-sm text-white disabled:opacity-50">
-            <option *ngFor="let f of frecuenciasDelPlan" [value]="f">
-              {{ f === 'quincenal' ? 'Quincenal' : f === 'mensual' ? 'Mensual' : 'Semanal' }}
-            </option>
-          </select>
-        </div>
-        <div>
-          <label class="text-xs text-gray-300 block mb-1">{{ labelCuota() }}</label>
-          <input type="text" inputmode="numeric" appCurrencyCo [(ngModel)]="cuotaSemanal"
-                 [disabled]="!planSeleccionado || !permiteNegociar"
-                 class="w-full bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-sm text-white disabled:opacity-50">
-        </div>
-        <div>
-          <label class="text-xs text-gray-300 block mb-1">Depósito</label>
-          <input type="text" inputmode="numeric" appCurrencyCo [(ngModel)]="depositoPactado"
-                 class="w-full bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-sm text-white">
-        </div>
-        <div *ngIf="muestraCuotaInicial" class="md:col-span-2">
-          <label class="text-xs text-gray-300 block mb-1">Cuota inicial (opcional)</label>
-          <input type="text" inputmode="numeric" appCurrencyCo [(ngModel)]="cuotaInicial"
-                 class="w-full bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-sm text-white">
-        </div>
+    <div class="p-6 border-b border-gray-600 flex justify-between items-start">
+      <div>
+        <h3 class="text-xl font-bold text-white">
+          {{ pasoAsignar === 1 ? 'Entregar MDD · contrato en borrador' : '2. Acta de entrega' }}
+        </h3>
+        <p class="text-sm text-gray-300">Moto {{ motoSeleccionada?.placa }}</p>
       </div>
-      <p class="text-xs text-gray-300">Crear contrato no activa ni genera cobro. El valor pactado se congela; editar el plan después no lo cambia.</p>
-      <button
-        *ngFor="let c of conductoresDisponibles"
-        type="button"
-        (click)="seleccionarConductor(c)"
-        [ngClass]="{
-          'border-blue-400 bg-blue-900': conductorSeleccionado?._id === c._id,
-          'border-gray-600': conductorSeleccionado?._id !== c._id
-        }"
-        class="w-full flex items-center gap-3 p-3 rounded-xl text-left border hover:bg-gray-700 text-white mb-2"
-      >
-        <div class="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center font-bold text-white">{{ c.nombre.charAt(0) }}</div>
-        <div>
-          <h4 class="font-medium text-white">{{ c.nombre }} {{ c.apellido }}</h4>
-          <p class="text-xs text-gray-300">{{ c.cedula }}</p>
-        </div>
-      </button>
-      <p *ngIf="conductoresDisponibles.length === 0" class="text-sm text-amber-200">No hay conductores libres. Crea uno en Usuarios.</p>
+      <button type="button" (click)="cerrarModalAsignar()" class="text-2xl leading-none">&times;</button>
     </div>
+    <app-contrato-wizard
+      *ngIf="pasoAsignar === 1"
+      class="flex-1 min-h-0 flex flex-col overflow-hidden"
+      [conductores]="conductoresDisponibles"
+      [motos]="motoSeleccionada ? [motoSeleccionada] : []"
+      [planes]="planes"
+      [motoFija]="motoSeleccionada"
+      [guardando]="guardandoContrato"
+      confirmLabel="Crear contrato y preparar entrega"
+      (cancelar)="cerrarModalAsignar()"
+      (crear)="crearContratoYContinuar($event)"
+    />
     <div class="overflow-y-auto p-6 space-y-4" *ngIf="pasoAsignar === 2">
       <p class="text-xs text-amber-200">Confirmar entrega → contrato activo + moto en uso + primer cobro.</p>
       <div class="grid grid-cols-3 gap-3">
@@ -230,11 +186,10 @@
       <textarea [(ngModel)]="entregaForm.observaciones" rows="2" placeholder="Observaciones"
                 class="w-full bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-sm text-white placeholder:text-gray-400"></textarea>
     </div>
-    <div class="p-4 border-t border-gray-600 flex justify-end gap-2">
+    <div class="p-4 border-t border-gray-600 flex justify-end gap-2" *ngIf="pasoAsignar === 2">
       <button (click)="cerrarModalAsignar()" class="px-4 py-2 text-white">Cancelar</button>
-      <button *ngIf="pasoAsignar === 1" (click)="crearContratoYContinuar()" class="px-4 py-2 bg-blue-600 text-white rounded-lg">Crear contrato y preparar entrega</button>
-      <button *ngIf="pasoAsignar === 2" (click)="guardarBorradorEntrega(false)" class="px-4 py-2 bg-gray-600 text-white rounded-lg">Guardar borrador</button>
-      <button *ngIf="pasoAsignar === 2" (click)="confirmarEntrega()" class="px-4 py-2 bg-emerald-600 text-white rounded-lg">Confirmar entrega</button>
+      <button (click)="guardarBorradorEntrega(false)" class="px-4 py-2 bg-gray-600 text-white rounded-lg">Guardar borrador</button>
+      <button (click)="confirmarEntrega()" class="px-4 py-2 bg-emerald-600 text-white rounded-lg">Confirmar entrega</button>
     </div>
   </div>
 </div>

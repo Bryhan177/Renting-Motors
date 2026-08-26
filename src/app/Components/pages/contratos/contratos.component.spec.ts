@@ -6,8 +6,8 @@ import { MotosService } from '../../../service/motos.service';
 import { UsuariosService } from '../../../service/usuarios.service';
 import { PlanesService } from '../../../service/planes.service';
 import { AuthService } from '../../../auth/auth.service';
-import { fechaFinMinima } from '../../../shared/contrato.rules';
 import { Plan } from '../../../shared/interfaces/plan';
+import { aplicarCambioPlan, formularioListoParaCrear, formWizardVacio } from '../../../shared/contrato-wizard';
 
 jest.mock('sweetalert2', () => ({
   __esModule: true,
@@ -62,30 +62,25 @@ describe('ContratosComponent', () => {
     expect(component).toBeTruthy();
   });
 
-  it('el formulario nuevo no pacta cuota hasta elegir un plan (no usa 180000)', () => {
-    const form = component.formVacio();
-    expect(form.cuotaSemanal).toBe(0);
-    expect(form.planId).toBe('');
-    expect(form.fechaFin).toBe(fechaFinMinima(form.fechaInicio));
-    expect(form.frecuenciaPago).toBe('semanal');
+  it('no llama create sin plan (red de seguridad del wizard)', () => {
+    const payload = {
+      ...formWizardVacio('m1'),
+      conductorId: 'u1',
+      cuotaSemanal: 115000,
+    };
+    expect(formularioListoParaCrear(payload, null).ok).toBe(false);
+    component.crearDesdeWizard(payload);
+    expect(contratosService.create).not.toHaveBeenCalled();
   });
 
-  it('elegir plan Personal rellena sugerido 115000 y no 160/180 global', () => {
-    component.form = component.formVacio();
-    component.form.planId = 'plan-personal';
-    component.onCambioPlan();
-    expect(component.form.planNombre).toBe('Personal');
-    expect(component.form.cuotaSemanal).toBe(115000);
-    expect(component.form.frecuenciaPago).toBe('semanal');
-    expect(component.frecuenciasDelPlan).toEqual(['semanal', 'quincenal']);
-  });
-
-  it('no llama create sin plan', () => {
-    component.form = component.formVacio();
-    component.form.conductorId = 'u1';
-    component.form.motoId = 'm1';
-    component.form.cuotaSemanal = 115000;
-    component.guardar();
+  it('no llama create si la duración es menor a la del plan', () => {
+    const payload = aplicarCambioPlan(
+      { ...formWizardVacio('m1'), conductorId: 'u1', fechaInicio: '2026-01-01' },
+      planPersonal,
+    );
+    payload.duracionMeses = 1;
+    payload.fechaFin = '2026-02-01';
+    component.crearDesdeWizard(payload);
     expect(contratosService.create).not.toHaveBeenCalled();
   });
 
@@ -97,22 +92,6 @@ describe('ContratosComponent', () => {
     component.filtroEstado = 'activo';
     expect(component.contratosFiltrados).toHaveLength(1);
     expect(component.contratosFiltrados[0].estado).toBe('activo');
-  });
-
-  it('no llama create si la duración es menor a 3 meses', () => {
-    component.form = {
-      conductorId: 'u1',
-      motoId: 'm1',
-      fechaInicio: '2026-01-01',
-      fechaFin: '2026-02-01',
-      cuotaSemanal: 115000,
-      depositoPactado: 300000,
-      frecuenciaPago: 'semanal',
-      planId: 'plan-personal',
-      planNombre: 'Personal',
-    };
-    component.guardar();
-    expect(contratosService.create).not.toHaveBeenCalled();
   });
 
   it('excluye motos y conductores con contrato activo', () => {
@@ -144,13 +123,11 @@ describe('ContratosComponent', () => {
     contratosService.create.mockReturnValue(
       throwError(() => ({ code: '23505', message: 'contratos_un_activo_conductor' })),
     );
-    component.form = component.formVacio();
-    component.form.conductorId = 'u1';
-    component.form.motoId = 'm1';
-    component.form.planId = 'plan-personal';
-    component.form.planNombre = 'Personal';
-    component.form.cuotaSemanal = 115000;
-    component.guardar();
+    const payload = aplicarCambioPlan(
+      { ...formWizardVacio('m1'), conductorId: 'u1' },
+      planPersonal,
+    );
+    component.crearDesdeWizard(payload);
     expect(contratosService.create).toHaveBeenCalled();
   });
 
