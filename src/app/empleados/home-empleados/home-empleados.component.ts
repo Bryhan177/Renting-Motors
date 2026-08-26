@@ -22,17 +22,18 @@ import {
 import { Usuario } from '../../shared/interfaces/usuario';
 import { Moto } from '../../shared/interfaces/moto';
 import { WhatsappFloatComponent } from '../../shared/components/whatsapp-float/whatsapp-float.component';
+import { TalleresConfianzaComponent } from '../talleres-confianza/talleres-confianza.component';
 import { CurrencyCoDirective } from '../../shared/directives/currency-co.directive';
 import { diasHasta, etiquetaVencimiento as formatVencimiento } from '../../shared/date.util';
 import { cobroPeriodoVigente, parseDateOnly } from '../../shared/periodo.util';
 import Swal from 'sweetalert2';
 
-type SeccionPanel = 'inicio' | 'motos' | 'cuenta' | 'novedades' | 'documentos' | 'perfil';
+type SeccionPanel = 'inicio' | 'motos' | 'cuenta' | 'novedades' | 'talleres' | 'documentos' | 'perfil';
 
 @Component({
   selector: 'app-home-empleados',
   standalone: true,
-  imports: [CommonModule, FormsModule, WhatsappFloatComponent, CurrencyCoDirective],
+  imports: [CommonModule, FormsModule, WhatsappFloatComponent, CurrencyCoDirective, TalleresConfianzaComponent],
   templateUrl: './home-empleados.component.html',
   styleUrl: './home-empleados.component.css',
 })
@@ -91,6 +92,7 @@ export class HomeEmpleadosComponent implements OnInit {
     { id: 'motos', label: 'Mi moto', icon: '🛵' },
     { id: 'cuenta', label: 'Estado de cuenta', shortLabel: 'Cuenta', icon: '💳' },
     { id: 'novedades', label: 'Novedades', icon: '⚠️' },
+    { id: 'talleres', label: 'Talleres', icon: '🔧' },
     { id: 'documentos', label: 'Documentos', shortLabel: 'Docs', icon: '📄' },
     { id: 'perfil', label: 'Mi perfil', shortLabel: 'Perfil', icon: '👤' },
   ];

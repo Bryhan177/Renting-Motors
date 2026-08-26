@@ -1,0 +1,145 @@
+<section
+  *ngIf="modo === 'completo' || cargando || talleres.length"
+  [class]="modo === 'completo' ? 'space-y-5 sm:space-y-6' : 'space-y-3'"
+>
+  <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
+    <div class="min-w-0">
+      <h1 *ngIf="modo === 'completo'" class="text-xl sm:text-2xl md:text-3xl font-bold">
+        Talleres de confianza GoRenting
+      </h1>
+      <h2 *ngIf="modo === 'resumen'" class="text-base sm:text-lg font-semibold">
+        Talleres de confianza GoRenting
+      </h2>
+      <p class="text-gray-400 text-sm mt-1">
+        Talleres aliados para llantas, aceite y mecánica. Cómo llegar abre Google Maps (sin API key).
+      </p>
+    </div>
+    <div class="flex flex-col sm:flex-row gap-2">
+      <button
+        *ngIf="modo === 'completo'"
+        type="button"
+        (click)="pedirUbicacion()"
+        class="w-full sm:w-auto inline-flex items-center justify-center gap-2 border border-gray-700 hover:bg-gray-800 text-sm font-medium py-2.5 px-4 rounded-lg"
+      >
+        Taller más cercano
+      </button>
+      <button
+        *ngIf="modo === 'resumen'"
+        type="button"
+        (click)="verTodos.emit()"
+        class="w-full sm:w-auto inline-flex items-center justify-center gap-2 text-sm text-secondary hover:underline py-2"
+      >
+        Ver todos
+      </button>
+    </div>
+  </div>
+
+  <p *ngIf="geoEstado === 'ok' && masCercano" class="text-sm text-emerald-300">
+    El más cercano a ti: <span class="font-medium">{{ masCercano.nombre }}</span>
+    <span *ngIf="distanciaDe(masCercano)"> · {{ distanciaDe(masCercano) }}</span>
+  </p>
+  <p *ngIf="geoEstado === 'denegado' && modo === 'completo'" class="text-xs text-gray-500">
+    No se usó tu ubicación. Se listan todos los talleres activos.
+  </p>
+
+  <div *ngIf="cargando" class="text-sm text-gray-400 py-6 text-center">Cargando talleres...</div>
+
+  <div
+    *ngIf="!cargando && errorSql && modo === 'completo'"
+    class="bg-gray-900 border border-gray-800 rounded-xl p-6 text-center text-gray-400 text-sm"
+  >
+    No se pudo cargar el catálogo. Si eres staff, confirma que corriste
+    <span class="text-gray-300">20260829_talleres_confianza.sql</span>.
+  </div>
+
+  <div
+    *ngIf="!cargando && !errorSql && !talleres.length && modo === 'completo'"
+    class="bg-gray-900 border border-gray-800 rounded-xl p-6 sm:p-10 text-center text-gray-400 text-sm"
+  >
+    Aún no hay talleres publicados. Cuando administración active uno, aparecerá aquí.
+  </div>
+
+  <div class="space-y-3">
+    <article
+      *ngFor="let t of visibles"
+      class="bg-gray-900 border rounded-xl p-4 sm:p-5 space-y-3"
+      [class.border-emerald-500/40]="esMasCercano(t)"
+      [class.border-gray-800]="!esMasCercano(t)"
+    >
+      <div class="flex flex-wrap items-start justify-between gap-2">
+        <div class="min-w-0">
+          <p class="font-semibold text-white">{{ t.nombre }}</p>
+          <p class="text-sm text-gray-400 mt-1">{{ t.direccion }}</p>
+        </div>
+        <span
+          *ngIf="esMasCercano(t)"
+          class="shrink-0 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-500/20 text-emerald-300"
+        >
+          Más cercano
+        </span>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm text-gray-300">
+        <p>
+          <span class="text-gray-500">Teléfono · </span>
+          <a [href]="'tel:' + t.telefono" class="text-secondary hover:underline">{{ t.telefono }}</a>
+        </p>
+        <p>
+          <span class="text-gray-500">Horario · </span>
+          {{ t.horario || '—' }}
+        </p>
+        <p *ngIf="distanciaDe(t)" class="sm:col-span-2 text-emerald-300/90">
+          A {{ distanciaDe(t) }} de tu ubicación
+        </p>
+      </div>
+
+      <div *ngIf="chips(t).length" class="flex flex-wrap gap-1.5">
+        <span
+          *ngFor="let s of chips(t)"
+          class="px-2 py-0.5 rounded-full text-xs bg-gray-800 border border-gray-700 text-gray-300"
+        >
+          {{ s }}
+        </span>
+      </div>
+      <p *ngIf="!chips(t).length && t.servicios" class="text-sm text-gray-400">{{ t.servicios }}</p>
+
+      <div class="flex flex-wrap gap-2">
+        <a
+          *ngIf="pinUrl(t)"
+          [href]="pinUrl(t)"
+          target="_blank"
+          rel="noopener"
+          class="inline-flex items-center gap-1.5 text-xs px-3 py-2 rounded-lg border border-gray-700 text-gray-200 hover:bg-gray-800"
+        >
+          📍 Ver pin
+        </a>
+        <a
+          *ngIf="comoLlegarUrl(t)"
+          [href]="comoLlegarUrl(t)"
+          target="_blank"
+          rel="noopener"
+          class="inline-flex items-center gap-1.5 text-xs px-3 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-medium"
+        >
+          Cómo llegar
+        </a>
+        <button
+          *ngIf="modo === 'completo' && embedDe(t)"
+          type="button"
+          (click)="mostrarMapa(t)"
+          class="inline-flex items-center gap-1.5 text-xs px-3 py-2 rounded-lg border border-gray-700 text-gray-200 hover:bg-gray-800"
+        >
+          Mapa
+        </button>
+      </div>
+
+      <div *ngIf="mapaVisible(t) && embedDe(t)" class="rounded-lg overflow-hidden border border-gray-800 h-48 sm:h-56">
+        <iframe
+          [src]="embedDe(t)"
+          class="w-full h-full border-0"
+          title="Mapa OpenStreetMap"
+          loading="lazy"
+        ></iframe>
+      </div>
+    </article>
+  </div>
+</section>

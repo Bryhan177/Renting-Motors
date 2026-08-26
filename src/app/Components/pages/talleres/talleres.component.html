@@ -1,0 +1,191 @@
+<div class="min-h-screen bg-gray-900 text-white p-6 rounded-xl">
+  <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-8 gap-4">
+    <div>
+      <h1 class="text-3xl font-bold text-white">Talleres de confianza</h1>
+      <p class="text-gray-300 mt-1">
+        Catálogo que ven los conductores. Desactivar oculta el taller; no lo borra.
+      </p>
+    </div>
+    <button (click)="abrirCrear()" class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 px-5 rounded-lg">
+      Nuevo taller
+    </button>
+  </div>
+
+  <div class="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
+    <div class="bg-gray-800 border border-gray-700 rounded-xl p-4">
+      <p class="text-xs text-gray-300">Total</p>
+      <p class="text-2xl font-bold">{{ talleres.length }}</p>
+    </div>
+    <div class="bg-gray-800 border border-gray-700 rounded-xl p-4">
+      <p class="text-xs text-gray-300">Activos</p>
+      <p class="text-2xl font-bold text-green-400">{{ totalActivos }}</p>
+    </div>
+    <div class="bg-gray-800 border border-gray-700 rounded-xl p-4">
+      <p class="text-xs text-gray-300">Inactivos</p>
+      <p class="text-2xl font-bold text-gray-300">{{ talleres.length - totalActivos }}</p>
+    </div>
+  </div>
+
+  <div class="flex flex-col md:flex-row gap-3 mb-4">
+    <input
+      [(ngModel)]="busqueda"
+      placeholder="Buscar taller..."
+      class="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-sm text-white"
+    />
+    <label class="flex items-center gap-2 text-sm text-gray-300 px-2">
+      <input type="checkbox" [(ngModel)]="mostrarInactivos" /> Inactivos
+    </label>
+  </div>
+
+  <p *ngIf="cargando" class="text-sm text-gray-400 mb-3">Cargando talleres...</p>
+
+  <div class="bg-gray-800 rounded-xl border border-gray-700 overflow-x-auto">
+    <table class="w-full text-left">
+      <thead>
+        <tr class="bg-gray-900/60 text-gray-300 text-xs uppercase border-b border-gray-700">
+          <th class="px-4 py-3">Taller</th>
+          <th class="px-4 py-3">Teléfono</th>
+          <th class="px-4 py-3">Horario</th>
+          <th class="px-4 py-3">Servicios</th>
+          <th class="px-4 py-3 text-center">Estado</th>
+          <th class="px-4 py-3 text-right">Acciones</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-gray-700">
+        <tr *ngFor="let t of talleresFiltrados" class="hover:bg-gray-700/40">
+          <td class="px-4 py-3">
+            <p class="font-semibold text-white">{{ t.nombre }}</p>
+            <p class="text-xs text-gray-400 max-w-xs">{{ t.direccion }}</p>
+            <a
+              *ngIf="pinUrl(t)"
+              [href]="pinUrl(t)"
+              target="_blank"
+              rel="noopener"
+              class="text-xs text-blue-300 hover:underline"
+            >
+              📍 {{ t.latitud }}, {{ t.longitud }}
+            </a>
+          </td>
+          <td class="px-4 py-3 text-sm text-gray-300">{{ t.telefono }}</td>
+          <td class="px-4 py-3 text-sm text-gray-300">{{ t.horario || '—' }}</td>
+          <td class="px-4 py-3 text-sm text-gray-300 max-w-xs">{{ t.servicios || '—' }}</td>
+          <td class="px-4 py-3 text-center" [class.text-green-400]="t.activo" [class.text-red-400]="!t.activo">
+            {{ t.activo ? 'Activo' : 'Inactivo' }}
+          </td>
+          <td class="px-4 py-3 text-right space-x-1 whitespace-nowrap">
+            <a
+              *ngIf="comoLlegarUrl(t)"
+              [href]="comoLlegarUrl(t)"
+              target="_blank"
+              rel="noopener"
+              class="inline-block px-3 py-1.5 text-sm bg-gray-700 rounded-lg text-white"
+            >
+              Cómo llegar
+            </a>
+            <button (click)="abrirEditar(t)" class="px-3 py-1.5 text-sm bg-gray-700 rounded-lg text-white">
+              Editar
+            </button>
+            <button
+              *ngIf="t.activo"
+              (click)="toggleActivo(t)"
+              class="px-3 py-1.5 text-sm bg-red-700 rounded-lg text-white"
+            >
+              Desactivar
+            </button>
+            <button
+              *ngIf="!t.activo"
+              (click)="toggleActivo(t)"
+              class="px-3 py-1.5 text-sm bg-emerald-700 rounded-lg text-white"
+            >
+              Activar
+            </button>
+          </td>
+        </tr>
+        <tr *ngIf="!cargando && talleresFiltrados.length === 0">
+          <td colspan="6" class="px-4 py-8 text-center text-gray-400 text-sm">
+            No hay talleres. Crea uno o ejecuta el SQL 20260829_talleres_confianza.sql en Supabase.
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div *ngIf="modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
+  <div class="bg-gray-800 rounded-2xl w-full max-w-2xl border border-gray-600 text-white max-h-[92vh] flex flex-col">
+    <div class="p-5 border-b border-gray-600 flex justify-between">
+      <h3 class="text-xl font-bold">{{ modoEdicion ? 'Editar taller' : 'Nuevo taller' }}</h3>
+      <button (click)="cerrar()" class="text-2xl">&times;</button>
+    </div>
+    <div class="p-5 space-y-3 overflow-y-auto">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div class="md:col-span-2">
+          <label class="text-xs text-gray-300 block mb-1">Nombre</label>
+          <input [(ngModel)]="form.nombre" class="w-full bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-white" />
+        </div>
+        <div class="md:col-span-2">
+          <label class="text-xs text-gray-300 block mb-1">Dirección</label>
+          <input [(ngModel)]="form.direccion" class="w-full bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-white" />
+        </div>
+        <div>
+          <label class="text-xs text-gray-300 block mb-1">Teléfono</label>
+          <input [(ngModel)]="form.telefono" class="w-full bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-white" />
+        </div>
+        <div>
+          <label class="text-xs text-gray-300 block mb-1">Horario</label>
+          <input
+            [(ngModel)]="form.horario"
+            placeholder="Lun–Sáb 8:00–18:00"
+            class="w-full bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-white"
+          />
+        </div>
+        <div>
+          <label class="text-xs text-gray-300 block mb-1">Latitud</label>
+          <input
+            type="number"
+            step="0.0000001"
+            [(ngModel)]="form.latitud"
+            class="w-full bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-white"
+          />
+        </div>
+        <div>
+          <label class="text-xs text-gray-300 block mb-1">Longitud</label>
+          <input
+            type="number"
+            step="0.0000001"
+            [(ngModel)]="form.longitud"
+            class="w-full bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-white"
+          />
+        </div>
+        <p class="md:col-span-2 text-xs text-gray-400">
+          Busca el punto en
+          <a href="https://www.openstreetmap.org/" target="_blank" rel="noopener" class="text-blue-300 underline">OpenStreetMap</a>
+          (clic derecho → mostrar dirección). Ejemplo Bogotá: 4.7110, −74.0721.
+          Cómo llegar usa Google Maps sin API key de billing.
+        </p>
+        <div class="md:col-span-2">
+          <label class="text-xs text-gray-300 block mb-1">Servicios</label>
+          <textarea
+            [(ngModel)]="form.servicios"
+            rows="2"
+            placeholder="Llantas, aceite, frenos, diagnóstico"
+            class="w-full bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-white"
+          ></textarea>
+        </div>
+        <label class="flex items-center gap-2 text-sm text-gray-200">
+          <input type="checkbox" [(ngModel)]="form.activo" />
+          Activo (visible para el conductor)
+        </label>
+      </div>
+      <div *ngIf="previewEmbed" class="rounded-lg overflow-hidden border border-gray-600 h-44">
+        <iframe [src]="previewEmbed" class="w-full h-full border-0" title="Vista previa del pin" loading="lazy"></iframe>
+      </div>
+    </div>
+    <div class="p-4 border-t border-gray-600 flex justify-end gap-2">
+      <button (click)="cerrar()" class="px-4 py-2 text-white">Cancelar</button>
+      <button (click)="guardar()" [disabled]="guardando" class="px-4 py-2 bg-blue-600 rounded-lg text-white disabled:opacity-50">
+        {{ guardando ? 'Guardando...' : 'Guardar' }}
+      </button>
+    </div>
+  </div>
+</div>
