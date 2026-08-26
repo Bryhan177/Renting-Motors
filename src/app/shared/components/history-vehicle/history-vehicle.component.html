@@ -1,73 +1,64 @@
 <div class="min-h-screen bg-gray-900 text-white p-6 rounded-xl">
-
-  <div class="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
-    <div>
-      <h1 class="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-yellow-400 to-orange-400">
-        🛠️ Historial de Vehículos
-      </h1>
-      <p class="text-gray-400 mt-1">Monitor de rentabilidad y estado de flota</p>
-    </div>
-    <div class="flex gap-3">
-        <input type="text" placeholder="Buscar placa..." 
-               class="bg-gray-800 border border-gray-700 text-white text-sm rounded-lg focus:ring-yellow-500 focus:border-yellow-500 block w-full md:w-64 p-2.5" />
-    </div>
+  <div class="mb-6">
+    <h1 class="text-3xl font-bold text-white">Historial MDD</h1>
+    <p class="text-gray-300 mt-1">Pagos, contratos y mantenimientos por máquina</p>
   </div>
 
-  <div class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-    <div *ngFor="let vehicle of vehicles" 
-         class="bg-gray-800 rounded-xl overflow-hidden border border-gray-700 hover:border-yellow-500/50 transition duration-300 shadow-lg group">
-      
-      <!-- Card Image/Header -->
-      <div class="relative h-48 overflow-hidden bg-gray-900">
-         <img [src]="vehicle.imageUrl" alt="Moto" class="w-full h-full object-contain p-4 group-hover:scale-105 transition duration-500 opacity-90 hover:opacity-100">
-         <div class="absolute top-3 right-3">
-             <span [ngClass]="{
-                 'bg-green-500/20 text-green-400 border-green-500/40': vehicle.status === 'Active',
-                 'bg-red-500/20 text-red-400 border-red-500/40': vehicle.status === 'Inactive'
-             }" class="px-3 py-1 rounded-full text-xs font-bold border backdrop-blur-md">
-                 {{ vehicle.status === 'Active' ? 'ACTIVO' : 'INACTIVO' }}
-             </span>
-         </div>
-         <div class="absolute bottom-3 left-3 bg-black/60 backdrop-blur-md px-3 py-1 rounded-lg border border-white/10">
-             <p class="text-2xl font-black text-white tracking-widest">{{ vehicle.plate }}</p>
-         </div>
+  <input [(ngModel)]="busqueda" (ngModelChange)="aplicarFiltro()" placeholder="Buscar placa, marca o modelo..."
+         class="w-full md:w-96 mb-6 bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-white placeholder:text-gray-400">
+
+  <div *ngIf="loading" class="text-center text-gray-400 py-16">Cargando historial...</div>
+
+  <div *ngIf="!loading" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+    <div *ngIf="filtrados.length === 0" class="col-span-full text-center text-gray-400 py-12">Sin MDD</div>
+    <button *ngFor="let i of filtrados" type="button" (click)="ver(i)"
+            class="text-left bg-gray-800 border border-gray-700 rounded-xl overflow-hidden hover:border-blue-500 transition">
+      <div class="h-36 bg-gray-900 relative">
+        <img *ngIf="i.moto.imagen" [src]="i.moto.imagen" class="w-full h-full object-cover" alt="">
+        <span class="absolute top-2 right-2 text-[10px] uppercase font-bold px-2 py-1 rounded text-white"
+              [class.bg-emerald-600]="i.moto.modalidad !== 'liquidacion'"
+              [class.bg-violet-600]="i.moto.modalidad === 'liquidacion'">
+          {{ i.moto.modalidad === 'liquidacion' ? 'Liquidación' : 'Arriendo' }}
+        </span>
       </div>
+      <div class="p-4">
+        <h3 class="font-bold text-white">{{ i.moto.placa }} · {{ i.moto.marca }} {{ i.moto.modelo }}</h3>
+        <p class="text-sm text-emerald-300 mt-1">Pagado $ {{ i.totalPagado | number }}</p>
+        <p class="text-xs text-gray-400">{{ i.contratos }} contratos · {{ i.pagos.length }} pagos · {{ i.mantenimientos.length }} mant.</p>
+      </div>
+    </button>
+  </div>
+</div>
 
-      <!-- Content -->
-      <div class="p-5">
-        <div class="flex justify-between items-start mb-4">
-            <div>
-                <h3 class="text-lg font-bold text-white">{{ vehicle.brand }} {{ vehicle.model }}</h3>
-                <p class="text-sm text-gray-400">{{ vehicle.year }}</p>
-            </div>
-            <div class="text-right">
-                <p class="text-xs text-gray-500 uppercase">Rentabilidad</p>
-                <p class="text-xl font-bold text-green-400">+${{ vehicle.totalEarned | number }}</p>
-            </div>
+<div *ngIf="seleccionado" class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
+  <div class="bg-gray-800 rounded-2xl w-full max-w-2xl border border-gray-600 text-white max-h-[90vh] flex flex-col">
+    <div class="p-5 border-b border-gray-600 flex justify-between items-start">
+      <div>
+        <h3 class="text-xl font-bold">{{ seleccionado.moto.placa }}</h3>
+        <p class="text-gray-300">{{ seleccionado.moto.marca }} {{ seleccionado.moto.modelo }}</p>
+      </div>
+      <button (click)="seleccionado = null" class="text-2xl">&times;</button>
+    </div>
+    <div class="p-5 overflow-y-auto space-y-4">
+      <div class="grid grid-cols-3 gap-3 text-center">
+        <div class="bg-gray-900 rounded-lg p-3"><p class="text-xs text-gray-400">Pagado</p><p class="font-bold text-emerald-300">$ {{ seleccionado.totalPagado | number }}</p></div>
+        <div class="bg-gray-900 rounded-lg p-3"><p class="text-xs text-gray-400">Gastos</p><p class="font-bold text-amber-300">$ {{ seleccionado.totalGastos | number }}</p></div>
+        <div class="bg-gray-900 rounded-lg p-3"><p class="text-xs text-gray-400">Contratos</p><p class="font-bold">{{ seleccionado.contratos }}</p></div>
+      </div>
+      <div>
+        <h4 class="font-semibold mb-2 text-white">Pagos</h4>
+        <div *ngIf="seleccionado.pagos.length === 0" class="text-sm text-gray-500">Sin pagos</div>
+        <div *ngFor="let p of seleccionado.pagos" class="text-sm flex justify-between border-b border-gray-700 py-2">
+          <span>{{ p.fechaPago | date:'mediumDate' }} · {{ p.metodoPago }}</span>
+          <span class="text-emerald-300">$ {{ p.valorPagado | number }}</span>
         </div>
-
-        <div class="bg-gray-900/50 rounded-lg p-3 mb-4 space-y-2 border border-gray-700/50">
-            <div class="flex justify-between text-sm">
-                <span class="text-gray-500">Valor Vehículo:</span>
-                <span class="text-gray-300">${{ vehicle.vehicleValue | number }}</span>
-            </div>
-            <div class="flex justify-between text-sm">
-                <span class="text-gray-500">Inicio Operación:</span>
-                <span class="text-gray-300">{{ vehicle.startDate }}</span>
-            </div>
-        </div>
-
-        <!-- Actions -->
-        <div class="flex gap-2 pt-2 border-t border-gray-700">
-            <button (click)="viewVehicle(vehicle)" class="flex-1 bg-gray-700 hover:bg-gray-600 text-white text-sm font-medium py-2 rounded-lg transition">
-                📜 Detalles
-            </button>
-            <button (click)="editVehicle(vehicle)" class="p-2 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 rounded-lg transition border border-blue-500/20">
-                ✏️
-            </button>
-             <button (click)="deleteVehicle(vehicle)" class="p-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-lg transition border border-red-500/20">
-                🗑️
-            </button>
+      </div>
+      <div>
+        <h4 class="font-semibold mb-2 text-white">Mantenimientos</h4>
+        <div *ngIf="seleccionado.mantenimientos.length === 0" class="text-sm text-gray-500">Sin mantenimientos</div>
+        <div *ngFor="let m of seleccionado.mantenimientos" class="text-sm border-b border-gray-700 py-2">
+          <p>{{ m.fechaIngreso | date:'mediumDate' }} · $ {{ m.valor | number }} · {{ m.estado }}</p>
+          <p class="text-gray-400">{{ m.observacion }}</p>
         </div>
       </div>
     </div>

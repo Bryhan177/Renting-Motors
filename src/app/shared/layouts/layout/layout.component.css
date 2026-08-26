@@ -1,3 +1,25 @@
-.fondo{
-  background: radial-gradient(circle, rgba(0, 0, 0, 0.9) 80%, rgba(255, 255, 255, 0) 100%);
+.app-shell-row {
+  display: flex;
+  width: 100%;
+  min-height: calc(100vh - 3.75rem);
+  align-items: stretch;
+  background: #0c0e10;
+}
+
+.app-shell-main {
+  flex: 1 1 auto;
+  min-width: 0;
+  width: 100%;
+  padding: 1rem;
+  background:
+    radial-gradient(ellipse 70% 50% at 80% 0%, rgba(232, 163, 23, 0.08), transparent 55%),
+    #0c0e10;
+  color: #f2efe8;
+}
+
+/* compat con clase previa */
+.fondo {
+  background:
+    radial-gradient(ellipse 70% 50% at 80% 0%, rgba(232, 163, 23, 0.08), transparent 55%),
+    #0c0e10;
 }

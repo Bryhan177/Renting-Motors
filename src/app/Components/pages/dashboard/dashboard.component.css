@@ -34,9 +34,6 @@
 .bg-red-100 {
   background: #ffebee;
 }
-.text-red-600 {
-  color: #e53935;
-}
 .p-6 {
   padding: 1.5rem;
 }
@@ -67,4 +64,13 @@
   .grid-cols-4 {
     grid-template-columns: repeat(1, minmax(0, 1fr));
   }
+}
+
+.crecimiento-chart {
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+
+.cobro-en-mora {
+  background-color: rgba(239, 68, 68, 0.05);
 }

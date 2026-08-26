@@ -1,119 +1,191 @@
 import { Injectable } from '@angular/core';
-import { Observable, from, map } from 'rxjs';
-import { Pago, CreatePagoPayload } from '../shared/interfaces/pago';
-import { supabase } from '../supabase/supabase.client';
+import { Observable, from, map, forkJoin, of, switchMap } from 'rxjs';
+import { getSupabase } from '../supabase/supabase.client';
+import { AuthService } from '../auth/auth.service';
+import { Moto } from '../shared/interfaces/moto';
 
-@Injectable({
-  providedIn: 'root'
-})
+export interface PagoManual {
+  _id?: string;
+  conductorId?: string | null;
+  motoId?: string | null;
+  moto?: Moto | null;
+  fechaPago: string;
+  valorPagado: number;
+  gastos: number;
+  descripcionGasto?: string | null;
+  metodoPago: string;
+  observaciones?: string | null;
+  semana?: string | null;
+  pagado?: boolean;
+}
+
+@Injectable({ providedIn: 'root' })
 export class PagosService {
+  constructor(private auth: AuthService) {}
 
-  constructor() { }
-
-  private mapPago(pago: any): Pago {
+  private map(row: any): PagoManual {
+    const motoRow = row.motos;
     return {
-      ...pago,
-      _id: pago.id,
-      conductorId: pago.conductor_id,
-      conductor: pago.conductor ? { ...pago.conductor, _id: pago.conductor.id } : undefined,
-      fechaPago: pago.fecha_pago
+      _id: row.id,
+      conductorId: row.conductor_id,
+      motoId: row.moto_id,
+      moto: motoRow
+        ? {
+            _id: motoRow.id,
+            marca: motoRow.marca,
+            modelo: motoRow.modelo,
+            placa: motoRow.placa,
+            precio: Number(motoRow.precio) || 0,
+            estado: motoRow.estado,
+            imagen: motoRow.imagen,
+            modalidad: motoRow.modalidad,
+          }
+        : null,
+      fechaPago: row.fecha_pago || row.created_at,
+      valorPagado: Number(row.valor_pagado ?? row.monto) || 0,
+      gastos: Number(row.gastos) || 0,
+      descripcionGasto: row.descripcion_gasto,
+      metodoPago: row.metodo_pago || 'TRANSFERENCIA',
+      observaciones: row.observaciones,
+      semana: row.semana,
+      pagado: row.pagado !== false,
     };
   }
 
-  getPagos(): Observable<Pago[]> {
-    return from(supabase.from('pagos').select('*, conductor:usuarios(*)')).pipe(
+  getPagos(): Observable<PagoManual[]> {
+    return from(
+      getSupabase()
+        .from('pagos')
+        .select('*, motos:moto_id(*)')
+        .order('fecha_pago', { ascending: false }),
+    ).pipe(
       map(({ data, error }) => {
         if (error) throw error;
-        return (data || []).map(p => this.mapPago(p));
-      })
+        return (data || []).map((r) => this.map(r));
+      }),
     );
   }
 
-  getPago(id: string): Observable<Pago> {
-    return from(supabase.from('pagos').select('*, conductor:usuarios(*)').eq('id', id).single()).pipe(
+  getPagosBySemana(semana: string): Observable<PagoManual[]> {
+    return from(
+      getSupabase().from('pagos').select('*, motos:moto_id(*)').eq('semana', semana),
+    ).pipe(
       map(({ data, error }) => {
         if (error) throw error;
-        return this.mapPago(data);
-      })
+        return (data || []).map((r) => this.map(r));
+      }),
     );
   }
 
-  createPago(pago: CreatePagoPayload): Observable<Pago> {
-    const payload = {
-      conductor_id: pago.conductorId,
-      semana: pago.semana,
-      monto: pago.monto,
-      pagado: pago.pagado || false,
-      fecha_pago: pago.fechaPago || null
-    };
-    return from(supabase.from('pagos').insert(payload).select().single()).pipe(
+  getPagosByConductor(conductorId: string): Observable<PagoManual[]> {
+    return from(
+      getSupabase()
+        .from('pagos')
+        .select('*, motos:moto_id(*)')
+        .eq('conductor_id', conductorId)
+        .order('fecha_pago', { ascending: false }),
+    ).pipe(
       map(({ data, error }) => {
         if (error) throw error;
-        return this.mapPago(data);
-      })
+        return (data || []).map((r) => this.map(r));
+      }),
     );
   }
 
-  updatePago(id: string, pago: Partial<Pago>): Observable<Pago> {
-    const payload: any = { ...pago };
-    if (pago.conductorId !== undefined) payload.conductor_id = pago.conductorId;
-    if (pago.fechaPago !== undefined) payload.fecha_pago = pago.fechaPago;
-    delete payload._id;
-    delete payload.conductorId;
-    delete payload.fechaPago;
-    delete payload.conductor;
-
-    return from(supabase.from('pagos').update(payload).eq('id', id).select().single()).pipe(
+  /** Compat: reportes de conductor (queda pendiente de confirmación staff). */
+  createPago(payload: {
+    conductorId: string;
+    semana: string;
+    monto: number;
+    pagado?: boolean;
+    metodoPago?: string;
+    comprobanteImagen?: string;
+    observaciones?: string;
+    motoId?: string;
+  }): Observable<PagoManual> {
+    return from(
+      getSupabase()
+        .from('pagos')
+        .insert({
+          conductor_id: payload.conductorId,
+          moto_id: payload.motoId || null,
+          semana: payload.semana,
+          monto: payload.monto,
+          valor_pagado: payload.monto,
+          pagado: payload.pagado !== false,
+          metodo_pago: payload.metodoPago || 'TRANSFERENCIA',
+          comprobante_imagen: payload.comprobanteImagen || null,
+          observaciones: payload.observaciones || null,
+          fecha_pago: new Date().toISOString(),
+          gastos: 0,
+        })
+        .select('*, motos:moto_id(*)')
+        .single(),
+    ).pipe(
       map(({ data, error }) => {
-        if (error) throw error;
-        return this.mapPago(data);
-      })
+        if (error || !data) throw error || new Error('No se pudo crear pago');
+        return this.map(data);
+      }),
     );
   }
 
-  deletePago(id: string): Observable<Pago> {
-    return from(supabase.from('pagos').delete().eq('id', id).select().single()).pipe(
-      map(({ data, error }) => {
-        if (error) throw error;
-        return this.mapPago(data);
-      })
+  registrarManual(payload: {
+    motoId: string;
+    conductorId?: string | null;
+    fechaPago: string;
+    valorPagado: number;
+    gastos?: number;
+    descripcionGasto?: string;
+    metodoPago: string;
+    observaciones?: string;
+  }): Observable<PagoManual> {
+    const actorId = this.auth.getUserId();
+    const semana = this.isoWeek(new Date(payload.fechaPago));
+    return from(
+      getSupabase()
+        .from('pagos')
+        .insert({
+          moto_id: payload.motoId,
+          conductor_id: payload.conductorId || null,
+          fecha_pago: payload.fechaPago,
+          monto: payload.valorPagado,
+          valor_pagado: payload.valorPagado,
+          gastos: payload.gastos || 0,
+          descripcion_gasto: payload.descripcionGasto || null,
+          metodo_pago: payload.metodoPago,
+          observaciones: payload.observaciones || null,
+          semana,
+          pagado: true,
+          registrado_por: actorId,
+        })
+        .select('*, motos:moto_id(*)')
+        .single(),
+    ).pipe(
+      switchMap(({ data, error }) => {
+        if (error || !data) throw error || new Error('No se pudo registrar el pago');
+        const pago = this.map(data);
+        // Registrar ingreso neto en caja MDD
+        const neto = Math.max(0, payload.valorPagado - (payload.gastos || 0));
+        if (neto <= 0) return of(pago);
+        return from(
+          getSupabase().from('movimientos_caja').insert({
+            banco: 'mdd',
+            tipo: 'ingreso',
+            monto: neto,
+            fecha: payload.fechaPago.slice(0, 10),
+            descripcion: `Pago MDD ${pago.moto?.placa || ''} · ${payload.metodoPago}`,
+            moto_id: payload.motoId,
+            pago_id: data.id,
+            registrado_por: actorId,
+          }),
+        ).pipe(map(() => pago));
+      }),
     );
   }
 
-  // Métodos específicos para el negocio
-  getPagosByConductor(conductorId: string): Observable<Pago[]> {
-    return from(supabase.from('pagos').select('*, conductor:usuarios(*)').eq('conductor_id', conductorId)).pipe(
-      map(({ data, error }) => {
-        if (error) throw error;
-        return (data || []).map(p => this.mapPago(p));
-      })
-    );
-  }
-
-  getPagosBySemana(semana: string): Observable<Pago[]> {
-    return from(supabase.from('pagos').select('*, conductor:usuarios(*)').eq('semana', semana)).pipe(
-      map(({ data, error }) => {
-        if (error) throw error;
-        return (data || []).map(p => this.mapPago(p));
-      })
-    );
-  }
-
-  getTotalSemanal(semana: string): Observable<number> {
-    return from(supabase.from('pagos').select('monto').eq('semana', semana).eq('pagado', true)).pipe(
-      map(({ data, error }) => {
-        if (error) throw error;
-        return (data || []).reduce((sum, p) => sum + p.monto, 0);
-      })
-    );
-  }
-
-  marcarComoPagado(id: string): Observable<Pago> {
-    return from(supabase.from('pagos').update({ pagado: true, fecha_pago: new Date() }).eq('id', id).select().single()).pipe(
-      map(({ data, error }) => {
-        if (error) throw error;
-        return this.mapPago(data);
-      })
-    );
+  private isoWeek(d: Date): string {
+    const oneJan = new Date(d.getFullYear(), 0, 1);
+    const week = Math.ceil(((d.getTime() - oneJan.getTime()) / 86400000 + oneJan.getDay() + 1) / 7);
+    return `${d.getFullYear()}-W${String(week).padStart(2, '0')}`;
   }
 }

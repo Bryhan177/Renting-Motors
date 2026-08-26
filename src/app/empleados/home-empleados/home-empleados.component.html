@@ -1,133 +1,809 @@
-<div class="flex h-screen bg-gray-900 text-white overflow-hidden">
-  
+<div class="panel-shell flex h-screen bg-gray-950 text-white overflow-hidden">
   <!-- Sidebar -->
-  <aside class="w-64 bg-black border-r border-gray-800 hidden md:flex flex-col">
+  <aside class="w-64 shrink-0 bg-black border-r border-gray-800 hidden md:flex flex-col">
     <div class="p-6 flex items-center justify-center">
-      <img src="assets/images/log_fondo_negro.png" alt="Logo" class="h-12">
+      <img src="assets/images/log_fondo_negro.png" alt="Logo" class="h-12" />
     </div>
 
-    <nav class="flex-1 px-4 py-4 space-y-2">
-      <a href="#" class="flex items-center gap-3 px-4 py-3 bg-secondary/20 text-secondary rounded-lg font-medium">
-        <span>📊</span> Dashboard
-      </a>
-      <a href="#" class="flex items-center gap-3 px-4 py-3 text-gray-400 hover:bg-gray-800 hover:text-white rounded-lg transition">
-        <span>🛵</span> Mis Asignaciones
-      </a>
-      <a href="#" class="flex items-center gap-3 px-4 py-3 text-gray-400 hover:bg-gray-800 hover:text-white rounded-lg transition">
-        <span>📝</span> Reportes
-      </a>
-      <a href="#" class="flex items-center gap-3 px-4 py-3 text-gray-400 hover:bg-gray-800 hover:text-white rounded-lg transition">
-        <span>⚙️</span> Configuración
-      </a>
+    <nav class="flex-1 px-4 py-4 space-y-1">
+      <button
+        *ngFor="let item of navItems"
+        type="button"
+        (click)="irA(item.id)"
+        [class]="
+          'w-full flex items-center gap-3 px-4 py-3 rounded-lg transition text-left ' +
+          (seccion === item.id
+            ? 'bg-secondary/20 text-secondary font-medium'
+            : 'text-gray-400 hover:bg-gray-800 hover:text-white')
+        "
+      >
+        <span>{{ item.icon }}</span> {{ item.label }}
+      </button>
     </nav>
 
     <div class="p-4 border-t border-gray-800">
-      <button (click)="goHome()" class="w-full flex items-center gap-2 px-4 py-2 text-gray-400 hover:text-red-500 transition">
-        <span>🚪</span> Cerrar Sesión
+      <button
+        type="button"
+        (click)="logout()"
+        class="w-full flex items-center gap-2 px-4 py-2 text-gray-400 hover:text-red-500 transition"
+      >
+        <span>🚪</span> Cerrar sesión
       </button>
     </div>
   </aside>
 
-  <!-- Main Content -->
-  <main class="flex-1 flex flex-col overflow-y-auto relative">
-    <!-- Header Mobile -->
-    <header class="md:hidden flex items-center justify-between p-4 bg-black border-b border-gray-800">
-      <img src="assets/images/log_fondo_negro.png" alt="Logo" class="h-8">
-      <button (click)="goHome()" class="text-gray-400">🚪</button>
-    </header>
-
-    <!-- Content Container -->
-    <div class="p-6 md:p-10 max-w-7xl mx-auto w-full">
-      
-      <!-- Welcome Section -->
-      <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
-        <div>
-          <h1 class="text-3xl font-bold text-white">Hola, {{ empleado.nombre.split(' ')[0] }} 👋</h1>
-          <p class="text-gray-400">Aquí está el resumen de tu actividad hoy.</p>
-        </div>
-        <div class="flex items-center gap-4">
-           <div class="text-right hidden md:block">
-              <p class="text-sm font-semibold text-white">{{ empleado.nombre }}</p>
-              <p class="text-xs text-secondary">{{ empleado.rol }}</p>
-           </div>
-           <img [src]="empleado.foto" alt="Avatar" class="w-12 h-12 rounded-full border-2 border-secondary object-cover">
-        </div>
-      </div>
-
-      <!-- Stats Grid -->
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
-        <div *ngFor="let stat of stats" class="bg-gray-800 rounded-xl p-6 shadow-lg border border-gray-700 hover:border-secondary/50 transition duration-300">
-          <div class="flex items-center justify-between mb-4">
-            <div [class]="'w-10 h-10 rounded-full flex items-center justify-center text-xl ' + stat.bg + ' ' + stat.color">
-              {{ stat.icon }}
-            </div>
-            <span [class]="'text-sm font-medium ' + (stat.title === 'Estado' ? (empleado.estado === 'Activo' ? 'text-green-400' : 'text-yellow-400') : 'text-gray-400')">
-              {{ stat.title === 'Estado' ? '' : '+2.5%' }}
-            </span>
-          </div>
-          <h3 class="text-3xl font-bold text-white mb-1">{{ stat.value }}</h3>
-          <p class="text-gray-400 text-sm">{{ stat.title }}</p>
-        </div>
-      </div>
-
-      <!-- Dashboard Sections -->
-      <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        
-        <!-- Recent Activity -->
-        <div class="lg:col-span-2 bg-gray-800 rounded-xl p-6 border border-gray-700 shadow-lg">
-          <div class="flex items-center justify-between mb-6">
-            <h2 class="text-xl font-bold text-white">Actividad Reciente</h2>
-            <button class="text-sm text-secondary hover:underline">Ver todo</button>
-          </div>
-          <div class="space-y-4">
-            <div *ngFor="let actividad of actividadesRecientes" class="flex items-center p-3 rounded-lg hover:bg-gray-700/50 transition">
-              <div class="w-10 h-10 rounded-full bg-gray-700 flex items-center justify-center text-lg mr-4">
-                {{ actividad.tipo === 'Mantenimiento' ? '🔧' : (actividad.tipo === 'Entrega' ? '🚚' : '⚠️') }}
-              </div>
-              <div class="flex-1">
-                <h4 class="text-white font-medium">{{ actividad.descripcion }}</h4>
-                <p class="text-xs text-gray-400">{{ actividad.fecha }}</p>
-              </div>
-              <span [class]="'px-3 py-1 rounded-full text-xs font-medium ' + 
-                (actividad.estado === 'Completado' ? 'bg-green-500/20 text-green-400' : 'bg-yellow-500/20 text-yellow-400')">
-                {{ actividad.estado }}
-              </span>
-            </div>
+  <!-- Main -->
+  <main class="flex-1 min-w-0 flex flex-col overflow-y-auto relative">
+    <div class="sticky top-0 z-20 bg-black/95 backdrop-blur border-b border-gray-800">
+      <header
+        class="flex items-center justify-between gap-3 px-3 py-3 sm:p-4 md:px-8"
+      >
+        <div class="flex items-center gap-2 sm:gap-3 min-w-0">
+          <img src="assets/images/log_fondo_negro.png" alt="Logo" class="h-8 shrink-0 md:hidden" />
+          <div class="min-w-0">
+            <p class="text-sm text-gray-400 truncate">Hola, {{ nombreCorto }}</p>
+            <p class="text-xs text-secondary font-medium">Panel del conductor</p>
           </div>
         </div>
-
-        <!-- Profile / Status Card -->
-        <div class="bg-gray-800 rounded-xl p-6 border border-gray-700 shadow-lg flex flex-col items-center text-center">
-          <div class="relative mb-4">
-            <img [src]="empleado.foto" class="w-24 h-24 rounded-full border-4 border-gray-700 object-cover">
-            <div [class]="'absolute bottom-0 right-0 w-6 h-6 rounded-full border-4 border-gray-800 ' + (empleado.estado === 'Activo' ? 'bg-green-500' : 'bg-yellow-500')"></div>
-          </div>
-          <h2 class="text-xl font-bold text-white">{{ empleado.nombre }}</h2>
-          <p class="text-gray-400 text-sm mb-6">{{ empleado.rol }}</p>
-          
-          <div class="w-full space-y-3">
-             <div class="flex justify-between text-sm py-2 border-b border-gray-700">
-               <span class="text-gray-400">ID Empleado</span>
-               <span class="text-white font-medium">EMP-{{ empleado.cedula.slice(-4) }}</span>
-             </div>
-             <div class="flex justify-between text-sm py-2 border-b border-gray-700">
-               <span class="text-gray-400">Teléfono</span>
-               <span class="text-white font-medium">{{ empleado.telefono }}</span>
-             </div>
-             <div class="flex justify-between text-sm py-2 border-b border-gray-700">
-               <span class="text-gray-400">Ingreso</span>
-               <span class="text-white font-medium">{{ empleado.fechaIngreso }}</span>
-             </div>
-          </div>
-
-          <button (click)="toggleEstado()" 
-            [class]="'mt-6 w-full py-2 rounded-lg font-semibold transition ' + (empleado.estado === 'Activo' ? 'bg-red-500/20 text-red-500 hover:bg-red-500/30' : 'bg-green-500/20 text-green-500 hover:bg-green-500/30')">
-            {{ empleado.estado === 'Activo' ? 'Marcar En Descanso' : 'Marcar Activo' }}
+        <div class="flex items-center gap-2 shrink-0">
+          <button
+            type="button"
+            (click)="abrirModalPago()"
+            class="hidden sm:inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-medium py-2 px-4 rounded-lg transition"
+          >
+            Reportar pago
+          </button>
+          <button
+            type="button"
+            (click)="logout()"
+            class="md:hidden text-gray-400 hover:text-red-400 text-xl px-2"
+            title="Cerrar sesión"
+          >
+            🚪
           </button>
         </div>
+      </header>
 
+      <!-- Mobile nav -->
+      <div class="mobile-nav md:hidden flex gap-2 overflow-x-auto px-3 py-2.5 border-t border-gray-800/80">
+        <button
+          *ngFor="let item of navItems"
+          type="button"
+          (click)="irA(item.id)"
+          [class]="
+            'shrink-0 inline-flex items-center gap-1.5 px-3 py-2 rounded-full text-xs font-medium border transition ' +
+            (seccion === item.id
+              ? 'bg-secondary/20 border-secondary text-secondary'
+              : 'border-gray-700 text-gray-400')
+          "
+        >
+          <span aria-hidden="true">{{ item.icon }}</span>
+          {{ item.shortLabel || item.label }}
+        </button>
       </div>
+    </div>
 
+    <div class="panel-content p-3 sm:p-4 md:p-8 max-w-6xl mx-auto w-full">
+      <div *ngIf="cargando" class="py-20 text-center text-gray-400">Cargando tu información...</div>
+
+      <ng-container *ngIf="!cargando">
+        <!-- INICIO -->
+        <section *ngIf="seccion === 'inicio'" class="space-y-5 sm:space-y-8">
+          <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 sm:gap-4">
+            <div class="min-w-0">
+              <h1 class="text-xl sm:text-2xl md:text-3xl font-bold">Resumen</h1>
+              <p class="text-gray-400 text-sm mt-1">
+                Motos, deuda y próximos vencimientos en un solo lugar.
+              </p>
+            </div>
+            <button
+              type="button"
+              (click)="abrirModalPago()"
+              class="sm:hidden w-full inline-flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white font-medium py-2.5 px-4 rounded-lg"
+            >
+              Reportar pago
+            </button>
+          </div>
+
+          <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+            <div class="bg-gray-900 border border-gray-800 rounded-xl p-3 sm:p-4 min-w-0">
+              <p class="text-xs text-gray-400 mb-1.5 sm:mb-2">Motos asignadas</p>
+              <p class="kpi-value text-xl sm:text-2xl font-bold">{{ motos.length }}</p>
+            </div>
+            <div class="bg-gray-900 border border-gray-800 rounded-xl p-3 sm:p-4 min-w-0">
+              <p class="text-xs text-gray-400 mb-1.5 sm:mb-2">Deuda total</p>
+              <p
+                class="kpi-value text-base sm:text-2xl font-bold leading-tight"
+                [class.text-red-400]="estadoCuenta.deudaTotal > 0"
+              >
+                {{ formatearMoneda(estadoCuenta.deudaTotal) }}
+              </p>
+            </div>
+            <div class="bg-gray-900 border border-gray-800 rounded-xl p-3 sm:p-4 min-w-0">
+              <p class="text-xs text-gray-400 mb-1.5 sm:mb-2">En mora</p>
+              <p
+                class="kpi-value text-base sm:text-2xl font-bold leading-tight"
+                [class.text-amber-400]="estadoCuenta.enMora"
+                [class.text-emerald-400]="!estadoCuenta.enMora"
+              >
+                {{ estadoCuenta.enMora ? formatearMoneda(estadoCuenta.deudaEnMora) : 'Al día' }}
+              </p>
+            </div>
+            <div class="bg-gray-900 border border-gray-800 rounded-xl p-3 sm:p-4 min-w-0">
+              <p class="text-xs text-gray-400 mb-1.5 sm:mb-2">Estado cuenta</p>
+              <p class="kpi-value text-xl sm:text-2xl font-bold" [class.text-emerald-400]="usuario?.activo">
+                {{ usuario?.activo ? 'Activo' : 'Inactivo' }}
+              </p>
+            </div>
+          </div>
+
+          <div
+            *ngIf="alertasConductor.length"
+            class="bg-amber-500/10 border border-amber-500/30 rounded-xl p-3 sm:p-4 space-y-2"
+          >
+            <p class="text-sm font-semibold text-amber-300">Alertas de vencimiento</p>
+            <div
+              *ngFor="let a of alertasConductor"
+              class="flex flex-col gap-0.5 sm:flex-row sm:justify-between sm:gap-3 text-sm min-w-0"
+            >
+              <span class="text-gray-200">{{ a.label }}</span>
+              <span
+                class="break-words sm:text-right"
+                [class]="a.urgente ? 'text-red-400 font-medium' : 'text-amber-300'"
+              >{{ a.detalle }}</span>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
+            <div class="lg:col-span-2 bg-gray-900 border border-gray-800 rounded-xl p-4 sm:p-5 space-y-4 min-w-0">
+              <div class="flex items-center justify-between gap-3">
+                <h2 class="text-base sm:text-lg font-semibold">Próximo cobro</h2>
+                <button
+                  *ngIf="proximoCobro"
+                  type="button"
+                  (click)="abrirModalPago(proximoCobro)"
+                  class="shrink-0 text-sm text-secondary hover:underline"
+                >
+                  Pagar
+                </button>
+              </div>
+
+              <div *ngIf="!proximoCobro" class="text-gray-400 text-sm py-6 text-center">
+                No tienes periodos pendientes. ¡Vas al día!
+              </div>
+
+              <div *ngIf="proximoCobro" class="rounded-lg border border-gray-800 bg-black/40 p-3 sm:p-4">
+                <div class="flex flex-wrap items-start justify-between gap-2 sm:gap-3">
+                  <div class="min-w-0">
+                    <p class="font-medium">Periodo #{{ proximoCobro.numeroPeriodo }}</p>
+                    <p class="text-sm text-gray-400 mt-1">
+                      Vence {{ formatearFecha(proximoCobro.fechaVencimiento) }}
+                    </p>
+                  </div>
+                  <span
+                    class="px-2.5 py-1 rounded-full text-xs font-medium"
+                    [class]="
+                      proximoCobro.enMora
+                        ? 'bg-red-500/20 text-red-400'
+                        : 'bg-amber-500/20 text-amber-400'
+                    "
+                  >
+                    {{ etiquetaEstadoCobro(proximoCobro) }}
+                  </span>
+                </div>
+                <div class="mt-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between sm:gap-3">
+                  <div class="min-w-0">
+                    <p class="text-xs text-gray-500">Saldo</p>
+                    <p class="kpi-value text-lg sm:text-xl font-bold">{{ formatearMoneda(proximoCobro.saldo) }}</p>
+                  </div>
+                  <p class="text-xs text-gray-500 break-words">
+                    {{ formatearFecha(proximoCobro.periodoInicio) }} —
+                    {{ formatearFecha(proximoCobro.periodoFin) }}
+                  </p>
+                </div>
+              </div>
+
+              <div *ngIf="motoPrincipal" class="pt-2 border-t border-gray-800">
+                <p class="text-xs text-gray-500 mb-2">Moto asignada</p>
+                <button
+                  type="button"
+                  (click)="irA('motos')"
+                  class="w-full text-left flex items-center gap-3 p-3 rounded-lg hover:bg-gray-800/80 transition min-w-0"
+                >
+                  <img
+                    *ngIf="motoPrincipal.imagen"
+                    [src]="motoPrincipal.imagen"
+                    alt="Moto"
+                    class="w-12 h-12 sm:w-14 sm:h-14 shrink-0 rounded-lg object-cover border border-gray-700"
+                  />
+                  <div
+                    *ngIf="!motoPrincipal.imagen"
+                    class="w-12 h-12 sm:w-14 sm:h-14 shrink-0 rounded-lg bg-gray-800 flex items-center justify-center text-2xl"
+                  >
+                    🛵
+                  </div>
+                  <div class="min-w-0">
+                    <p class="font-medium truncate">
+                      {{ motoPrincipal.marca }} {{ motoPrincipal.modelo }}
+                    </p>
+                    <p class="text-sm text-gray-400">{{ motoPrincipal.placa }}</p>
+                  </div>
+                </button>
+              </div>
+            </div>
+
+            <div class="bg-gray-900 border border-gray-800 rounded-xl p-4 sm:p-5 min-w-0">
+              <h2 class="text-base sm:text-lg font-semibold mb-4">Tu perfil</h2>
+              <div class="flex flex-col items-center text-center mb-5">
+                <div
+                  class="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-gray-800 border-2 border-secondary/40 flex items-center justify-center text-3xl mb-3"
+                >
+                  👤
+                </div>
+                <p class="font-semibold break-words px-1">{{ nombreCompleto }}</p>
+                <p class="text-xs text-secondary mt-1">Conductor</p>
+              </div>
+              <div class="space-y-3 text-sm">
+                <div class="flex justify-between gap-3 border-b border-gray-800 pb-2 min-w-0">
+                  <span class="text-gray-400 shrink-0">Cédula</span>
+                  <span class="truncate text-right">{{ usuario?.cedula }}</span>
+                </div>
+                <div class="flex justify-between gap-3 border-b border-gray-800 pb-2 min-w-0">
+                  <span class="text-gray-400 shrink-0">Teléfono</span>
+                  <span class="truncate text-right">{{ usuario?.telefono || '—' }}</span>
+                </div>
+                <div class="flex justify-between gap-3 border-b border-gray-800 pb-2 min-w-0">
+                  <span class="text-gray-400 shrink-0">Correo</span>
+                  <span class="truncate max-w-[65%] text-right">{{ usuario?.email }}</span>
+                </div>
+              </div>
+              <button
+                type="button"
+                (click)="irA('perfil')"
+                class="mt-5 w-full py-2.5 rounded-lg border border-gray-700 text-sm text-gray-300 hover:bg-gray-800 transition"
+              >
+                Editar perfil
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <!-- MOTOS -->
+        <section *ngIf="seccion === 'motos'" class="space-y-6">
+          <div>
+            <h1 class="text-2xl md:text-3xl font-bold">Mi moto</h1>
+            <p class="text-gray-400 text-sm mt-1">Detalle de la máquina asignada y documentos de la MDD.</p>
+          </div>
+
+          <div *ngIf="!motos.length" class="bg-gray-900 border border-gray-800 rounded-xl p-10 text-center text-gray-400">
+            Aún no tienes una moto asignada. Cuando administración te asigne una, aparecerá aquí.
+          </div>
+
+          <div *ngFor="let moto of motos" class="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
+            <div class="grid grid-cols-1 md:grid-cols-5">
+              <div class="md:col-span-2 min-h-[180px] bg-black/50">
+                <img
+                  *ngIf="moto.imagen"
+                  [src]="moto.imagen"
+                  [alt]="moto.placa"
+                  class="w-full h-full object-cover max-h-64 md:max-h-none"
+                />
+                <div
+                  *ngIf="!moto.imagen"
+                  class="h-full min-h-[180px] flex items-center justify-center text-5xl text-gray-600"
+                >
+                  🛵
+                </div>
+              </div>
+              <div class="md:col-span-3 p-5 md:p-6 space-y-4">
+                <div class="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <h2 class="text-xl font-bold">{{ moto.marca }} {{ moto.modelo }}</h2>
+                    <p class="text-secondary font-medium tracking-wide">{{ moto.placa }}</p>
+                  </div>
+                  <span class="px-2.5 py-1 rounded-full text-xs bg-blue-500/15 text-blue-300 capitalize">
+                    {{ moto.estado.replace('_', ' ') }}
+                  </span>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3 text-sm">
+                  <div class="rounded-lg bg-black/30 border border-gray-800 p-3">
+                    <p class="text-xs text-gray-500">Cuota</p>
+                    <p class="font-semibold mt-1">{{ formatearMoneda(moto.precioCobro || 0) }}</p>
+                  </div>
+                  <div class="rounded-lg bg-black/30 border border-gray-800 p-3">
+                    <p class="text-xs text-gray-500">Pico y placa</p>
+                    <p class="font-semibold mt-1">{{ moto.picoYPlaca || '—' }}</p>
+                  </div>
+                  <div class="rounded-lg bg-black/30 border border-gray-800 p-3">
+                    <p class="text-xs text-gray-500">SOAT</p>
+                    <p class="font-semibold mt-1" [class]="claseVencimiento(moto.soat)">
+                      {{ etiquetaVencimiento(moto.soat) }}
+                    </p>
+                  </div>
+                  <div class="rounded-lg bg-black/30 border border-gray-800 p-3">
+                    <p class="text-xs text-gray-500">Tecnomecánica</p>
+                    <p class="font-semibold mt-1" [class]="claseVencimiento(moto.tecnomecanica)">
+                      {{ etiquetaVencimiento(moto.tecnomecanica) }}
+                    </p>
+                  </div>
+                </div>
+
+                <div *ngIf="contrato" class="text-sm text-gray-400 border-t border-gray-800 pt-3">
+                  Contrato activo desde {{ formatearFecha(contrato.fechaInicio) }} ·
+                  Cuota {{ formatearMoneda(contrato.cuotaSemanal) }} ·
+                  Frecuencia {{ contrato.frecuenciaPago }}
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- CUENTA -->
+        <section *ngIf="seccion === 'cuenta'" class="space-y-5 sm:space-y-6">
+          <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 sm:gap-4">
+            <div class="min-w-0">
+              <h1 class="text-xl sm:text-2xl md:text-3xl font-bold">Estado de cuenta</h1>
+              <p class="text-gray-400 text-sm mt-1">Periodos, saldos y comprobantes enviados.</p>
+            </div>
+            <button
+              type="button"
+              (click)="abrirModalPago()"
+              class="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white font-medium py-2.5 px-4 rounded-lg"
+            >
+              Reportar pago
+            </button>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+            <div class="bg-gray-900 border border-gray-800 rounded-xl p-3 sm:p-4 min-w-0">
+              <p class="text-xs text-gray-400">Deuda total</p>
+              <p class="kpi-value text-lg sm:text-xl font-bold mt-1 leading-tight">
+                {{ formatearMoneda(estadoCuenta.deudaTotal) }}
+              </p>
+            </div>
+            <div class="bg-gray-900 border border-gray-800 rounded-xl p-3 sm:p-4 min-w-0">
+              <p class="text-xs text-gray-400">En mora</p>
+              <p class="kpi-value text-lg sm:text-xl font-bold mt-1 leading-tight text-amber-400">
+                {{ formatearMoneda(estadoCuenta.deudaEnMora) }}
+              </p>
+            </div>
+            <div class="bg-gray-900 border border-gray-800 rounded-xl p-3 sm:p-4 min-w-0">
+              <p class="text-xs text-gray-400">Periodos vencidos</p>
+              <p class="text-lg sm:text-xl font-bold mt-1">{{ estadoCuenta.periodosVencidos }}</p>
+            </div>
+          </div>
+
+          <div class="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
+            <div class="px-4 sm:px-5 py-3 sm:py-4 border-b border-gray-800">
+              <h2 class="font-semibold">Periodos</h2>
+            </div>
+            <div *ngIf="!cobros.length" class="p-6 sm:p-8 text-center text-gray-400 text-sm">
+              No hay cobros registrados aún.
+            </div>
+            <div class="divide-y divide-gray-800">
+              <div
+                *ngFor="let cobro of cobros"
+                class="px-4 sm:px-5 py-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
+              >
+                <div class="min-w-0">
+                  <p class="font-medium">Periodo #{{ cobro.numeroPeriodo }}</p>
+                  <p class="text-xs text-gray-400 mt-1 break-words leading-relaxed">
+                    <span class="block sm:inline">
+                      {{ formatearFecha(cobro.periodoInicio) }} — {{ formatearFecha(cobro.periodoFin) }}
+                    </span>
+                    <span class="hidden sm:inline"> · </span>
+                    <span class="block sm:inline mt-0.5 sm:mt-0">
+                      Vence {{ formatearFecha(cobro.fechaVencimiento) }}
+                    </span>
+                  </p>
+                </div>
+                <div class="flex items-center justify-between sm:justify-end gap-3 sm:text-right">
+                  <div class="min-w-0">
+                    <p class="kpi-value font-semibold">{{ formatearMoneda(cobro.saldo) }}</p>
+                    <p class="text-xs mt-0.5" [class]="cobro.enMora ? 'text-red-400' : 'text-gray-400'">
+                      {{ etiquetaEstadoCobro(cobro) }}
+                    </p>
+                  </div>
+                  <button
+                    *ngIf="cobro.saldo > 0"
+                    type="button"
+                    (click)="abrirModalPago(cobro)"
+                    class="shrink-0 text-xs px-3 py-2 rounded-lg bg-emerald-600/20 text-emerald-400 hover:bg-emerald-600/30"
+                  >
+                    Pagar
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
+            <div class="px-4 sm:px-5 py-3 sm:py-4 border-b border-gray-800">
+              <h2 class="font-semibold">Historial de abonos</h2>
+            </div>
+            <div *ngIf="!abonos.length" class="p-6 sm:p-8 text-center text-gray-400 text-sm">
+              Todavía no has reportado pagos.
+            </div>
+            <div class="divide-y divide-gray-800">
+              <div
+                *ngFor="let abono of abonos"
+                class="px-4 sm:px-5 py-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between"
+              >
+                <div class="min-w-0">
+                  <p class="kpi-value font-medium">{{ formatearMoneda(abono.monto) }}</p>
+                  <p class="text-xs text-gray-400 mt-1 break-words">
+                    {{ formatearFecha(abono.fechaPago) }} · {{ abono.metodoPago }}
+                  </p>
+                </div>
+                <span
+                  class="self-start sm:self-auto px-2.5 py-1 rounded-full text-xs font-medium"
+                  [class]="
+                    abono.estado === 'registrado'
+                      ? 'bg-emerald-500/20 text-emerald-400'
+                      : abono.estado === 'pendiente_confirmacion'
+                        ? 'bg-amber-500/20 text-amber-400'
+                        : 'bg-gray-700 text-gray-300'
+                  "
+                >
+                  {{ etiquetaEstadoAbono(abono) }}
+                </span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- NOVEDADES -->
+        <section *ngIf="seccion === 'novedades'" class="space-y-6">
+          <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+            <div>
+              <h1 class="text-2xl md:text-3xl font-bold">Novedades</h1>
+              <p class="text-gray-400 text-sm mt-1">
+                Reporta pinchazos, choques, fallas u otros problemas con tu moto.
+              </p>
+            </div>
+            <button
+              type="button"
+              (click)="abrirModalNovedad()"
+              class="inline-flex items-center justify-center gap-2 bg-orange-600 hover:bg-orange-500 text-white font-medium py-2.5 px-4 rounded-lg"
+            >
+              Reportar novedad
+            </button>
+          </div>
+
+          <div *ngIf="!novedades.length" class="bg-gray-900 border border-gray-800 rounded-xl p-10 text-center text-gray-400">
+            Aún no has reportado novedades.
+          </div>
+
+          <div class="space-y-3">
+            <div
+              *ngFor="let n of novedades"
+              class="bg-gray-900 border border-gray-800 rounded-xl p-4 space-y-2"
+            >
+              <div class="flex flex-wrap items-start justify-between gap-2">
+                <div>
+                  <p class="font-medium">{{ n.titulo }}</p>
+                  <p class="text-xs text-gray-400 mt-1">
+                    {{ etiquetaTipoNovedad(n.tipo) }}
+                    <span *ngIf="n.createdAt"> · {{ formatearFecha(n.createdAt) }}</span>
+                    <span *ngIf="n.moto"> · {{ n.moto.placa }}</span>
+                  </p>
+                </div>
+                <span class="text-xs px-2.5 py-1 rounded-full bg-orange-500/15 text-orange-300">
+                  {{ etiquetaEstadoNovedad(n.estado) }}
+                </span>
+              </div>
+              <p class="text-sm text-gray-300">{{ n.descripcion }}</p>
+              <img
+                *ngIf="n.foto"
+                [src]="n.foto"
+                alt="Foto novedad"
+                class="max-h-40 rounded-lg border border-gray-700 object-contain"
+              />
+              <p *ngIf="n.respuestaStaff" class="text-sm text-emerald-300/90 border-t border-gray-800 pt-2">
+                Respuesta: {{ n.respuestaStaff }}
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <!-- DOCUMENTOS -->
+        <section *ngIf="seccion === 'documentos'" class="space-y-6">
+          <div>
+            <h1 class="text-2xl md:text-3xl font-bold">Documentos</h1>
+            <p class="text-gray-400 text-sm mt-1">
+              Archivos asociados a tu cuenta (cédula, licencia, contrato, etc.).
+            </p>
+          </div>
+
+          <div *ngIf="!documentos.length" class="bg-gray-900 border border-gray-800 rounded-xl p-10 text-center text-gray-400">
+            No hay documentos cargados para tu cuenta. Administración los subirá aquí.
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <a
+              *ngFor="let doc of documentos"
+              [href]="doc.url"
+              target="_blank"
+              rel="noopener"
+              class="bg-gray-900 border border-gray-800 rounded-xl p-4 hover:border-secondary/40 transition block"
+            >
+              <p class="text-xs text-secondary mb-1">{{ etiquetaCategoria(doc.categoria) }}</p>
+              <p class="font-medium truncate">{{ doc.nombre }}</p>
+              <p class="text-xs text-gray-500 mt-2" *ngIf="doc.createdAt">
+                {{ formatearFecha(doc.createdAt) }}
+              </p>
+            </a>
+          </div>
+        </section>
+
+        <!-- PERFIL -->
+        <section *ngIf="seccion === 'perfil'" class="space-y-6 max-w-xl">
+          <div>
+            <h1 class="text-2xl md:text-3xl font-bold">Mi perfil</h1>
+            <p class="text-gray-400 text-sm mt-1">Actualiza tus datos de contacto.</p>
+          </div>
+
+          <div class="bg-gray-900 border border-gray-800 rounded-xl p-5 space-y-4">
+            <div>
+              <label class="block text-xs text-gray-400 mb-1">Nombre</label>
+              <input
+                type="text"
+                [value]="nombreCompleto"
+                disabled
+                class="w-full bg-gray-950 border border-gray-700 rounded-lg px-3 py-2 text-gray-400"
+              />
+            </div>
+            <div>
+              <label class="block text-xs text-gray-400 mb-1">Cédula</label>
+              <input
+                type="text"
+                [value]="usuario?.cedula"
+                disabled
+                class="w-full bg-gray-950 border border-gray-700 rounded-lg px-3 py-2 text-gray-400"
+              />
+            </div>
+            <div>
+              <label class="block text-xs text-gray-400 mb-1">Correo</label>
+              <input
+                type="email"
+                [value]="usuario?.email"
+                disabled
+                class="w-full bg-gray-950 border border-gray-700 rounded-lg px-3 py-2 text-gray-400"
+              />
+            </div>
+            <div>
+              <label class="block text-xs text-gray-400 mb-1">Teléfono</label>
+              <input
+                type="tel"
+                [(ngModel)]="perfilForm.telefono"
+                class="w-full bg-black border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-secondary outline-none"
+              />
+            </div>
+            <div>
+              <label class="block text-xs text-gray-400 mb-1">Dirección</label>
+              <input
+                type="text"
+                [(ngModel)]="perfilForm.direccion"
+                class="w-full bg-black border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-secondary outline-none"
+                placeholder="Barrio, ciudad..."
+              />
+            </div>
+            <button
+              type="button"
+              (click)="guardarPerfil()"
+              [disabled]="guardandoPerfil"
+              class="w-full py-2.5 rounded-lg bg-secondary text-black font-semibold hover:opacity-90 disabled:opacity-50"
+            >
+              {{ guardandoPerfil ? 'Guardando...' : 'Guardar cambios' }}
+            </button>
+          </div>
+        </section>
+      </ng-container>
     </div>
   </main>
+
+  <!-- Modal pago -->
+  <div
+    *ngIf="modalPagoVisible"
+    class="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-sm p-0 sm:p-4"
+  >
+    <div
+      class="modal-sheet bg-gray-900 rounded-t-2xl sm:rounded-2xl shadow-2xl w-full max-w-lg border border-gray-700 overflow-hidden flex flex-col"
+    >
+      <div class="p-4 sm:p-5 border-b border-gray-800 flex justify-between items-center shrink-0">
+        <h3 class="text-lg font-bold">Reportar pago</h3>
+        <button type="button" (click)="cerrarModalPago()" class="text-gray-400 hover:text-white text-2xl leading-none px-1">
+          &times;
+        </button>
+      </div>
+
+      <div class="modal-sheet-body p-4 sm:p-5 space-y-4">
+        <div>
+          <label class="block text-sm text-gray-400 mb-1">Periodo</label>
+          <select
+            [(ngModel)]="pagoForm.cobroId"
+            (ngModelChange)="onCobroSeleccionado()"
+            class="w-full bg-black border border-gray-600 rounded-lg px-3 py-2.5 text-white outline-none focus:ring-2 focus:ring-emerald-500"
+          >
+            <option *ngFor="let c of cobrosPendientes" [value]="c._id">
+              #{{ c.numeroPeriodo }} — saldo {{ formatearMoneda(c.saldo) }} (vence
+              {{ formatearFecha(c.fechaVencimiento) }})
+            </option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-sm text-gray-400 mb-1">Monto</label>
+          <input
+            type="text"
+            inputmode="numeric"
+            appCurrencyCo
+            [(ngModel)]="pagoForm.monto"
+            class="w-full bg-black border border-gray-600 rounded-lg px-3 py-2.5 text-white outline-none focus:ring-2 focus:ring-emerald-500"
+          />
+        </div>
+
+        <div>
+          <label class="block text-sm text-gray-400 mb-1">Método</label>
+          <select
+            [(ngModel)]="pagoForm.metodoPago"
+            class="w-full bg-black border border-gray-600 rounded-lg px-3 py-2.5 text-white outline-none focus:ring-2 focus:ring-emerald-500"
+          >
+            <option value="Transferencia">Transferencia (Nequi, Bancolombia)</option>
+            <option value="Efectivo">Efectivo / consignación</option>
+            <option value="Otro">Otro</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-sm text-gray-400 mb-1">Comprobante (obligatorio)</label>
+          <input
+            type="file"
+            accept="image/*,application/pdf"
+            (change)="onComprobanteSelected($event)"
+            class="w-full text-sm text-gray-300 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:bg-emerald-600 file:text-white file:text-sm"
+          />
+          <div *ngIf="pagoForm.comprobanteImagen" class="mt-2 border border-gray-700 rounded-lg p-2 bg-black/40">
+            <img
+              *ngIf="pagoForm.comprobanteImagen.startsWith('data:image')"
+              [src]="pagoForm.comprobanteImagen"
+              alt="Comprobante"
+              class="h-28 mx-auto object-contain rounded"
+            />
+            <p *ngIf="!pagoForm.comprobanteImagen.startsWith('data:image')" class="text-xs text-center text-gray-400">
+              Archivo listo para enviar
+            </p>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-sm text-gray-400 mb-1">Observación (opcional)</label>
+          <input
+            type="text"
+            [(ngModel)]="pagoForm.observaciones"
+            class="w-full bg-black border border-gray-600 rounded-lg px-3 py-2.5 text-white outline-none focus:ring-2 focus:ring-emerald-500"
+            placeholder="Referencia, banco, etc."
+          />
+        </div>
+
+        <p class="text-xs text-gray-500">
+          El abono queda <span class="text-amber-400">pendiente de confirmación</span> hasta que
+          administración lo valide.
+        </p>
+      </div>
+
+      <div class="p-4 sm:p-5 border-t border-gray-800 flex flex-col-reverse sm:flex-row justify-end gap-2 sm:gap-3 shrink-0">
+        <button
+          type="button"
+          (click)="cerrarModalPago()"
+          class="w-full sm:w-auto px-4 py-2.5 rounded-lg text-gray-300 hover:bg-gray-800"
+        >
+          Cancelar
+        </button>
+        <button
+          type="button"
+          (click)="enviarPago()"
+          [disabled]="enviandoPago"
+          class="w-full sm:w-auto px-4 py-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-medium disabled:opacity-50"
+        >
+          {{ enviandoPago ? 'Enviando...' : 'Enviar comprobante' }}
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal novedad -->
+  <div
+    *ngIf="modalNovedadVisible"
+    class="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-sm p-0 sm:p-4"
+  >
+    <div
+      class="modal-sheet bg-gray-900 rounded-t-2xl sm:rounded-2xl shadow-2xl w-full max-w-lg border border-gray-700 overflow-hidden flex flex-col"
+    >
+      <div class="p-4 sm:p-5 border-b border-gray-800 flex justify-between items-center shrink-0">
+        <h3 class="text-lg font-bold">Reportar novedad</h3>
+        <button type="button" (click)="cerrarModalNovedad()" class="text-gray-400 hover:text-white text-2xl leading-none px-1">
+          &times;
+        </button>
+      </div>
+      <div class="modal-sheet-body p-4 sm:p-5 space-y-4">
+        <div>
+          <label class="block text-sm text-gray-400 mb-1">Tipo</label>
+          <select
+            [(ngModel)]="novedadForm.tipo"
+            class="w-full bg-black border border-gray-600 rounded-lg px-3 py-2.5 text-white outline-none focus:ring-2 focus:ring-orange-500"
+          >
+            <option value="pinchazo">Pinchazo</option>
+            <option value="choque">Choque</option>
+            <option value="falla">Falla mecánica</option>
+            <option value="documento">Documento</option>
+            <option value="pago">Pago</option>
+            <option value="otro">Otro</option>
+          </select>
+        </div>
+        <div *ngIf="motos.length">
+          <label class="block text-sm text-gray-400 mb-1">Moto</label>
+          <select
+            [(ngModel)]="novedadForm.motoId"
+            class="w-full bg-black border border-gray-600 rounded-lg px-3 py-2.5 text-white outline-none focus:ring-2 focus:ring-orange-500"
+          >
+            <option value="">Sin moto</option>
+            <option *ngFor="let m of motos" [value]="m._id">{{ m.placa }} — {{ m.marca }} {{ m.modelo }}</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm text-gray-400 mb-1">Título</label>
+          <input
+            type="text"
+            [(ngModel)]="novedadForm.titulo"
+            class="w-full bg-black border border-gray-600 rounded-lg px-3 py-2.5 text-white outline-none focus:ring-2 focus:ring-orange-500"
+            placeholder="Ej. Pinchazo llanta trasera"
+          />
+        </div>
+        <div>
+          <label class="block text-sm text-gray-400 mb-1">Descripción</label>
+          <textarea
+            [(ngModel)]="novedadForm.descripcion"
+            rows="3"
+            class="w-full bg-black border border-gray-600 rounded-lg px-3 py-2.5 text-white outline-none focus:ring-2 focus:ring-orange-500"
+            placeholder="Cuéntanos qué pasó y dónde estás"
+          ></textarea>
+        </div>
+        <div>
+          <label class="block text-sm text-gray-400 mb-1">Foto (opcional)</label>
+          <input
+            type="file"
+            accept="image/*"
+            (change)="onFotoNovedad($event)"
+            class="w-full text-sm text-gray-300 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:bg-orange-600 file:text-white file:text-sm"
+          />
+          <img
+            *ngIf="novedadForm.foto"
+            [src]="novedadForm.foto"
+            alt="Preview"
+            class="mt-2 h-24 mx-auto object-contain rounded border border-gray-700"
+          />
+        </div>
+      </div>
+      <div class="p-4 sm:p-5 border-t border-gray-800 flex flex-col-reverse sm:flex-row justify-end gap-2 sm:gap-3 shrink-0">
+        <button type="button" (click)="cerrarModalNovedad()" class="w-full sm:w-auto px-4 py-2.5 rounded-lg text-gray-300 hover:bg-gray-800">
+          Cancelar
+        </button>
+        <button
+          type="button"
+          (click)="enviarNovedad()"
+          [disabled]="enviandoNovedad"
+          class="w-full sm:w-auto px-4 py-2.5 rounded-lg bg-orange-600 hover:bg-orange-500 text-white font-medium disabled:opacity-50"
+        >
+          {{ enviandoNovedad ? 'Enviando...' : 'Enviar' }}
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <app-whatsapp-float
+    mensaje="Hola GoRenting, soy conductor y necesito soporte desde mi panel."
+    label="Soporte por WhatsApp"
+  ></app-whatsapp-float>
 </div>

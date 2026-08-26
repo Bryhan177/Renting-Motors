@@ -1,129 +1,148 @@
 import { Injectable } from '@angular/core';
-import { Observable, from, map, switchMap, throwError } from 'rxjs';
-import { Usuario, CreateUsuarioPayload } from '../shared/interfaces/usuario';
-import { supabase } from '../supabase/supabase.client';
+import { Observable, from, map, throwError } from 'rxjs';
+import { getSupabase } from '../supabase/supabase.client';
+import { Usuario, CreateUsuarioPayload, ReferenciaPersonal } from '../shared/interfaces/usuario';
 
-@Injectable({
-  providedIn: 'root'
-})
+@Injectable({ providedIn: 'root' })
 export class UsuariosService {
-
-  constructor() {}
-
-  private mapUsuario(usuario: any): Usuario {
-    return { ...usuario, _id: usuario.id };
+  private mapRef(prefix: string, row: any): ReferenciaPersonal {
+    return {
+      nombre: row[`${prefix}_nombre`] || '',
+      parentesco: row[`${prefix}_parentesco`] || '',
+      telefono: row[`${prefix}_telefono`] || '',
+      direccion: row[`${prefix}_direccion`] || '',
+    };
   }
 
-  getUsuarios(): Observable<Usuario[]> {
-    return from(supabase.from('usuarios').select('*')).pipe(
+  private mapUsuario(row: any): Usuario {
+    return {
+      _id: row.id,
+      nombre: row.nombre,
+      apellido: row.apellido,
+      email: row.email,
+      cedula: row.cedula,
+      telefono: row.telefono,
+      edad: row.edad ?? null,
+      direccion: row.direccion || null,
+      uso: row.uso || null,
+      tiempoContrato: row.tiempo_contrato || null,
+      referencia1: this.mapRef('ref1', row),
+      referencia2: this.mapRef('ref2', row),
+      rol: row.rol,
+      activo: row.activo !== false,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    };
+  }
+
+  private normalizeRol(rol: string): string {
+    const r = (rol || '').toLowerCase().trim();
+    if (r === 'admin') return 'administrador';
+    if (r === 'asesora') return 'asesor';
+    if (r === 'conductor' || r === 'usuario') return 'empleado';
+    return r || 'empleado';
+  }
+
+  private toDb(usuario: Partial<Usuario> | CreateUsuarioPayload): Record<string, unknown> {
+    const payload: Record<string, unknown> = {};
+    if (usuario.nombre !== undefined) payload['nombre'] = usuario.nombre;
+    if (usuario.apellido !== undefined) payload['apellido'] = usuario.apellido;
+    if (usuario.email !== undefined) payload['email'] = usuario.email;
+    if (usuario.cedula !== undefined) payload['cedula'] = Number(usuario.cedula);
+    if (usuario.telefono !== undefined) payload['telefono'] = String(usuario.telefono);
+    if (usuario.edad !== undefined) payload['edad'] = usuario.edad || null;
+    if (usuario.direccion !== undefined) payload['direccion'] = usuario.direccion || null;
+    if (usuario.uso !== undefined) payload['uso'] = usuario.uso || null;
+    if (usuario.tiempoContrato !== undefined) payload['tiempo_contrato'] = usuario.tiempoContrato || null;
+    if (usuario.rol !== undefined) payload['rol'] = this.normalizeRol(usuario.rol);
+    if (usuario.activo !== undefined) payload['activo'] = usuario.activo;
+    const r1 = usuario.referencia1;
+    if (r1) {
+      payload['ref1_nombre'] = r1.nombre || null;
+      payload['ref1_parentesco'] = r1.parentesco || null;
+      payload['ref1_telefono'] = r1.telefono || null;
+      payload['ref1_direccion'] = r1.direccion || null;
+    }
+    const r2 = usuario.referencia2;
+    if (r2) {
+      payload['ref2_nombre'] = r2.nombre || null;
+      payload['ref2_parentesco'] = r2.parentesco || null;
+      payload['ref2_telefono'] = r2.telefono || null;
+      payload['ref2_direccion'] = r2.direccion || null;
+    }
+    return payload;
+  }
+
+  getUsuarios(incluirInactivos = true): Observable<Usuario[]> {
+    let q = getSupabase().from('usuarios').select('*').order('created_at', { ascending: false });
+    if (!incluirInactivos) q = q.eq('activo', true);
+    return from(q).pipe(
       map(({ data, error }) => {
         if (error) throw error;
-        return (data || []).map(u => this.mapUsuario(u));
-      })
+        return (data || []).map((r) => this.mapUsuario(r));
+      }),
     );
   }
 
   getUsuario(id: string): Observable<Usuario> {
-    return from(supabase.from('usuarios').select('*').eq('id', id).single()).pipe(
+    return from(getSupabase().from('usuarios').select('*').eq('id', id).single()).pipe(
       map(({ data, error }) => {
-        if (error) throw error;
+        if (error || !data) throw error || new Error('Usuario no encontrado');
         return this.mapUsuario(data);
-      })
-    );
-  }
-
-  // Crear un nuevo usuario
-  createUsuario(usuario: CreateUsuarioPayload): Observable<Usuario> {
-    const { password, ...payload } = usuario;
-
-    if (!password) {
-      return throwError(() => new Error('La contraseña es requerida para el registro.'));
-    }
-
-    // 1. Crear usuario en Auth
-    return from(supabase.auth.signUp({
-      email: payload.email,
-      password: password,
-      options: {
-        data: {
-          nombre: payload.nombre,
-          apellido: payload.apellido,
-          // Guardamos datos extra en metadata también por si acaso, 
-          // aunque la fuente de verdad será la tabla usuarios.
-        }
-      }
-    })).pipe(
-      switchMap(({ data: authData, error: authError }) => {
-        if (authError) {
-          return throwError(() => new Error(authError.message));
-        }
-        if (!authData.user) {
-           return throwError(() => new Error('No se pudo crear el usuario en Auth.'));
-        }
-
-        // 2. Insertar perfil en tabla usuarios vinculando con ID de Auth
-        const userProfile = {
-          id: authData.user.id, // ID from Auth
-          nombre: payload.nombre,
-          apellido: payload.apellido,
-          email: payload.email,
-          cedula: payload.cedula,
-          telefono: payload.telefono,
-          rol: payload.rol, // Asegurate que RLS permita esto o hazlo con service_role si es necesario. 
-                            // Como es registro público, RLS debe permitir INSERT a public.usuarios para el usuario autenticado, 
-                            // o permitir INSERT anonimo.
-                            // Si RLS bloquea, fallará. Asumiremos por ahora que RLS permite o no está activo (como vi en list_tables: rls_enabled: false).
-          activo: payload.activo
-        };
-        
-        return from(supabase.from('usuarios').insert(userProfile).select().single());
       }),
-      map(({ data, error }) => {
-        if (error) throw error;
-        return this.mapUsuario(data);
-      })
     );
   }
 
-  // Actualizar un usuario
+  createUsuario(usuario: CreateUsuarioPayload): Observable<Usuario> {
+    if (!usuario.password || usuario.password.length < 6) {
+      return throwError(() => ({ error: { message: 'Contraseña mínima 6 caracteres' } }));
+    }
+    const sb = getSupabase();
+    const email = usuario.email.toLowerCase().trim();
+    return from(
+      (async () => {
+        const { data: sessionData } = await sb.auth.getSession();
+        const adminSession = sessionData.session;
+        const { data, error } = await sb.auth.signUp({ email, password: usuario.password! });
+        if (error || !data.user) {
+          throw { error: { message: error?.message || 'No se pudo crear Auth' } };
+        }
+        const body = {
+          id: data.user.id,
+          email,
+          ...this.toDb({ ...usuario, rol: this.normalizeRol(usuario.rol) as any }),
+          activo: usuario.activo !== false,
+        };
+        const { data: row, error: err } = await sb.from('usuarios').insert(body).select('*').single();
+        if (adminSession) {
+          await sb.auth.setSession({
+            access_token: adminSession.access_token,
+            refresh_token: adminSession.refresh_token,
+          });
+        }
+        if (err || !row) throw err || new Error('No se pudo crear perfil');
+        return this.mapUsuario(row);
+      })(),
+    );
+  }
+
   updateUsuario(id: string, usuario: Partial<Usuario>): Observable<Usuario> {
-    const payload: any = { ...usuario };
-    delete payload._id;
-    delete payload.password; // Ignorar password en update de perfil por ahora
-
-    return from(supabase.from('usuarios').update(payload).eq('id', id).select().single()).pipe(
+    return from(
+      getSupabase().from('usuarios').update(this.toDb(usuario)).eq('id', id).select('*').maybeSingle(),
+    ).pipe(
       map(({ data, error }) => {
         if (error) throw error;
+        if (!data) throw new Error('Sin permiso para actualizar (RLS)');
         return this.mapUsuario(data);
-      })
+      }),
     );
   }
 
-  // Login de usuario
-  login(password: string, email: string) {
-    return from(supabase.auth.signInWithPassword({
-      email,
-      password,
-    })).pipe(
-      switchMap(({ data, error }) => {
-        if (error) throw error;
-        if (!data.user) throw new Error('No se encontró el usuario');
-        
-        // Obtener datos del perfil del usuario
-        return this.getUsuario(data.user.id).pipe(
-            map(usuario => ({ ...usuario, authData: data })) 
-        );
-      })
-    );
-  }
-
-  // Eliminar un usuario
   deleteUsuario(id: string): Observable<Usuario> {
-    return from(supabase.from('usuarios').delete().eq('id', id).select().single()).pipe(
-      map(({ data, error }) => {
-        if (error) throw error;
-        return this.mapUsuario(data);
-      })
-    );
+    return this.updateUsuario(id, { activo: false });
+  }
+
+  reactivarUsuario(id: string): Observable<Usuario> {
+    return this.updateUsuario(id, { activo: true });
   }
 }

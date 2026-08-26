@@ -1,90 +1,84 @@
 <div class="min-h-screen bg-gray-900 text-white p-6 rounded-xl">
-  
-  <div class="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
+  <div class="flex justify-between items-center mb-6 gap-4 flex-wrap">
     <div>
-      <h1 class="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-purple-400 to-pink-400">
-        🗂️ Centro de Documentación
-      </h1>
-      <p class="text-gray-400 mt-1">Gestión de seguros, contratos y licencias</p>
+      <h1 class="text-3xl font-bold text-white">Documentación</h1>
+      <p class="text-gray-300 mt-1">PDF, imágenes, formularios, CC, licencia y matrícula MDD</p>
     </div>
-    <button class="bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 px-5 rounded-lg transition shadow-lg shadow-purple-500/20 flex items-center gap-2">
-        <span>☁️</span> Subir Documento
+    <button (click)="abrirSubir()" class="bg-amber-500 hover:bg-amber-600 text-[#14110a] font-semibold py-2.5 px-5 rounded-lg">
+      Subir documento
     </button>
   </div>
 
-  <!-- Tabs Navigation -->
-  <div class="flex flex-wrap gap-2 mb-8 bg-gray-800/50 p-1 rounded-xl w-full md:w-fit border border-gray-700">
-    <button (click)="activeTab = 'vehicle'" 
-            [class]="activeTab === 'vehicle' ? 'bg-purple-500 text-white shadow-lg' : 'text-gray-400 hover:text-white hover:bg-gray-700'"
-            class="px-5 py-2 rounded-lg font-medium transition duration-200">
-        🏍️ Vehículos
-    </button>
-    <button (click)="activeTab = 'user'" 
-            [class]="activeTab === 'user' ? 'bg-purple-500 text-white shadow-lg' : 'text-gray-400 hover:text-white hover:bg-gray-700'"
-            class="px-5 py-2 rounded-lg font-medium transition duration-200">
-        👤 Usuarios
-    </button>
-    <button (click)="activeTab = 'contract'" 
-            [class]="activeTab === 'contract' ? 'bg-purple-500 text-white shadow-lg' : 'text-gray-400 hover:text-white hover:bg-gray-700'"
-            class="px-5 py-2 rounded-lg font-medium transition duration-200">
-        📄 Contratos
-    </button>
-    <button (click)="activeTab = 'other'" 
-            [class]="activeTab === 'other' ? 'bg-purple-500 text-white shadow-lg' : 'text-gray-400 hover:text-white hover:bg-gray-700'"
-            class="px-5 py-2 rounded-lg font-medium transition duration-200">
-        📎 Otros
+  <div class="flex flex-wrap gap-2 mb-6">
+    <button *ngFor="let c of categorias" (click)="cambiarTab(c.id)"
+            [class.bg-amber-500]="tab === c.id"
+            [class.text-[#14110a]]="tab === c.id"
+            [class.font-semibold]="tab === c.id"
+            class="px-3 py-1.5 rounded-lg text-sm bg-gray-800 text-white border border-gray-700">
+      {{ c.label }}
     </button>
   </div>
 
-  <!-- Documents Grid -->
-  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-    <div *ngFor="let doc of filteredDocuments" 
-         class="bg-gray-800 rounded-xl p-5 border border-gray-700 hover:border-purple-500/50 hover:bg-gray-800/80 transition duration-300 cursor-pointer group relative">
-      
-      <!-- Status Badge -->
-      <div class="absolute top-3 right-3">
-          <span [ngClass]="{
-              'bg-green-500/20 text-green-400 border-green-500/40': doc.status === 'valid',
-              'bg-red-500/20 text-red-400 border-red-500/40': doc.status === 'expired',
-              'bg-yellow-500/20 text-yellow-400 border-yellow-500/40': doc.status === 'pending'
-          }" class="text-xs px-2 py-0.5 rounded border capitalize">
-              {{ doc.status }}
-          </span>
+  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+    <div *ngIf="documentos.length === 0" class="col-span-full text-center text-gray-400 py-12 border border-dashed border-gray-700 rounded-xl">
+      No hay documentos en esta categoría
+    </div>
+    <div *ngFor="let d of documentos" class="bg-gray-800 border border-gray-700 rounded-xl p-4 flex flex-col gap-3">
+      <div class="flex justify-between gap-2">
+        <span class="text-xs px-2 py-1 rounded bg-gray-700 text-gray-200">{{ labelCat(d.categoria) }}</span>
+        <span class="text-xs text-gray-400">{{ d.createdAt | date:'shortDate' }}</span>
       </div>
 
-      <!-- Icon -->
-      <div class="w-12 h-12 rounded-lg bg-gray-700 flex items-center justify-center text-2xl mb-4 group-hover:bg-purple-500/20 group-hover:text-purple-400 transition">
-          {{ activeTab === 'vehicle' ? '🛵' : (activeTab === 'user' ? '🪪' : '📄') }}
+      <div *ngIf="esImagen(d)" class="rounded-lg overflow-hidden border border-gray-600 bg-gray-900 aspect-video">
+        <img [src]="d.url" [alt]="d.nombre" class="w-full h-full object-contain" />
       </div>
 
-      <h3 class="text-white font-bold text-lg mb-1 truncate" title="{{ doc.name }}">{{ doc.name }}</h3>
-      <p class="text-xs text-gray-500 mb-4">Subido por {{ doc.uploadedBy }} • {{ doc.uploadDate }}</p>
-
-      <div *ngIf="doc.expirationDate" class="bg-gray-900/50 p-2 rounded text-xs text-gray-400 mb-4 border border-gray-700/50">
-          Vence: <span class="text-gray-200 font-mono">{{ doc.expirationDate }}</span>
+      <h3 class="font-bold text-white truncate">{{ d.nombre }}</h3>
+      <p class="text-sm text-gray-400 line-clamp-2">{{ d.descripcion || 'Sin descripción' }}</p>
+      <p class="text-xs text-gray-500 truncate">{{ d.mimeType || 'archivo' }}</p>
+      <div class="flex flex-wrap gap-2 mt-auto">
+        <button (click)="descargar(d)" class="flex-1 min-w-[5.5rem] bg-emerald-700 hover:bg-emerald-600 text-white text-sm py-2 rounded-lg">Descargar</button>
+        <button (click)="abrirEditar(d)" class="px-3 bg-amber-600 hover:bg-amber-500 text-white text-sm py-2 rounded-lg">Editar</button>
+        <button (click)="eliminar(d)" class="px-3 bg-red-700 hover:bg-red-600 text-white text-sm py-2 rounded-lg">Eliminar</button>
       </div>
-
-      <p *ngIf="doc.notes" class="text-sm text-gray-400 italic mb-4 line-clamp-2">"{{ doc.notes }}"</p>
-
-      <div class="grid grid-cols-3 gap-2 mt-auto">
-          <button class="bg-gray-700 hover:bg-gray-600 text-gray-300 py-2 rounded transition flex justify-center" title="Ver">
-              👁️
-          </button>
-          <button class="bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 py-2 rounded transition flex justify-center border border-blue-500/20" title="Descargar">
-              ⬇️
-          </button>
-           <button class="bg-red-500/10 hover:bg-red-500/20 text-red-400 py-2 rounded transition flex justify-center border border-red-500/20" title="Eliminar">
-              🗑️
-          </button>
-      </div>
-
     </div>
   </div>
+</div>
 
-  <!-- Empty State -->
-  <div *ngIf="filteredDocuments.length === 0" class="text-center py-20 bg-gray-800/30 rounded-xl border border-dashed border-gray-700">
-      <div class="text-5xl mb-4 opacity-30">📂</div>
-      <p class="text-gray-400">No hay documentos en esta categoría.</p>
+<div *ngIf="mostrarModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
+  <div class="bg-gray-800 rounded-2xl w-full max-w-md border border-gray-600 text-white p-5 space-y-3">
+    <h3 class="text-xl font-bold">{{ esEdicion ? 'Editar documento' : 'Subir documento' }}</h3>
+
+    <label class="block text-sm text-gray-300">Categoría / filtro</label>
+    <select [(ngModel)]="form.categoria" class="w-full bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-white">
+      <option *ngFor="let c of categoriasForm" [value]="c.id">{{ c.label }}</option>
+    </select>
+
+    <input [(ngModel)]="form.nombre" placeholder="Nombre" class="w-full bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-white">
+    <input [(ngModel)]="form.descripcion" placeholder="Descripción" class="w-full bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-white">
+
+    <select [(ngModel)]="form.conductorId" class="w-full bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-white">
+      <option [ngValue]="null">Sin conductor</option>
+      <option *ngFor="let c of conductores" [value]="c._id">{{ c.nombre }} {{ c.apellido }}</option>
+    </select>
+    <select [(ngModel)]="form.motoId" class="w-full bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-white">
+      <option [ngValue]="null">Sin MDD</option>
+      <option *ngFor="let m of motos" [value]="m._id">{{ m.placa }}</option>
+    </select>
+
+    <ng-container *ngIf="!esEdicion">
+      <input type="file" accept=".pdf,image/*,.jpg,.jpeg,.png,.webp,.gif,.doc,.docx" (change)="onFile($event)" class="text-sm text-white">
+      <p class="text-xs text-gray-400">Puedes subir PDF o imágenes (JPG, PNG, WEBP, etc.).</p>
+    </ng-container>
+    <p *ngIf="esEdicion" class="text-xs text-gray-400">
+      Aquí puedes corregir la categoría (ej. de Contrato a Formulario) sin volver a subir el archivo.
+    </p>
+
+    <div class="flex justify-end gap-2 pt-1">
+      <button type="button" (click)="cerrarModal()" class="px-4 py-2">Cancelar</button>
+      <button type="button" (click)="guardar()" class="px-4 py-2 bg-amber-500 text-[#14110a] font-semibold rounded-lg">
+        {{ esEdicion ? 'Guardar cambios' : 'Subir' }}
+      </button>
+    </div>
   </div>
-
 </div>

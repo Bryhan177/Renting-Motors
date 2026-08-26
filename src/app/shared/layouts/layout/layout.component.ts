@@ -18,7 +18,13 @@ export class LayoutComponent {
     constructor(private router: Router) {}
 
     showSidebar(): boolean {
-    const route = this.router.url;
+    const route = this.router.url.split('?')[0];
     return route !== '/' && route !== '/login' && route !== '/register';
+  }
+
+  /** Home, login y register sin header/sidebar/footer del panel. */
+  isPublicShell(): boolean {
+    const route = this.router.url.split('?')[0];
+    return route === '/' || route === '/login' || route === '/register';
   }
 }

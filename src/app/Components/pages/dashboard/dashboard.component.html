@@ -1,213 +1,321 @@
 <div class="min-h-screen bg-gray-900 text-white p-6 rounded-xl">
-  <!-- Header Section -->
   <div class="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
     <div>
       <h1 class="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-emerald-400">
-        Panel Administrativo
+        Panel administrativo
       </h1>
-      <p class="text-gray-400 mt-1">Visión general del rendimiento de GoRenting</p>
+      <p class="text-gray-400 mt-1">Flota, cobros, crecimiento y novedades</p>
     </div>
-    <div class="flex items-center gap-3 bg-gray-800 p-2 rounded-lg border border-gray-700">
-      <span class="text-gray-400 text-sm pl-2">Semana Actual:</span>
-      <span class="bg-blue-500/20 text-blue-400 px-3 py-1 rounded font-mono font-bold">{{ semanaActual }}</span>
+    <div class="flex gap-2 flex-wrap justify-end">
+      <a routerLink="/motos" class="bg-emerald-600 hover:bg-emerald-500 text-sm font-medium py-2 px-4 rounded-lg">Motos</a>
+      <a routerLink="/pagos" class="bg-blue-600 hover:bg-blue-500 text-sm font-medium py-2 px-4 rounded-lg">Pagos</a>
+      <a routerLink="/usuarios" class="bg-gray-700 hover:bg-gray-600 text-sm font-medium py-2 px-4 rounded-lg">Usuarios</a>
     </div>
   </div>
 
-  <!-- Loading State -->
-  <div *ngIf="loading" class="flex justify-center items-center h-64">
+  <div *ngIf="loading" class="flex justify-center items-center h-48">
     <div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
   </div>
 
-  <div *ngIf="!loading">
-    <!-- Stats Grid -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-      
-      <!-- Conductores Activos -->
-      <div class="relative overflow-hidden bg-gray-800 rounded-2xl p-6 border border-gray-700 shadow-lg group hover:border-blue-500/50 transition">
-        <div class="absolute right-0 top-0 p-4 opacity-10 group-hover:opacity-20 transition">
-          <span class="text-6xl">🧑‍🔧</span>
+  <div *ngIf="!loading" class="space-y-6">
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+      <div class="bg-gray-800 rounded-xl p-5 border border-gray-700">
+        <p class="text-gray-400 text-sm mb-1">Flota</p>
+        <p class="text-3xl font-bold">{{ estadisticas?.totalMotos || motos.length }}</p>
+        <p class="text-xs text-green-400 mt-1">{{ estadisticas?.motosDisponibles || 0 }} disponibles · {{ motosEnUso }} en uso</p>
+      </div>
+      <div class="bg-gray-800 rounded-xl p-5 border border-red-500/30">
+        <p class="text-gray-400 text-sm mb-1">En mora</p>
+        <p class="text-3xl font-bold text-red-400">{{ cobrosEnMora.length }}</p>
+        <p class="text-xs text-red-300/80 mt-1">$ {{ totalMora | number:'1.0-0' }} pendiente</p>
+      </div>
+      <div class="bg-gray-800 rounded-xl p-5 border border-gray-700">
+        <p class="text-gray-400 text-sm mb-1">Abonos por confirmar</p>
+        <p class="text-3xl font-bold text-amber-400">{{ abonosPendientes.length }}</p>
+        <a routerLink="/pagos" class="text-xs text-blue-400 mt-1 inline-block">Ir a pagos</a>
+      </div>
+      <div class="bg-gray-800 rounded-xl p-5 border border-gray-700">
+        <p class="text-gray-400 text-sm mb-1">Saldo pendiente</p>
+        <p class="text-3xl font-bold text-yellow-400">$ {{ totalPendiente | number }}</p>
+        <p class="text-xs text-gray-400 mt-1">{{ cobrosPendientes.length }} cobros con saldo</p>
+      </div>
+      <div class="bg-gray-800 rounded-xl p-5 border border-gray-700">
+        <p class="text-gray-400 text-sm mb-1">Novedades abiertas</p>
+        <p class="text-3xl font-bold text-orange-400">{{ novedadesAbiertas.length }}</p>
+        <p class="text-xs text-gray-400 mt-1">Reportes del conductor</p>
+      </div>
+    </div>
+
+    <!-- Crecimiento -->
+    <div class="bg-gray-800 rounded-xl border border-emerald-500/20 overflow-hidden">
+      <div class="p-5 border-b border-gray-700 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div>
+          <h3 class="font-bold text-emerald-300">Crecimiento de ingresos</h3>
+          <p class="text-xs text-gray-400 mt-0.5">
+            Abonos confirmados por mes (estado registrado)
+          </p>
         </div>
-        <div class="flex items-center gap-4 mb-4">
-          <div class="p-3 bg-blue-500/10 rounded-xl text-blue-400">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-            </svg>
-          </div>
-          <h3 class="text-gray-400 font-medium">Conductores</h3>
-        </div>
-        <div class="flex items-end gap-2">
-          <span class="text-3xl font-bold text-white">{{ empleadosActivos }}</span>
-          <span class="text-sm text-green-400 mb-1 flex items-center">
-            <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18"></path></svg>
-            {{ getEficienciaPorcentaje() }}% eficientes
-          </span>
+        <div class="flex items-center gap-1 self-start sm:self-auto bg-gray-900/60 rounded-lg p-1 border border-gray-700">
+          <button
+            type="button"
+            (click)="setMesesCrecimiento(6)"
+            [class]="
+              'text-xs px-3 py-1.5 rounded-md transition ' +
+              (mesesCrecimiento === 6
+                ? 'bg-emerald-600 text-white'
+                : 'text-gray-400 hover:text-white')
+            "
+          >
+            6 meses
+          </button>
+          <button
+            type="button"
+            (click)="setMesesCrecimiento(12)"
+            [class]="
+              'text-xs px-3 py-1.5 rounded-md transition ' +
+              (mesesCrecimiento === 12
+                ? 'bg-emerald-600 text-white'
+                : 'text-gray-400 hover:text-white')
+            "
+          >
+            12 meses
+          </button>
         </div>
       </div>
 
-      <!-- Motos Totales -->
-      <div class="relative overflow-hidden bg-gray-800 rounded-2xl p-6 border border-gray-700 shadow-lg group hover:border-green-500/50 transition">
-        <div class="absolute right-0 top-0 p-4 opacity-10 group-hover:opacity-20 transition">
-          <span class="text-6xl">🛵</span>
-        </div>
-        <div class="flex items-center gap-4 mb-4">
-          <div class="p-3 bg-green-500/10 rounded-xl text-green-400">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
+      <div class="p-5 space-y-5">
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div class="rounded-lg bg-black/30 border border-gray-700 p-3">
+            <p class="text-xs text-gray-400">Total del periodo</p>
+            <p class="text-xl font-bold mt-1 text-emerald-300">
+              $ {{ totalIngresosPeriodo | number:'1.0-0' }}
+            </p>
           </div>
-          <h3 class="text-gray-400 font-medium">Flota Total</h3>
+          <div class="rounded-lg bg-black/30 border border-gray-700 p-3">
+            <p class="text-xs text-gray-400">Mes actual</p>
+            <p class="text-xl font-bold mt-1">
+              $ {{ (mesActual?.monto || 0) | number:'1.0-0' }}
+            </p>
+            <p
+              *ngIf="variacionMensualPct !== null"
+              class="text-xs mt-1 font-medium"
+              [class.text-emerald-400]="variacionMensualPct >= 0"
+              [class.text-red-400]="variacionMensualPct < 0"
+            >
+              {{ variacionMensualPct >= 0 ? '+' : '' }}{{ variacionMensualPct }}% vs mes anterior
+            </p>
+          </div>
+          <div class="rounded-lg bg-black/30 border border-gray-700 p-3">
+            <p class="text-xs text-gray-400">Mejor mes</p>
+            <p class="text-xl font-bold mt-1">
+              $ {{ (mejorMes?.monto || 0) | number:'1.0-0' }}
+            </p>
+            <p class="text-xs text-gray-400 mt-1 capitalize" *ngIf="mejorMes">{{ mejorMes.label }}</p>
+          </div>
         </div>
-        <div class="flex items-end gap-2">
-          <span class="text-3xl font-bold text-white">{{ estadisticas?.totalMotos || 0 }}</span>
-          <span class="text-sm text-green-400 mb-1">{{ estadisticas?.motosDisponibles || 0 }} libres</span>
-        </div>
-      </div>
 
-      <!-- Recaudado -->
-      <div class="relative overflow-hidden bg-gray-800 rounded-2xl p-6 border border-gray-700 shadow-lg group hover:border-yellow-500/50 transition">
-        <div class="absolute right-0 top-0 p-4 opacity-10 group-hover:opacity-20 transition">
-          <span class="text-6xl">💰</span>
+        <div *ngIf="cargandoCrecimiento" class="h-52 flex items-center justify-center text-gray-500 text-sm">
+          Cargando métricas...
         </div>
-        <div class="flex items-center gap-4 mb-4">
-          <div class="p-3 bg-yellow-500/10 rounded-xl text-yellow-400">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-          </div>
-          <h3 class="text-gray-400 font-medium">Recaudo Semanal</h3>
-        </div>
-        <div class="flex items-end gap-2">
-          <span class="text-3xl font-bold text-white">${{ totalRecaudado | number }}</span>
-        </div>
-      </div>
 
-      <!-- Alerta Pagos -->
-      <div class="relative overflow-hidden bg-gray-800 rounded-2xl p-6 border border-gray-700 shadow-lg group hover:border-red-500/50 transition">
-        <div class="absolute right-0 top-0 p-4 opacity-10 group-hover:opacity-20 transition">
-          <span class="text-6xl">🚨</span>
+        <div
+          *ngIf="!cargandoCrecimiento && totalIngresosPeriodo === 0"
+          class="h-40 flex items-center justify-center text-gray-500 text-sm text-center px-4"
+        >
+          Aún no hay abonos confirmados en este periodo.
         </div>
-        <div class="flex items-center gap-4 mb-4">
-          <div class="p-3 bg-red-500/10 rounded-xl text-red-400">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-            </svg>
+
+        <div
+          *ngIf="!cargandoCrecimiento && totalIngresosPeriodo > 0"
+          class="crecimiento-chart overflow-x-auto -mx-1 px-1"
+        >
+          <div
+            class="flex items-end gap-1.5 sm:gap-2.5 min-h-[13rem] pb-1"
+            [style.minWidth.px]="ingresosMensuales.length * 52"
+          >
+            <div
+              *ngFor="let m of ingresosMensuales"
+              class="flex-1 min-w-[2.5rem] flex flex-col items-center justify-end gap-1.5 h-52 group"
+              [title]="m.label + ': $ ' + (m.monto | number:'1.0-0') + ' · ' + m.cantidadAbonos + ' abonos'"
+            >
+              <span
+                class="text-[10px] sm:text-xs text-gray-300 font-medium tabular-nums text-center leading-tight min-h-[1.1rem]"
+              >
+                {{ m.monto > 0 ? ('$' + (m.monto | number:'1.0-0')) : '' }}
+              </span>
+              <div class="w-full flex items-end justify-center h-40">
+                <div
+                  class="w-[70%] max-w-[2.75rem] rounded-t-md bg-gradient-to-t from-emerald-700 to-emerald-400 shadow-lg shadow-emerald-900/30 transition-all duration-500"
+                  [style.height.%]="alturaBarra(m.monto)"
+                  [class.opacity-40]="m.monto === 0"
+                ></div>
+              </div>
+              <span class="text-[10px] sm:text-xs text-gray-400 capitalize truncate w-full text-center">
+                {{ m.label }}
+              </span>
+            </div>
           </div>
-          <h3 class="text-gray-400 font-medium">Pagos Pendientes</h3>
-        </div>
-        <div class="flex items-end gap-2">
-          <span class="text-3xl font-bold text-white">{{ empleadosPendientes.length || 0 }}</span>
-          <span class="text-sm text-red-400 mb-1">{{ getPendientesPorcentaje() }}% del total</span>
         </div>
       </div>
     </div>
 
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-      
-      <!-- Tabla Pagos Pendientes -->
-      <div class="lg:col-span-2 bg-gray-800 rounded-xl border border-gray-700 overflow-hidden shadow-lg">
-        <div class="p-6 border-b border-gray-700 flex justify-between items-center">
-          <h3 class="text-lg font-bold text-white flex items-center gap-2">
-            <span class="w-2 h-8 bg-red-500 rounded-full"></span>
-            Conductores con Pagos Pendientes
-          </h3>
-          <button class="text-sm text-blue-400 hover:text-blue-300 transition">Ver todos</button>
+    <!-- Alertas vencimiento -->
+    <div class="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden">
+      <div class="p-5 border-b border-gray-700 flex justify-between items-center">
+        <div>
+          <h3 class="font-bold">Alertas de vencimiento</h3>
+          <p class="text-xs text-gray-400 mt-0.5">SOAT / tecnomecánica (≤15 días) y cuotas (≤7 días)</p>
         </div>
-        
-        <div class="overflow-x-auto">
-          <table *ngIf="empleadosPendientes.length > 0; else emptyState" class="w-full text-left">
-            <thead class="bg-gray-900/50 text-gray-400 text-sm uppercase">
-              <tr>
-                <th class="px-6 py-4">Conductor</th>
-                <th class="px-6 py-4">Contacto</th>
-                <th class="px-6 py-4 text-center">Estado</th>
-                <th class="px-6 py-4 text-right">Acción</th>
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-gray-700">
-              <tr *ngFor="let conductor of empleadosPendientes" class="hover:bg-gray-700/30 transition">
-                <td class="px-6 py-4">
-                  <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-full bg-gradient-to-tr from-blue-500 to-purple-500 flex items-center justify-center font-bold text-white">
-                      {{ conductor.nombre.charAt(0) }}
-                    </div>
-                    <div>
-                      <p class="font-medium text-white">{{ conductor.nombre }} {{ conductor.apellido }}</p>
-                      <p class="text-xs text-gray-400">CC: {{ conductor.cedula }}</p>
-                    </div>
-                  </div>
-                </td>
-                <td class="px-6 py-4">
-                  <p class="text-gray-300 text-sm">{{ conductor.telefono }}</p>
-                  <p class="text-gray-500 text-xs">{{ conductor.email }}</p>
-                </td>
-                <td class="px-6 py-4 text-center">
-                  <span class="px-3 py-1 rounded-full text-xs font-medium bg-red-500/10 text-red-500 border border-red-500/20">
-                    Pendiente
-                  </span>
-                </td>
-                <td class="px-6 py-4 text-right">
-                  <button class="text-blue-400 hover:bg-blue-500/10 p-2 rounded-lg transition">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                    </svg>
-                  </button>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-          
-          <ng-template #emptyState>
-             <div class="p-10 text-center text-gray-500">
-               <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto mb-4 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-               </svg>
-               <p class="text-lg text-white font-medium">¡Todo está en orden!</p>
-               <p>No hay pagos pendientes esta semana.</p>
-             </div>
-          </ng-template>
+        <span class="text-xs px-2 py-1 rounded-full" [class]="alertas.length ? 'bg-red-500/20 text-red-300' : 'bg-emerald-500/20 text-emerald-300'">
+          {{ alertas.length || '0' }} alertas
+        </span>
+      </div>
+      <div *ngIf="alertas.length === 0" class="p-8 text-center text-gray-500 text-sm">
+        Sin vencimientos próximos. Buen estado documental.
+      </div>
+      <div class="divide-y divide-gray-700 max-h-72 overflow-y-auto">
+        <div *ngFor="let a of alertas" class="px-5 py-3 flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <p class="font-medium">
+              <span class="text-gray-400 text-xs uppercase tracking-wide mr-2">{{ a.tipo }}</span>
+              {{ a.moto.placa || '—' }}
+              <span class="text-gray-400 font-normal" *ngIf="a.moto.marca">· {{ a.moto.marca }} {{ a.moto.modelo }}</span>
+            </p>
+            <p class="text-xs text-gray-400 mt-1" *ngIf="a.detalle">{{ a.detalle }}</p>
+          </div>
+          <p class="text-sm font-medium" [ngClass]="claseAlerta(a.dias)">{{ etiquetaAlerta(a) }}</p>
         </div>
       </div>
+    </div>
 
-      <!-- Estado Motos -->
-      <div class="bg-gray-800 rounded-xl border border-gray-700 shadow-lg p-6">
-        <div class="flex justify-between items-center mb-6">
-          <h3 class="text-lg font-bold text-white flex items-center gap-2">
-            <span class="w-2 h-8 bg-blue-500 rounded-full"></span>
-            Estado de Flota
-          </h3>
-          <!-- <button class="text-sm text-gray-400 hover:text-white transition">Filtrar</button> -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <!-- Abonos rápidos -->
+      <div class="bg-gray-800 rounded-xl border border-amber-500/20 overflow-hidden">
+        <div class="p-5 border-b border-gray-700 flex justify-between items-center">
+          <h3 class="font-bold text-amber-300">Confirmar abonos</h3>
+          <a routerLink="/pagos" class="text-sm text-blue-400 hover:text-blue-300">Ver todos</a>
         </div>
-
-        <div class="space-y-4">
-          <div *ngFor="let moto of motos.slice(0, 5)" class="p-4 rounded-xl bg-gray-900/50 border border-gray-700 hover:border-gray-600 transition group">
-            <div class="flex justify-between items-start mb-2">
+        <div *ngIf="abonosPendientes.length === 0" class="p-8 text-center text-gray-500 text-sm">
+          Sin comprobantes pendientes
+        </div>
+        <div class="divide-y divide-gray-700 max-h-80 overflow-y-auto">
+          <div *ngFor="let a of abonosPendientes.slice(0, 6)" class="px-5 py-3">
+            <div class="flex justify-between gap-3">
               <div>
-                <h4 class="font-bold text-white">{{ moto.marca }} {{ moto.modelo }}</h4>
-                <p class="text-xs text-blue-400 font-mono">{{ moto.placa }}</p>
+                <p class="font-medium">{{ abonoConductor(a) }}</p>
+                <p class="text-xs text-gray-400">$ {{ a.monto | number }} · {{ a.metodoPago }}</p>
               </div>
-              <span [class]="'px-2 py-1 rounded text-xs font-semibold ' + getEstadoClass(moto.estado)">
-                {{ getEstadoText(moto.estado) }}
-              </span>
-            </div>
-            
-            <div class="flex items-center justify-between mt-3 text-sm">
-              <div class="flex items-center gap-2 text-gray-400">
-                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                 </svg>
-                 <span *ngIf="moto.conductor; else sinConductor">{{ moto.conductor.nombre }}</span>
-                 <ng-template #sinConductor><span>Sin Asignar</span></ng-template>
+              <div class="flex gap-2 shrink-0">
+                <button type="button" (click)="confirmarAbono(a)" class="text-xs px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500">OK</button>
+                <button type="button" (click)="rechazarAbono(a)" class="text-xs px-2.5 py-1 rounded-lg bg-red-600/80 hover:bg-red-500">X</button>
               </div>
-              <span class="text-green-500 font-medium">${{ moto.precio | number }} /día</span>
             </div>
           </div>
         </div>
-        
-        <button class="w-full mt-6 py-2 rounded-lg border border-gray-700 text-gray-400 hover:bg-gray-700 hover:text-white transition text-sm font-medium">
-          Ver todas las motos
-        </button>
       </div>
 
+      <!-- Novedades -->
+      <div class="bg-gray-800 rounded-xl border border-orange-500/20 overflow-hidden">
+        <div class="p-5 border-b border-gray-700">
+          <h3 class="font-bold text-orange-300">Novedades del conductor</h3>
+          <p class="text-xs text-gray-400 mt-0.5">Pinchazos, choques, fallas y otros reportes</p>
+        </div>
+        <div *ngIf="novedadesAbiertas.length === 0" class="p-8 text-center text-gray-500 text-sm">
+          No hay novedades abiertas
+        </div>
+        <div class="divide-y divide-gray-700 max-h-80 overflow-y-auto">
+          <div *ngFor="let n of novedadesAbiertas.slice(0, 8)" class="px-5 py-3 space-y-2">
+            <div class="flex justify-between gap-2">
+              <div>
+                <p class="font-medium">{{ n.titulo }}</p>
+                <p class="text-xs text-gray-400">
+                  {{ n.conductor ? (n.conductor.nombre + ' ' + n.conductor.apellido) : 'Conductor' }}
+                  · {{ n.tipo }}
+                  <span *ngIf="n.moto">· {{ n.moto.placa }}</span>
+                </p>
+              </div>
+              <span class="text-xs px-2 py-0.5 rounded-full h-fit bg-orange-500/15 text-orange-300 capitalize">{{ n.estado.replace('_', ' ') }}</span>
+            </div>
+            <p class="text-xs text-gray-300 line-clamp-2">{{ n.descripcion }}</p>
+            <div class="flex gap-2">
+              <button
+                *ngIf="n.estado === 'abierta'"
+                type="button"
+                (click)="atenderNovedad(n, 'en_proceso')"
+                class="text-xs px-2.5 py-1 rounded-lg border border-gray-600 hover:bg-gray-700"
+              >
+                Tomar
+              </button>
+              <button
+                type="button"
+                (click)="atenderNovedad(n, 'resuelta')"
+                class="text-xs px-2.5 py-1 rounded-lg bg-emerald-600/80 hover:bg-emerald-500"
+              >
+                Resolver
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div class="lg:col-span-2 bg-gray-800 rounded-xl border border-gray-700 overflow-hidden">
+        <div class="p-5 border-b border-gray-700 flex justify-between items-center gap-2">
+          <div>
+            <h3 class="font-bold">Cobros pendientes / mora</h3>
+            <p class="text-xs text-gray-400 mt-0.5" *ngIf="cobrosEnMora.length">
+              {{ cobrosEnMora.length }} en mora · se muestran primero
+            </p>
+          </div>
+          <a routerLink="/pagos" class="text-sm text-blue-400 hover:text-blue-300 shrink-0">Ir a pagos</a>
+        </div>
+        <div *ngIf="cobrosPendientes.length === 0" class="p-8 text-center text-gray-500 text-sm">
+          Sin cobros pendientes.
+        </div>
+        <div class="divide-y divide-gray-700 max-h-96 overflow-y-auto">
+          <div
+            *ngFor="let c of cobrosPendientes.slice(0, 12)"
+            class="px-5 py-3 flex justify-between gap-3"
+            [class.cobro-en-mora]="c.enMora"
+          >
+            <div class="min-w-0">
+              <p class="font-medium">{{ conductorNombre(c) }}</p>
+              <p class="text-xs text-gray-400">
+                Período {{ c.numeroPeriodo }} · vence {{ formatearFechaCorta(c.fechaVencimiento) }}
+              </p>
+            </div>
+            <div class="text-right shrink-0">
+              <p class="font-bold" [class.text-red-400]="c.enMora" [class.text-yellow-400]="!c.enMora">
+                $ {{ c.saldo | number }}
+              </p>
+              <p class="text-xs font-medium" [class.text-red-400]="c.enMora" [class.text-gray-400]="!c.enMora">
+                {{ c.enMora ? 'En mora' : c.estado }}
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden">
+        <div class="p-5 border-b border-gray-700 flex justify-between items-center">
+          <h3 class="font-bold">Flota</h3>
+          <span class="text-xs text-gray-400">{{ getMotosDisponiblesPorcentaje() }}% libres</span>
+        </div>
+        <div *ngIf="motos.length === 0" class="p-8 text-center text-gray-500 text-sm">Sin motos aún</div>
+        <div class="divide-y divide-gray-700 max-h-96 overflow-y-auto">
+          <div *ngFor="let m of motos.slice(0, 10)" class="px-5 py-3 flex items-center gap-3">
+            <div class="w-12 h-12 rounded-lg bg-gray-900 overflow-hidden flex-shrink-0">
+              <img *ngIf="m.imagen" [src]="m.imagen" class="w-full h-full object-cover" alt="">
+            </div>
+            <div class="flex-1 min-w-0">
+              <p class="font-medium truncate">{{ m.marca }} {{ m.modelo }}</p>
+              <p class="text-xs text-gray-400">{{ m.placa }}</p>
+            </div>
+            <span class="text-xs px-2 py-1 rounded-full" [ngClass]="getEstadoClass(m.estado)">{{ getEstadoText(m.estado) }}</span>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </div>

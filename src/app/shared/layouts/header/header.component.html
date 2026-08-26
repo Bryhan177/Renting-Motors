@@ -1,40 +1,6 @@
-<nav class="bg-secondary text-white px-1 py-3 flex justify-between items-center shadow-md">
-  <!-- Logo -->
-  <div class="flex items-center text-xl font-bold text-primary h-10">
-    <img src="assets/images/log_trasnparente.png" alt="Logo" class="w-40  object-contain" />
-    <h1 class="text-2xl font-bold md:text-3xl text-black ml-2 overflow-hidden">GoRenting</h1>
-    <!-- Puedes agregar aquí un slogan o animación creativa si lo deseas -->
+<header class="admin-header">
+  <div class="admin-header-brand">
+    <img src="assets/images/icon.png" alt="GoRenting" class="admin-header-logo" />
+    <h1 class="admin-header-title">GoRenting</h1>
   </div>
-
-
-
-  <!-- Menú de navegación (solo si autenticado) -->
-  <!-- <ng-container *ngIf="showMenu()">
-    <ul class="flex gap-6 text-base font-semibold">
-      <li><a routerLink="/dashboard" routerLinkActive="underline text-white">Dashboard</a></li>
-      <li><a routerLink="/motos" routerLinkActive="underline text-white">Inventario</a></li>
-      <li><a routerLink="/empleados" routerLinkActive="underline text-white">Usuarios</a></li>
-      <li><a routerLink="/pagos" routerLinkActive="underline text-white">Pagos</a></li>
-      <li><a routerLink="/historial" routerLinkActive="underline text-white">Historial</a></li>
-      <li><a routerLink="/documentacion" routerLinkActive="underline text-white">Documentación</a></li>
-    </ul>
-  </ng-container> -->
-  <!-- SIEMPRE mostrar el botón en Home -->
-  <div class="relative flex gap-4 text-sm text-primary font-semibold" *ngIf="router.url === '/'">
-  <button (click)="toggleMenu()" class="hover:text-white cursor-pointer">
-    <img src="assets/images/user.png" alt="" class="w-16 h-16 inline-block mr-1 animate-pulse">
-  </button>
-
-  <div *ngIf="menuAbierto" class="absolute top-full mt-2 right-0 bg-white border border-gray-300 rounded-lg shadow-lg w-40 z-50">
-    <ul class="text-left">
-      <li class="px-4 py-2 hover:bg-gray-100 cursor-pointer" (click)="seleccionarOpcion('login')">Iniciar Sesión</li>
-      <li class="px-4 py-2 hover:bg-gray-100 cursor-pointer" (click)="seleccionarOpcion('register')">Registrar</li>
-    </ul>
-  </div>
-</div>
-
-  <!-- Mostrar el botón solo si no está autenticado y no está en Home -->
-  <div class="flex gap-4 text-sm text-primary font-semibold" *ngIf="!showMenu() && router.url !== '/'">
-    <button class="hover:text-white cursor-pointer" (click)="goHome()">Volver al inicio</button>
-  </div>
-</nav>
+</header>
