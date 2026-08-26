@@ -9,6 +9,7 @@ Ejecuta en Supabase SQL Editor, en este orden si aún no lo hiciste:
 5. **`20260822_novedades.sql`** ← reportes de novedad del conductor
 6. **`20260822_motos_delete_cascade.sql`** ← permite eliminar MDD con historial (sin contrato activo)
 7. **`20260826_cobros_finanzas_derivadas.sql`** ← mora, saldo y pagado se calculan en Postgres (Angular solo lee)
+8. **`20260827_contratos_unicidad_activa.sql`** ← un conductor / una moto no pueden tener dos contratos activos (índice único parcial); duración mínima 3 meses; al activar se asigna la moto
 
 Luego cierra sesión y vuelve a entrar.
 
