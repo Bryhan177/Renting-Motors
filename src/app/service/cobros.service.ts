@@ -349,6 +349,8 @@ export class CobrosService {
         if (abono.estado !== 'pendiente_confirmacion') {
           return throwError(() => ({ error: { message: 'El abono no está pendiente' } }));
         }
+        // estado=registrado dispara abonos_sync_pago_caja (pago + ingreso caja).
+        // No se inserta pagos/caja aquí: Postgres es la fuente de verdad.
         return from(
           sb
             .from('abonos')

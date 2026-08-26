@@ -13,6 +13,7 @@ Ejecuta en Supabase SQL Editor, en este orden si aún no lo hiciste:
 9. **`20260828_planes_catalogo.sql`** ← catálogo `planes` + snapshot en contrato (`plan_id`, `plan_nombre`, `cuota_inicial`, `duracion_meses`); quita el DEFAULT 180000 de `cuota_semanal`. **No reescribe montos de contratos/cobros existentes. No toca mora.**
 10. **`20260829_talleres_confianza.sql`** ← catálogo `talleres_confianza` (staff CRUD; conductor autenticado solo ve `activo = true`). **No siembra filas.** No toca planes, contratos, cobros, mora ni dashboard.
 11. **`20260830_dashboard_staff.sql`** ← RPC `resumen_dashboard(semana|mes|anio)` para el panel staff. Agrega en Postgres (ingresos, contratos, flota, cartera, mora, planes). **No toca** talleres, planes, wizard, mora SQL, ni `cuota_semanal`.
+12. **`20260831_abono_registrado_pagos_caja.sql`** ← al confirmar un abono (`estado = registrado`) crea fila en `pagos` + ingreso en `movimientos_caja` (banco MDD). No borra filas (anulado). Backfill de abonos ya aprobados. RLS de caja/pagos: escribe solo staff.
 
 Luego cierra sesión y vuelve a entrar.
 
@@ -125,6 +126,39 @@ Definiciones:
 - **Planes** = snapshot `contratos.plan_nombre`; NULL o vacío → **Sin plan**.
 
 No toca talleres, catálogo de planes, wizard de contrato, SQL de mora, generación de cobros ni `cuota_semanal` histórica.
+
+## Abono aprobado → Pagos y Flujo de caja (20260831)
+
+El conductor reporta un abono (`pendiente_confirmacion`). Staff **Confirmar** en Pagos o Dashboard solo ponía `abonos.estado = 'registrado'`. Eso actualiza el cobro (trigger de saldo) y cuenta en ingresos del dashboard, pero **Pagos** lee `pagos` y **Flujo de caja** lee `movimientos_caja` — esas tablas no se escribían.
+
+1. Supabase → **SQL Editor** → pega `supabase/migrations/20260831_abono_registrado_pagos_caja.sql` → **Run**.
+2. Verifica:
+   ```sql
+   select column_name from information_schema.columns
+   where table_schema = 'public' and table_name = 'pagos' and column_name in ('abono_id', 'estado');
+   select column_name from information_schema.columns
+   where table_schema = 'public' and table_name = 'movimientos_caja' and column_name in ('abono_id', 'estado');
+
+   -- Backfill: abonos ya registrados deben tener pago + caja
+   select a.id, a.monto, a.estado, p.id as pago_id, mc.id as caja_id
+   from public.abonos a
+   left join public.pagos p on p.abono_id = a.id
+   left join public.movimientos_caja mc on mc.abono_id = a.id
+   where a.estado = 'registrado';
+   ```
+3. Retest: conductor envía un abono → staff Confirmar.
+   ```sql
+   -- El abono confirmado
+   select id, monto, estado from public.abonos where id = '<abono_id>';
+   -- Debe existir el pago (lo lista /pagos)
+   select id, monto, valor_pagado, estado, abono_id from public.pagos where abono_id = '<abono_id>';
+   -- Debe existir el ingreso MDD (lo lista /flujo-caja)
+   select id, banco, tipo, monto, estado, abono_id from public.movimientos_caja where abono_id = '<abono_id>';
+   -- Cobro: monto_pagado/saldo vía trigger de 20260826 (no se reescribe cuota)
+   select id, monto_esperado, monto_pagado, saldo, estado from public.cobros where id = '<cobro_id>';
+   ```
+4. App: `/pagos` muestra la fila. `/flujo-caja` muestra ingreso MDD. Dashboard → ingresos del periodo sube (abonos registrados).
+5. Rechazar un pendiente **no** crea pago/caja. Anular un abono ya registrado marca `pagos` y `movimientos_caja` como `anulado` (no DELETE).
 
 ## Si en producción no ves usuarios / pagos / caja / documentos
 
