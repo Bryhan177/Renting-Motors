@@ -12,6 +12,7 @@ Ejecuta en Supabase SQL Editor, en este orden si aún no lo hiciste:
 8. **`20260827_contratos_unicidad_activa.sql`** ← un conductor / una moto no pueden tener dos contratos activos (índice único parcial); duración mínima 3 meses; al activar se asigna la moto
 9. **`20260828_planes_catalogo.sql`** ← catálogo `planes` + snapshot en contrato (`plan_id`, `plan_nombre`, `cuota_inicial`, `duracion_meses`); quita el DEFAULT 180000 de `cuota_semanal`. **No reescribe montos de contratos/cobros existentes. No toca mora.**
 10. **`20260829_talleres_confianza.sql`** ← catálogo `talleres_confianza` (staff CRUD; conductor autenticado solo ve `activo = true`). **No siembra filas.** No toca planes, contratos, cobros, mora ni dashboard.
+11. **`20260830_dashboard_staff.sql`** ← RPC `resumen_dashboard(semana|mes|anio)` para el panel staff. Agrega en Postgres (ingresos, contratos, flota, cartera, mora, planes). **No toca** talleres, planes, wizard, mora SQL, ni `cuota_semanal`.
 
 Luego cierra sesión y vuelve a entrar.
 
@@ -76,6 +77,54 @@ El plan **sugiere**. No hay tarifa global $160.000 / $180.000 para contratos.
 --     true
 --   );
 ```
+
+## Dashboard staff (20260830) — cómo aplicar y probar
+
+1. Abre Supabase → **SQL Editor** → New query.
+2. Pega el contenido de `supabase/migrations/20260830_dashboard_staff.sql` → **Run**.
+3. Verifica el rango (America/Bogota; default mes calendario; semana ISO lun–dom):
+   ```sql
+   select * from public.rango_periodo_dashboard('mes');
+   select public.resumen_dashboard('mes');
+   -- ingresos_periodo, contratos_activos, contratos_nuevos, conductores_activos,
+   -- motos_alquiladas (estado=en_uso), motos_disponibles, cartera, mora_cantidad,
+   -- mora_monto, crecimiento (ingresos_mes_actual vs ingresos_mes_anterior), planes[]
+   -- Vacío debe ser 0 / [] — nunca cifras de ejemplo.
+   ```
+4. Cruza una tarjeta con una fila conocida:
+   ```sql
+   -- Ingresos del mes = abonos registrados (no anulado, no pendiente_confirmacion)
+   select coalesce(sum(monto), 0)
+   from public.abonos
+   where estado = 'registrado'
+     and (timezone('America/Bogota', fecha_pago))::date
+         between (select desde from public.rango_periodo_dashboard('mes'))
+             and (select hasta from public.rango_periodo_dashboard('mes'));
+
+   -- Contratos nuevos: fecha_inicio (inicio comercial), no created_at
+   select id, fecha_inicio, created_at, estado, plan_nombre
+   from public.contratos
+   where estado is distinct from 'anulado'
+     and fecha_inicio between (select desde from public.rango_periodo_dashboard('mes'))
+                         and (select hasta from public.rango_periodo_dashboard('mes'));
+
+   -- Cartera y mora (mora usa cobro_en_mora, no se recalcula en Angular)
+   select
+     coalesce(sum(saldo) filter (where estado is distinct from 'anulado'), 0) as cartera,
+     count(*) filter (where public.cobro_en_mora(estado, saldo, fecha_vencimiento)) as mora_n,
+     coalesce(sum(saldo) filter (where public.cobro_en_mora(estado, saldo, fecha_vencimiento)), 0) as mora_monto
+   from public.cobros;
+   ```
+5. En la app: entra como **administrador/asesor** → `/dashboard`. Cambia Semana / Mes / Año. Los números deben coincidir con las consultas de arriba.
+6. Entra como **empleado** → `/empleados`. No debe ver el dashboard staff. El RPC responde `42501` si un conductor lo llama.
+
+Definiciones:
+- **Ingresos** = `sum(abonos.monto)` con `estado = 'registrado'` (excluye `anulado` y `pendiente_confirmacion`). Fecha = `fecha_pago` en `America/Bogota`.
+- **Contratos nuevos** = `fecha_inicio` en el periodo y `estado <> anulado`. Se eligió `fecha_inicio` porque es el inicio comercial del arriendo; `created_at` es el alta del borrador.
+- **Motos alquiladas / disponibles** = `motos.estado` `en_uso` / `disponible` (no se inventan estados).
+- **Planes** = snapshot `contratos.plan_nombre`; NULL o vacío → **Sin plan**.
+
+No toca talleres, catálogo de planes, wizard de contrato, SQL de mora, generación de cobros ni `cuota_semanal` histórica.
 
 ## Si en producción no ves usuarios / pagos / caja / documentos
 

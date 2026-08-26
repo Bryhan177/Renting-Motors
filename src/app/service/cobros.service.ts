@@ -116,7 +116,7 @@ export class CobrosService {
     };
   }
 
-  getCobros(params?: { enMora?: string; conductorId?: string }): Observable<Cobro[]> {
+  getCobros(params?: { enMora?: string; conductorId?: string; soloConSaldo?: boolean }): Observable<Cobro[]> {
     let q = getSupabase()
       .from('cobros')
       .select(COBRO_SELECT)
@@ -124,6 +124,7 @@ export class CobrosService {
       .order('periodo_inicio', { ascending: false });
     if (params?.conductorId) q = q.eq('conductor_id', params.conductorId);
     if (params?.enMora === 'true') q = q.eq('en_mora', true);
+    if (params?.soloConSaldo) q = q.gt('saldo', 0);
     return from(q).pipe(
       map(({ data, error }) => {
         if (error) throw error;

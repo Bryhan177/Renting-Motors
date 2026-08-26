@@ -4,13 +4,52 @@
       <h1 class="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-emerald-400">
         Panel administrativo
       </h1>
-      <p class="text-gray-400 mt-1">Flota, cobros, crecimiento y novedades</p>
+      <p class="text-gray-400 mt-1">Flota, cobros, crecimiento y novedades · {{ etiquetaRango }}</p>
     </div>
-    <div class="flex gap-2 flex-wrap justify-end">
+    <div class="flex gap-2 flex-wrap justify-end items-center">
+      <div class="flex items-center gap-1 bg-gray-800 rounded-lg p-1 border border-gray-700">
+        <button
+          type="button"
+          (click)="setPeriodo('semana')"
+          [class]="
+            'text-xs px-3 py-1.5 rounded-md transition ' +
+            (periodo === 'semana' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white')
+          "
+        >
+          Semana
+        </button>
+        <button
+          type="button"
+          (click)="setPeriodo('mes')"
+          [class]="
+            'text-xs px-3 py-1.5 rounded-md transition ' +
+            (periodo === 'mes' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white')
+          "
+        >
+          Mes
+        </button>
+        <button
+          type="button"
+          (click)="setPeriodo('anio')"
+          [class]="
+            'text-xs px-3 py-1.5 rounded-md transition ' +
+            (periodo === 'anio' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white')
+          "
+        >
+          Año
+        </button>
+      </div>
       <a routerLink="/motos" class="bg-emerald-600 hover:bg-emerald-500 text-sm font-medium py-2 px-4 rounded-lg">Motos</a>
       <a routerLink="/pagos" class="bg-blue-600 hover:bg-blue-500 text-sm font-medium py-2 px-4 rounded-lg">Pagos</a>
       <a routerLink="/usuarios" class="bg-gray-700 hover:bg-gray-600 text-sm font-medium py-2 px-4 rounded-lg">Usuarios</a>
     </div>
+  </div>
+
+  <div
+    *ngIf="sqlPendiente"
+    class="mb-4 rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-200"
+  >
+    Ejecuta <code class="text-amber-100">supabase/migrations/20260830_dashboard_staff.sql</code> en el SQL Editor y recarga.
   </div>
 
   <div *ngIf="loading" class="flex justify-center items-center h-48">
@@ -18,31 +57,88 @@
   </div>
 
   <div *ngIf="!loading" class="space-y-6">
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div class="bg-gray-800 rounded-xl p-5 border border-emerald-500/30">
+        <p class="text-gray-400 text-sm mb-1">Ingresos del periodo</p>
+        <p class="text-3xl font-bold text-emerald-300">{{ cop(kpis.ingresosPeriodo) }}</p>
+        <p class="text-xs text-gray-400 mt-1">
+          {{ kpis.cantidadAbonosPeriodo }} abonos registrados · {{ etiquetaRango }}
+        </p>
+      </div>
       <div class="bg-gray-800 rounded-xl p-5 border border-gray-700">
-        <p class="text-gray-400 text-sm mb-1">Flota</p>
-        <p class="text-3xl font-bold">{{ estadisticas?.totalMotos || motos.length }}</p>
-        <p class="text-xs text-green-400 mt-1">{{ estadisticas?.motosDisponibles || 0 }} disponibles · {{ motosEnUso }} en uso</p>
+        <p class="text-gray-400 text-sm mb-1">Contratos activos</p>
+        <p class="text-3xl font-bold">{{ kpis.contratosActivos }}</p>
+        <p class="text-xs text-blue-300 mt-1">{{ kpis.contratosNuevos }} nuevos (fecha de inicio)</p>
+      </div>
+      <div class="bg-gray-800 rounded-xl p-5 border border-gray-700">
+        <p class="text-gray-400 text-sm mb-1">Conductores activos</p>
+        <p class="text-3xl font-bold">{{ kpis.conductoresActivos }}</p>
+        <p class="text-xs text-gray-400 mt-1">Con contrato activo</p>
+      </div>
+      <div class="bg-gray-800 rounded-xl p-5 border border-gray-700">
+        <p class="text-gray-400 text-sm mb-1">Motos</p>
+        <p class="text-3xl font-bold">{{ kpis.motosAlquiladas }} / {{ kpis.motosDisponibles }}</p>
+        <p class="text-xs text-green-400 mt-1">
+          Alquiladas (en uso) · disponibles
+          <span *ngIf="kpis.motosEnMantenimiento || kpis.motosFueraServicio">
+            · {{ kpis.motosEnMantenimiento }} mant. · {{ kpis.motosFueraServicio }} fuera
+          </span>
+        </p>
+      </div>
+      <div class="bg-gray-800 rounded-xl p-5 border border-gray-700">
+        <p class="text-gray-400 text-sm mb-1">Cartera</p>
+        <p class="text-3xl font-bold text-yellow-400">{{ cop(kpis.cartera) }}</p>
+        <p class="text-xs text-gray-400 mt-1">Saldo de cobros no anulados</p>
       </div>
       <div class="bg-gray-800 rounded-xl p-5 border border-red-500/30">
         <p class="text-gray-400 text-sm mb-1">En mora</p>
-        <p class="text-3xl font-bold text-red-400">{{ cobrosEnMora.length }}</p>
-        <p class="text-xs text-red-300/80 mt-1">$ {{ totalMora | number:'1.0-0' }} pendiente</p>
+        <p class="text-3xl font-bold text-red-400">{{ kpis.moraCantidad }}</p>
+        <p class="text-xs text-red-300/80 mt-1">{{ cop(kpis.moraMonto) }} · regla SQL cobro_en_mora</p>
+      </div>
+      <div class="bg-gray-800 rounded-xl p-5 border border-gray-700">
+        <p class="text-gray-400 text-sm mb-1">Crecimiento mensual</p>
+        <p
+          class="text-3xl font-bold"
+          [class.text-emerald-400]="kpis.crecimientoMensualPct >= 0"
+          [class.text-red-400]="kpis.crecimientoMensualPct < 0"
+        >
+          {{ kpis.crecimientoMensualPct >= 0 ? '+' : '' }}{{ kpis.crecimientoMensualPct }}%
+        </p>
+        <p class="text-xs text-gray-400 mt-1">
+          {{ cop(kpis.ingresosMesActual) }} vs {{ cop(kpis.ingresosMesAnterior) }} mes anterior
+        </p>
       </div>
       <div class="bg-gray-800 rounded-xl p-5 border border-gray-700">
         <p class="text-gray-400 text-sm mb-1">Abonos por confirmar</p>
         <p class="text-3xl font-bold text-amber-400">{{ abonosPendientes.length }}</p>
         <a routerLink="/pagos" class="text-xs text-blue-400 mt-1 inline-block">Ir a pagos</a>
       </div>
-      <div class="bg-gray-800 rounded-xl p-5 border border-gray-700">
-        <p class="text-gray-400 text-sm mb-1">Saldo pendiente</p>
-        <p class="text-3xl font-bold text-yellow-400">$ {{ totalPendiente | number }}</p>
-        <p class="text-xs text-gray-400 mt-1">{{ cobrosPendientes.length }} cobros con saldo</p>
+    </div>
+
+    <!-- Distribución por plan (snapshot contrato.plan_nombre) -->
+    <div class="bg-gray-800 rounded-xl border border-blue-500/20 overflow-hidden">
+      <div class="p-5 border-b border-gray-700">
+        <h3 class="font-bold text-blue-300">Distribución e ingresos por plan</h3>
+        <p class="text-xs text-gray-400 mt-0.5">
+          Contratos activos e ingresos (abonos registrados) del periodo. Usa el snapshot
+          <code class="text-gray-300">plan_nombre</code>; un cambio en el catálogo no reescribe contratos viejos.
+        </p>
       </div>
-      <div class="bg-gray-800 rounded-xl p-5 border border-gray-700">
-        <p class="text-gray-400 text-sm mb-1">Novedades abiertas</p>
-        <p class="text-3xl font-bold text-orange-400">{{ novedadesAbiertas.length }}</p>
-        <p class="text-xs text-gray-400 mt-1">Reportes del conductor</p>
+      <div *ngIf="kpis.planes.length === 0" class="p-8 text-center text-gray-500 text-sm">
+        Sin contratos ni abonos por plan. Los totales son 0.
+      </div>
+      <div *ngIf="kpis.planes.length" class="p-5 space-y-3">
+        <div *ngFor="let p of kpis.planes" class="grid grid-cols-1 sm:grid-cols-12 gap-2 sm:gap-3 items-center">
+          <p class="sm:col-span-3 font-medium truncate">{{ p.planNombre }}</p>
+          <p class="sm:col-span-2 text-xs text-gray-400">{{ p.contratosActivos }} activos</p>
+          <div class="sm:col-span-5 h-2 rounded-full bg-gray-900 overflow-hidden">
+            <div
+              class="h-full rounded-full bg-gradient-to-r from-blue-600 to-emerald-400"
+              [style.width.%]="alturaBarraPlan(p.ingresos)"
+            ></div>
+          </div>
+          <p class="sm:col-span-2 text-sm font-medium text-emerald-300 text-right">{{ cop(p.ingresos) }}</p>
+        </div>
       </div>
     </div>
 
@@ -52,7 +148,7 @@
         <div>
           <h3 class="font-bold text-emerald-300">Crecimiento de ingresos</h3>
           <p class="text-xs text-gray-400 mt-0.5">
-            Abonos confirmados por mes (estado registrado)
+            Abonos registrados por mes (America/Bogota), agregados en Postgres
           </p>
         </div>
         <div class="flex items-center gap-1 self-start sm:self-auto bg-gray-900/60 rounded-lg p-1 border border-gray-700">
@@ -86,47 +182,42 @@
       <div class="p-5 space-y-5">
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div class="rounded-lg bg-black/30 border border-gray-700 p-3">
-            <p class="text-xs text-gray-400">Total del periodo</p>
+            <p class="text-xs text-gray-400">Total {{ mesesCrecimiento }} meses</p>
             <p class="text-xl font-bold mt-1 text-emerald-300">
-              $ {{ totalIngresosPeriodo | number:'1.0-0' }}
+              {{ cop(totalIngresosPeriodoChart) }}
             </p>
           </div>
           <div class="rounded-lg bg-black/30 border border-gray-700 p-3">
             <p class="text-xs text-gray-400">Mes actual</p>
             <p class="text-xl font-bold mt-1">
-              $ {{ (mesActual?.monto || 0) | number:'1.0-0' }}
+              {{ cop(kpis.ingresosMesActual) }}
             </p>
             <p
-              *ngIf="variacionMensualPct !== null"
               class="text-xs mt-1 font-medium"
-              [class.text-emerald-400]="variacionMensualPct >= 0"
-              [class.text-red-400]="variacionMensualPct < 0"
+              [class.text-emerald-400]="kpis.crecimientoMensualPct >= 0"
+              [class.text-red-400]="kpis.crecimientoMensualPct < 0"
             >
-              {{ variacionMensualPct >= 0 ? '+' : '' }}{{ variacionMensualPct }}% vs mes anterior
+              {{ kpis.crecimientoMensualPct >= 0 ? '+' : '' }}{{ kpis.crecimientoMensualPct }}% vs mes anterior
             </p>
           </div>
           <div class="rounded-lg bg-black/30 border border-gray-700 p-3">
             <p class="text-xs text-gray-400">Mejor mes</p>
             <p class="text-xl font-bold mt-1">
-              $ {{ (mejorMes?.monto || 0) | number:'1.0-0' }}
+              {{ cop(mejorMes?.monto || 0) }}
             </p>
             <p class="text-xs text-gray-400 mt-1 capitalize" *ngIf="mejorMes">{{ mejorMes.label }}</p>
           </div>
         </div>
 
-        <div *ngIf="cargandoCrecimiento" class="h-52 flex items-center justify-center text-gray-500 text-sm">
-          Cargando métricas...
-        </div>
-
         <div
-          *ngIf="!cargandoCrecimiento && totalIngresosPeriodo === 0"
+          *ngIf="totalIngresosPeriodoChart === 0"
           class="h-40 flex items-center justify-center text-gray-500 text-sm text-center px-4"
         >
-          Aún no hay abonos confirmados en este periodo.
+          Aún no hay abonos registrados en este periodo. Totales en 0.
         </div>
 
         <div
-          *ngIf="!cargandoCrecimiento && totalIngresosPeriodo > 0"
+          *ngIf="totalIngresosPeriodoChart > 0"
           class="crecimiento-chart overflow-x-auto -mx-1 px-1"
         >
           <div
@@ -136,12 +227,12 @@
             <div
               *ngFor="let m of ingresosMensuales"
               class="flex-1 min-w-[2.5rem] flex flex-col items-center justify-end gap-1.5 h-52 group"
-              [title]="m.label + ': $ ' + (m.monto | number:'1.0-0') + ' · ' + m.cantidadAbonos + ' abonos'"
+              [title]="m.label + ': ' + cop(m.monto) + ' · ' + m.cantidadAbonos + ' abonos'"
             >
               <span
                 class="text-[10px] sm:text-xs text-gray-300 font-medium tabular-nums text-center leading-tight min-h-[1.1rem]"
               >
-                {{ m.monto > 0 ? ('$' + (m.monto | number:'1.0-0')) : '' }}
+                {{ m.monto > 0 ? cop(m.monto) : '' }}
               </span>
               <div class="w-full flex items-end justify-center h-40">
                 <div
@@ -189,7 +280,6 @@
     </div>
 
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      <!-- Abonos rápidos -->
       <div class="bg-gray-800 rounded-xl border border-amber-500/20 overflow-hidden">
         <div class="p-5 border-b border-gray-700 flex justify-between items-center">
           <h3 class="font-bold text-amber-300">Confirmar abonos</h3>
@@ -203,7 +293,7 @@
             <div class="flex justify-between gap-3">
               <div>
                 <p class="font-medium">{{ abonoConductor(a) }}</p>
-                <p class="text-xs text-gray-400">$ {{ a.monto | number }} · {{ a.metodoPago }}</p>
+                <p class="text-xs text-gray-400">{{ cop(a.monto) }} · {{ a.metodoPago }}</p>
               </div>
               <div class="flex gap-2 shrink-0">
                 <button type="button" (click)="confirmarAbono(a)" class="text-xs px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500">OK</button>
@@ -214,11 +304,13 @@
         </div>
       </div>
 
-      <!-- Novedades -->
       <div class="bg-gray-800 rounded-xl border border-orange-500/20 overflow-hidden">
-        <div class="p-5 border-b border-gray-700">
-          <h3 class="font-bold text-orange-300">Novedades del conductor</h3>
-          <p class="text-xs text-gray-400 mt-0.5">Pinchazos, choques, fallas y otros reportes</p>
+        <div class="p-5 border-b border-gray-700 flex justify-between items-center">
+          <div>
+            <h3 class="font-bold text-orange-300">Novedades del conductor</h3>
+            <p class="text-xs text-gray-400 mt-0.5">Pinchazos, choques, fallas y otros reportes</p>
+          </div>
+          <span class="text-xs px-2 py-1 rounded-full bg-orange-500/15 text-orange-300">{{ novedadesAbiertas.length }}</span>
         </div>
         <div *ngIf="novedadesAbiertas.length === 0" class="p-8 text-center text-gray-500 text-sm">
           No hay novedades abiertas
@@ -247,6 +339,7 @@
                 Tomar
               </button>
               <button
+                *ngIf="n.estado !== 'resuelta'"
                 type="button"
                 (click)="atenderNovedad(n, 'resuelta')"
                 class="text-xs px-2.5 py-1 rounded-lg bg-emerald-600/80 hover:bg-emerald-500"
@@ -264,8 +357,8 @@
         <div class="p-5 border-b border-gray-700 flex justify-between items-center gap-2">
           <div>
             <h3 class="font-bold">Cobros pendientes / mora</h3>
-            <p class="text-xs text-gray-400 mt-0.5" *ngIf="cobrosEnMora.length">
-              {{ cobrosEnMora.length }} en mora · se muestran primero
+            <p class="text-xs text-gray-400 mt-0.5">
+              {{ kpis.moraCantidad }} en mora · {{ cop(kpis.cartera) }} de cartera (SQL)
             </p>
           </div>
           <a routerLink="/pagos" class="text-sm text-blue-400 hover:text-blue-300 shrink-0">Ir a pagos</a>
@@ -287,7 +380,7 @@
             </div>
             <div class="text-right shrink-0">
               <p class="font-bold" [class.text-red-400]="c.enMora" [class.text-yellow-400]="!c.enMora">
-                $ {{ c.saldo | number }}
+                {{ cop(c.saldo) }}
               </p>
               <p class="text-xs font-medium" [class.text-red-400]="c.enMora" [class.text-gray-400]="!c.enMora">
                 {{ c.enMora ? 'En mora' : c.estado }}
