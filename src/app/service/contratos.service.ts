@@ -14,6 +14,7 @@ import {
 } from '../shared/contrato.rules';
 import { planPermiteFrecuencia, cuotaSugeridaDelPlan } from '../shared/plan-economia';
 import { Plan } from '../shared/interfaces/plan';
+import { stripClienteEmpresaId } from '../shared/empresa-scope';
 
 export interface Contrato {
   _id?: string;
@@ -163,7 +164,7 @@ export class ContratosService {
         return from(
           sb
             .from('contratos')
-            .insert({
+            .insert(stripClienteEmpresaId({
               conductor_id: payload.conductorId,
               moto_id: payload.motoId,
               fecha_inicio: payload.fechaInicio,
@@ -176,7 +177,7 @@ export class ContratosService {
               plan_nombre: plan.nombre,
               cuota_inicial: cuotaInicial,
               duracion_meses: duracionMeses,
-            })
+            }))
             .select('*')
             .single(),
         );

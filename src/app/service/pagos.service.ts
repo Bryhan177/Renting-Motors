@@ -3,6 +3,7 @@ import { Observable, from, map, forkJoin, of, switchMap } from 'rxjs';
 import { getSupabase } from '../supabase/supabase.client';
 import { AuthService } from '../auth/auth.service';
 import { Moto } from '../shared/interfaces/moto';
+import { aplicarFiltroEmpresa, stripClienteEmpresaId } from '../shared/empresa-scope';
 
 export interface PagoManual {
   _id?: string;
@@ -53,13 +54,13 @@ export class PagosService {
   }
 
   getPagos(): Observable<PagoManual[]> {
-    return from(
-      getSupabase()
-        .from('pagos')
-        .select('*, motos:moto_id(*)')
-        .neq('estado', 'anulado')
-        .order('fecha_pago', { ascending: false }),
-    ).pipe(
+    let q = getSupabase()
+      .from('pagos')
+      .select('*, motos:moto_id(*)')
+      .neq('estado', 'anulado')
+      .order('fecha_pago', { ascending: false });
+    q = aplicarFiltroEmpresa(q, this.auth.getEmpresaId());
+    return from(q).pipe(
       map(({ data, error }) => {
         if (error) throw error;
         return (data || []).map((r) => this.map(r));
@@ -68,9 +69,13 @@ export class PagosService {
   }
 
   getPagosBySemana(semana: string): Observable<PagoManual[]> {
-    return from(
-      getSupabase().from('pagos').select('*, motos:moto_id(*)').eq('semana', semana).neq('estado', 'anulado'),
-    ).pipe(
+    let q = getSupabase()
+      .from('pagos')
+      .select('*, motos:moto_id(*)')
+      .eq('semana', semana)
+      .neq('estado', 'anulado');
+    q = aplicarFiltroEmpresa(q, this.auth.getEmpresaId());
+    return from(q).pipe(
       map(({ data, error }) => {
         if (error) throw error;
         return (data || []).map((r) => this.map(r));
@@ -79,14 +84,14 @@ export class PagosService {
   }
 
   getPagosByConductor(conductorId: string): Observable<PagoManual[]> {
-    return from(
-      getSupabase()
-        .from('pagos')
-        .select('*, motos:moto_id(*)')
-        .eq('conductor_id', conductorId)
-        .neq('estado', 'anulado')
-        .order('fecha_pago', { ascending: false }),
-    ).pipe(
+    let q = getSupabase()
+      .from('pagos')
+      .select('*, motos:moto_id(*)')
+      .eq('conductor_id', conductorId)
+      .neq('estado', 'anulado')
+      .order('fecha_pago', { ascending: false });
+    q = aplicarFiltroEmpresa(q, this.auth.getEmpresaId());
+    return from(q).pipe(
       map(({ data, error }) => {
         if (error) throw error;
         return (data || []).map((r) => this.map(r));
@@ -108,7 +113,7 @@ export class PagosService {
     return from(
       getSupabase()
         .from('pagos')
-        .insert({
+        .insert(stripClienteEmpresaId({
           conductor_id: payload.conductorId,
           moto_id: payload.motoId || null,
           semana: payload.semana,
@@ -120,7 +125,7 @@ export class PagosService {
           observaciones: payload.observaciones || null,
           fecha_pago: new Date().toISOString(),
           gastos: 0,
-        })
+        }))
         .select('*, motos:moto_id(*)')
         .single(),
     ).pipe(
@@ -146,7 +151,7 @@ export class PagosService {
     return from(
       getSupabase()
         .from('pagos')
-        .insert({
+        .insert(stripClienteEmpresaId({
           moto_id: payload.motoId,
           conductor_id: payload.conductorId || null,
           fecha_pago: payload.fechaPago,
@@ -159,7 +164,7 @@ export class PagosService {
           semana,
           pagado: true,
           registrado_por: actorId,
-        })
+        }))
         .select('*, motos:moto_id(*)')
         .single(),
     ).pipe(
@@ -170,7 +175,7 @@ export class PagosService {
         const neto = Math.max(0, payload.valorPagado - (payload.gastos || 0));
         if (neto <= 0) return of(pago);
         return from(
-          getSupabase().from('movimientos_caja').insert({
+          getSupabase().from('movimientos_caja').insert(stripClienteEmpresaId({
             banco: 'mdd',
             tipo: 'ingreso',
             monto: neto,
@@ -179,7 +184,7 @@ export class PagosService {
             moto_id: payload.motoId,
             pago_id: data.id,
             registrado_por: actorId,
-          }),
+          })),
         ).pipe(map(() => pago));
       }),
     );

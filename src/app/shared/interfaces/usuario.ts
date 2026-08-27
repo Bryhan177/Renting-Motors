@@ -20,6 +20,8 @@ export interface Usuario {
   referencia2?: ReferenciaPersonal;
   rol: 'administrador' | 'asesor' | 'empleado' | 'usuario' | 'conductor';
   activo: boolean;
+  /** Membresía RLS. No mostrar en la UI (no hay selector de tenant). */
+  empresaId?: string | null;
   createdAt?: Date | string;
   updatedAt?: Date | string | boolean;
 }

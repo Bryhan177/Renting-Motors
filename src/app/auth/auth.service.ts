@@ -3,6 +3,7 @@ import { Router } from '@angular/router';
 import { Observable, from, switchMap, map, throwError, of } from 'rxjs';
 import { getSupabase, resetSupabaseClient } from '../supabase/supabase.client';
 import { Usuario, CreateUsuarioPayload } from '../shared/interfaces/usuario';
+import { mapEmpresaIdFromRow } from '../shared/empresa-scope';
 
 export interface AuthResponse {
   access_token: string;
@@ -12,6 +13,7 @@ export interface AuthResponse {
 @Injectable({ providedIn: 'root' })
 export class AuthService {
   private readonly tokenKey = 'access_token';
+  private readonly empresaKey = 'empresaId';
   private sessionReady: Promise<boolean> | null = null;
 
   constructor(private router: Router) {}
@@ -30,10 +32,10 @@ export class AuthService {
           localStorage.setItem(this.tokenKey, data.session.access_token);
           if (data.session.user?.id) {
             localStorage.setItem('userId', data.session.user.id);
-            if (!localStorage.getItem('userRole')) {
+            if (!localStorage.getItem('userRole') || !localStorage.getItem(this.empresaKey)) {
               const { data: profile } = await sb
                 .from('usuarios')
-                .select('rol,nombre,apellido')
+                .select('rol,nombre,apellido,empresa_id')
                 .eq('id', data.session.user.id)
                 .maybeSingle();
               if (profile?.rol) {
@@ -43,6 +45,8 @@ export class AuthService {
                   `${profile.nombre || ''} ${profile.apellido || ''}`.trim(),
                 );
               }
+              const empresaId = mapEmpresaIdFromRow(profile);
+              if (empresaId) localStorage.setItem(this.empresaKey, empresaId);
             }
           }
           return true;
@@ -53,6 +57,7 @@ export class AuthService {
           localStorage.removeItem('userName');
           localStorage.removeItem('userId');
           localStorage.removeItem('userRole');
+          localStorage.removeItem(this.empresaKey);
         }
         return false;
       })();
@@ -121,7 +126,10 @@ export class AuthService {
           switchMap(({ data: profile, error: profileError }) => {
             if (profileError || !profile) {
               return throwError(() => ({
-                error: { message: profileError?.message || 'No se pudo crear el perfil' },
+                error: {
+                  message:
+                    'El alta público no asigna empresa. Pide a un administrador de tu operación que te cree la cuenta.',
+                },
               }));
             }
             const token = data.session?.access_token || '';
@@ -145,6 +153,7 @@ export class AuthService {
     localStorage.removeItem('userName');
     localStorage.removeItem('userId');
     localStorage.removeItem('userRole');
+    localStorage.removeItem(this.empresaKey);
     resetSupabaseClient();
     this.router.navigate(['/login']);
   }
@@ -166,6 +175,12 @@ export class AuthService {
   getUserId(): string | null {
     if (typeof window === 'undefined') return null;
     return localStorage.getItem('userId');
+  }
+
+  /** Membresía del perfil. Extra-safe en queries; RLS es la pared real. No mostrar en UI. */
+  getEmpresaId(): string | null {
+    if (typeof window === 'undefined') return null;
+    return mapEmpresaIdFromRow({ empresa_id: localStorage.getItem(this.empresaKey) });
   }
 
   redirectByRole(rol: string): void {
@@ -224,6 +239,7 @@ export class AuthService {
       tiempoContrato: row.tiempo_contrato || null,
       rol: row.rol,
       activo: row.activo !== false,
+      empresaId: mapEmpresaIdFromRow(row),
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     };
@@ -238,5 +254,10 @@ export class AuthService {
       'userName',
       `${res.usuario.nombre} ${res.usuario.apellido || ''}`.trim(),
     );
+    if (res.usuario.empresaId) {
+      localStorage.setItem(this.empresaKey, res.usuario.empresaId);
+    } else {
+      localStorage.removeItem(this.empresaKey);
+    }
   }
 }

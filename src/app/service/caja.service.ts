@@ -2,6 +2,7 @@ import { Injectable } from '@angular/core';
 import { Observable, from, map, forkJoin } from 'rxjs';
 import { getSupabase } from '../supabase/supabase.client';
 import { AuthService } from '../auth/auth.service';
+import { aplicarFiltroEmpresa, stripClienteEmpresaId } from '../shared/empresa-scope';
 
 export type BancoCaja = 'mdd' | 'ahorro_mdd';
 
@@ -48,6 +49,7 @@ export class CajaService {
       .order('fecha', { ascending: false })
       .limit(200);
     if (banco) q = q.eq('banco', banco);
+    q = aplicarFiltroEmpresa(q, this.auth.getEmpresaId());
     return from(q).pipe(
       map(({ data, error }) => {
         if (error) throw error;
@@ -81,7 +83,7 @@ export class CajaService {
     return from(
       getSupabase()
         .from('movimientos_caja')
-        .insert({
+        .insert(stripClienteEmpresaId({
           banco: payload.banco,
           tipo: payload.tipo,
           monto: payload.monto,
@@ -89,7 +91,7 @@ export class CajaService {
           descripcion: payload.descripcion || null,
           moto_id: payload.motoId || null,
           registrado_por: this.auth.getUserId(),
-        })
+        }))
         .select('*, motos:moto_id(placa)')
         .single(),
     ).pipe(

@@ -4,6 +4,7 @@ import { getSupabase } from '../supabase/supabase.client';
 import { Moto } from '../shared/interfaces/moto';
 import { Usuario } from '../shared/interfaces/usuario';
 import { Estadisticas } from '../shared/interfaces/pago';
+import { stripClienteEmpresaId } from '../shared/empresa-scope';
 
 @Injectable({ providedIn: 'root' })
 export class MotosService {
@@ -72,7 +73,7 @@ export class MotosService {
     else if (moto.imagen !== undefined && !String(moto.imagen).startsWith('data:')) {
       payload['imagen'] = moto.imagen;
     }
-    return payload;
+    return stripClienteEmpresaId(payload);
   }
 
   getMotos(): Observable<Moto[]> {

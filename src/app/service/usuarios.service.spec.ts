@@ -2,6 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
 import { UsuariosService } from './usuarios.service';
 import { Usuario, CreateUsuarioPayload } from '../shared/interfaces/usuario';
+import { AuthService } from '../auth/auth.service';
 
 describe('UsuariosService', () => {
   let service: UsuariosService;
@@ -10,7 +11,10 @@ describe('UsuariosService', () => {
   beforeEach(() => {
     TestBed.configureTestingModule({
       imports: [HttpClientTestingModule],
-      providers: [UsuariosService]
+      providers: [
+        UsuariosService,
+        { provide: AuthService, useValue: { getEmpresaId: () => null } },
+      ]
     });
     service = TestBed.inject(UsuariosService);
     httpMock = TestBed.inject(HttpTestingController);

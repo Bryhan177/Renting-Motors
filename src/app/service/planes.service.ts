@@ -4,6 +4,7 @@ import { getSupabase } from '../supabase/supabase.client';
 import { CreatePlanPayload, Plan } from '../shared/interfaces/plan';
 import { FrecuenciaPago } from '../shared/periodo.util';
 import { PERIODICIDADES, periodicidadesDe } from '../shared/plan-economia';
+import { stripClienteEmpresaId } from '../shared/empresa-scope';
 
 @Injectable({ providedIn: 'root' })
 export class PlanesService {
@@ -47,7 +48,7 @@ export class PlanesService {
       payload['requiere_cuota_inicial'] = !!plan.requiereCuotaInicial;
     }
     if (plan.activo !== undefined) payload['activo'] = !!plan.activo;
-    return payload;
+    return stripClienteEmpresaId(payload);
   }
 
   getPlanes(incluirInactivos = true): Observable<Plan[]> {
