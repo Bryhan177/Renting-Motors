@@ -1,3 +1,5 @@
+import { stripClienteEmpresaId } from '../empresa-scope';
+
 export interface TallerConfianza {
   _id?: string;
   nombre: string;
@@ -40,7 +42,7 @@ export function tallerToDb(taller: Partial<CreateTallerPayload>): Record<string,
   if (taller.horario !== undefined) payload['horario'] = taller.horario.trim();
   if (taller.servicios !== undefined) payload['servicios'] = taller.servicios.trim();
   if (taller.activo !== undefined) payload['activo'] = !!taller.activo;
-  return payload;
+  return stripClienteEmpresaId(payload);
 }
 
 export function serviciosLista(servicios: string): string[] {

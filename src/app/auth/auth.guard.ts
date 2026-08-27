@@ -16,11 +16,18 @@ export const authGuard: CanActivateFn = () => {
       // Recargar rol desde BD si falta en localStorage
       if (!auth.getRole() && auth.getUserId()) {
         return from(
-          getSupabase().from('usuarios').select('rol').eq('id', auth.getUserId()!).maybeSingle(),
+          getSupabase()
+            .from('usuarios')
+            .select('rol,empresa_id')
+            .eq('id', auth.getUserId()!)
+            .maybeSingle(),
         ).pipe(
           map(({ data }) => {
             if (data?.rol && typeof window !== 'undefined') {
               localStorage.setItem('userRole', data.rol);
+            }
+            if (data?.empresa_id && typeof window !== 'undefined') {
+              localStorage.setItem('empresaId', data.empresa_id);
             }
             return true as const;
           }),

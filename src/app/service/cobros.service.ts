@@ -18,6 +18,7 @@ import {
   parseRpcJson,
   resumenDesdeCobros,
 } from '../shared/cobro-finanzas.mapper';
+import { aplicarFiltroEmpresa, stripClienteEmpresaId } from '../shared/empresa-scope';
 
 /** PostgREST: * no incluye la columna computada en_mora; hay que pedirla. */
 const COBRO_SELECT = '*, en_mora, usuarios:conductor_id(*)';
@@ -122,6 +123,7 @@ export class CobrosService {
       .select(COBRO_SELECT)
       .neq('estado', 'anulado')
       .order('periodo_inicio', { ascending: false });
+    q = aplicarFiltroEmpresa(q, this.auth.getEmpresaId());
     if (params?.conductorId) q = q.eq('conductor_id', params.conductorId);
     if (params?.enMora === 'true') q = q.eq('en_mora', true);
     if (params?.soloConSaldo) q = q.gt('saldo', 0);
@@ -160,6 +162,7 @@ export class CobrosService {
       .from('abonos')
       .select('*, usuarios:conductor_id(id,nombre,apellido,email,cedula,telefono,rol,activo)')
       .order('created_at', { ascending: false });
+    q = aplicarFiltroEmpresa(q, this.auth.getEmpresaId());
     if (estado) q = q.eq('estado', estado);
     if (conductorId) q = q.eq('conductor_id', conductorId);
     return from(q).pipe(
@@ -179,13 +182,14 @@ export class CobrosService {
     const desde = new Date(hoy.getFullYear(), hoy.getMonth() - (meses - 1), 1);
     const desdeStr = toDateOnlyString(desde);
 
-    return from(
-      getSupabase()
-        .from('abonos')
-        .select('monto, fecha_pago')
-        .eq('estado', 'registrado')
-        .gte('fecha_pago', desdeStr),
-    ).pipe(
+    let q = getSupabase()
+      .from('abonos')
+      .select('monto, fecha_pago')
+      .eq('estado', 'registrado')
+      .gte('fecha_pago', desdeStr);
+    q = aplicarFiltroEmpresa(q, this.auth.getEmpresaId());
+
+    return from(q).pipe(
       map(({ data, error }) => {
         if (error) throw error;
 
@@ -227,7 +231,9 @@ export class CobrosService {
   generarPendientes(): Observable<Cobro[]> {
     const sb = getSupabase();
     const actorId = this.auth.getUserId();
-    return from(sb.from('contratos').select('*').eq('estado', 'activo')).pipe(
+    return from(
+      aplicarFiltroEmpresa(sb.from('contratos').select('*').eq('estado', 'activo'), this.auth.getEmpresaId()),
+    ).pipe(
       switchMap(({ data: contratos, error }) => {
         if (error) return throwError(() => error);
         if (!contratos?.length) return of([]);
@@ -254,7 +260,7 @@ export class CobrosService {
         // Solo genera el periodo vigente (cuota de esta semana / quincena / mes)
         if (tiene.has(vigente)) return of([]);
         const p = calcularPeriodo(parseDateOnly(contrato.fecha_inicio), vigente, frecuencia);
-        const row = {
+        const row = stripClienteEmpresaId({
           contrato_id: contrato.id,
           conductor_id: contrato.conductor_id,
           moto_id: contrato.moto_id,
@@ -264,7 +270,7 @@ export class CobrosService {
           fecha_vencimiento: toDateOnlyString(p.fechaVencimiento),
           monto_esperado: Number(contrato.cuota_semanal),
           generado_por: actorId,
-        };
+        });
         return from(sb.from('cobros').insert(row).select(COBRO_SELECT)).pipe(
           map(({ data, error }) => {
             if (error) throw error;
@@ -299,7 +305,7 @@ export class CobrosService {
         return from(
           sb
             .from('abonos')
-            .insert({
+            .insert(stripClienteEmpresaId({
               cobro_id: cobro.id,
               contrato_id: cobro.contrato_id,
               conductor_id: cobro.conductor_id,
@@ -313,7 +319,7 @@ export class CobrosService {
               observaciones: payload.observaciones || null,
               confirmado_por: pendiente ? null : actorId,
               confirmado_en: pendiente ? null : new Date().toISOString(),
-            })
+            }))
             .select('*')
             .single(),
         ).pipe(

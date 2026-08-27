@@ -2,9 +2,17 @@ import { Injectable } from '@angular/core';
 import { Observable, from, map, throwError } from 'rxjs';
 import { getSupabase } from '../supabase/supabase.client';
 import { Usuario, CreateUsuarioPayload, ReferenciaPersonal } from '../shared/interfaces/usuario';
+import { AuthService } from '../auth/auth.service';
+import {
+  aplicarFiltroEmpresa,
+  mapEmpresaIdFromRow,
+  stripClienteEmpresaId,
+} from '../shared/empresa-scope';
 
 @Injectable({ providedIn: 'root' })
 export class UsuariosService {
+  constructor(private auth: AuthService) {}
+
   private mapRef(prefix: string, row: any): ReferenciaPersonal {
     return {
       nombre: row[`${prefix}_nombre`] || '',
@@ -30,6 +38,7 @@ export class UsuariosService {
       referencia2: this.mapRef('ref2', row),
       rol: row.rol,
       activo: row.activo !== false,
+      empresaId: mapEmpresaIdFromRow(row),
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     };
@@ -70,11 +79,12 @@ export class UsuariosService {
       payload['ref2_telefono'] = r2.telefono || null;
       payload['ref2_direccion'] = r2.direccion || null;
     }
-    return payload;
+    return stripClienteEmpresaId(payload);
   }
 
   getUsuarios(incluirInactivos = true): Observable<Usuario[]> {
     let q = getSupabase().from('usuarios').select('*').order('created_at', { ascending: false });
+    q = aplicarFiltroEmpresa(q, this.auth.getEmpresaId());
     if (!incluirInactivos) q = q.eq('activo', true);
     return from(q).pipe(
       map(({ data, error }) => {
@@ -107,19 +117,21 @@ export class UsuariosService {
         if (error || !data.user) {
           throw { error: { message: error?.message || 'No se pudo crear Auth' } };
         }
-        const body = {
-          id: data.user.id,
-          email,
-          ...this.toDb({ ...usuario, rol: this.normalizeRol(usuario.rol) as any }),
-          activo: usuario.activo !== false,
-        };
-        const { data: row, error: err } = await sb.from('usuarios').insert(body).select('*').single();
+        // Restaurar al staff ANTES del insert: el trigger stamp_empresa_id usa la membresía
+        // del JWT. Si nos quedamos como el usuario nuevo, no hay perfil y falla el tenant.
         if (adminSession) {
           await sb.auth.setSession({
             access_token: adminSession.access_token,
             refresh_token: adminSession.refresh_token,
           });
         }
+        const body = stripClienteEmpresaId({
+          id: data.user.id,
+          email,
+          ...this.toDb({ ...usuario, rol: this.normalizeRol(usuario.rol) as any }),
+          activo: usuario.activo !== false,
+        });
+        const { data: row, error: err } = await sb.from('usuarios').insert(body).select('*').single();
         if (err || !row) throw err || new Error('No se pudo crear perfil');
         return this.mapUsuario(row);
       })(),
