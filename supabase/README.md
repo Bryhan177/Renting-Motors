@@ -178,7 +178,7 @@ No hay selector de tenant en Angular. El login decide la empresa (membresía en 
 
 1. Supabase → SQL Editor → pega `supabase/migrations/20260901_multi_tenant_empresas.sql` → **Run**.
 
-Si el **primer** run falló con `ERROR: 42703: column u.empresa_id does not exist` (LINE 97 / `empresa_id_actual`): **no hagas DROP de `empresas`**. Baja este commit, pega de nuevo el archivo completo y Run. Las dos empresas ya sembradas se conservan.
+Si un run falló con `42703 column u.empresa_id does not exist` **o** `42883 operator does not exist: name[] = text[]`: **no hagas DROP de `empresas`**. Baja este commit, pega de nuevo el archivo completo y Run. Las dos empresas y las columnas `empresa_id` ya aplicadas se conservan.
 
 2. Verifica:
    ```sql

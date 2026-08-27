@@ -4,9 +4,9 @@
 -- (después de 20260831_abono_registrado_pagos_caja.sql)
 --
 -- Idempotente: se puede correr más de una vez.
--- Si un run anterior falló con 42703 (column u.empresa_id does not exist) en
--- empresa_id_actual(), NO hagas DROP de empresas: vuelve a pegar este archivo
--- completo y Run. Las dos empresas sembradas se conservan (ON CONFLICT).
+-- Si un run anterior falló (42703 empresa_id_actual, o 42883 name[] = text[]
+-- al soltar unique de placa/cédula), NO hagas DROP de empresas: vuelve a pegar
+-- este archivo completo y Run. Las dos empresas sembradas se conservan.
 --
 -- Por qué: hoy todo el staff y los conductores comparten un solo dataset.
 -- El dueño necesita un login de PRUEBAS que no vea ni mute cobros/abonos/
@@ -387,6 +387,13 @@ alter table public.planes drop constraint if exists planes_nombre_empresa_key;
 alter table public.planes
   add constraint planes_nombre_empresa_key unique (empresa_id, nombre);
 
+-- Unicidad global de placa/cédula → por empresa. Nombres típicos de Postgres.
+alter table public.motos drop constraint if exists motos_placa_key;
+alter table public.usuarios drop constraint if exists usuarios_cedula_key;
+drop index if exists public.motos_placa_key;
+drop index if exists public.usuarios_cedula_key;
+
+-- Nombres desconocidos: attname es type `name` (name[] ≠ text[] → 42883).
 do $$
 declare
   r record;
@@ -400,12 +407,12 @@ begin
       and c.contype = 'u'
       and t.relname in ('motos', 'usuarios')
       and (
-        select array_agg(a.attname order by u.ord)
+        select array_agg(a.attname::text order by u.ord)
         from unnest(c.conkey) with ordinality u(attnum, ord)
         join pg_attribute a on a.attrelid = c.conrelid and a.attnum = u.attnum
       ) in (array['placa']::text[], array['cedula']::text[])
   loop
-    execute format('alter table public.%I drop constraint %I', r.tabla, r.conname);
+    execute format('alter table public.%I drop constraint if exists %I', r.tabla, r.conname);
   end loop;
 end $$;
 
