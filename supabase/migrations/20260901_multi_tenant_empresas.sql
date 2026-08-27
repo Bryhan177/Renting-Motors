@@ -4,6 +4,9 @@
 -- (después de 20260831_abono_registrado_pagos_caja.sql)
 --
 -- Idempotente: se puede correr más de una vez.
+-- Si un run anterior falló con 42703 (column u.empresa_id does not exist) en
+-- empresa_id_actual(), NO hagas DROP de empresas: vuelve a pegar este archivo
+-- completo y Run. Las dos empresas sembradas se conservan (ON CONFLICT).
 --
 -- Por qué: hoy todo el staff y los conductores comparten un solo dataset.
 -- El dueño necesita un login de PRUEBAS que no vea ni mute cobros/abonos/
@@ -87,40 +90,11 @@ as $$
   limit 1
 $$;
 
-create or replace function public.empresa_id_actual()
-returns uuid
-language sql
-stable
-security definer
-set search_path = public
-as $$
-  select u.empresa_id
-  from public.usuarios u
-  where u.id = auth.uid()
-    and coalesce(u.activo, true) = true
-$$;
-
-create or replace function public.misma_empresa(p_empresa_id uuid)
-returns boolean
-language sql
-stable
-security definer
-set search_path = public
-as $$
-  select p_empresa_id is not null
-     and public.empresa_id_actual() is not null
-     and p_empresa_id = public.empresa_id_actual()
-$$;
-
-comment on function public.empresa_id_actual() is
-  'Empresa de la membresía del JWT. Usada por RLS y por RPCs SECURITY DEFINER.';
-comment on function public.misma_empresa(uuid) is
-  'True si el id pertenece a la empresa del usuario autenticado.';
-
 grant execute on function public.empresa_id_produccion() to authenticated, anon, service_role;
 grant execute on function public.empresa_id_pruebas() to authenticated, anon, service_role;
-grant execute on function public.empresa_id_actual() to authenticated, anon, service_role;
-grant execute on function public.misma_empresa(uuid) to authenticated, anon, service_role;
+
+-- empresa_id_actual() / misma_empresa() se crean DESPUÉS de añadir usuarios.empresa_id.
+-- LANGUAGE SQL valida columnas en CREATE FUNCTION (42703 si el helper va primero).
 
 -- -----------------------------------------------------------------------------
 -- 2) Stamp: el cliente no elige tenant. SQL Editor (sin JWT) sí puede setearlo.
@@ -271,16 +245,6 @@ begin
     p_table || '_empresa_id_idx',
     p_table
   );
-  execute format('drop trigger if exists trg_%s_stamp_empresa on public.%I', p_table, p_table);
-  execute format(
-    'create trigger trg_%s_stamp_empresa before insert or update on public.%I for each row execute function public.stamp_empresa_id()',
-    p_table, p_table
-  );
-  execute format('drop trigger if exists trg_%s_validar_empresa on public.%I', p_table, p_table);
-  execute format(
-    'create trigger trg_%s_validar_empresa before insert or update on public.%I for each row execute function public.validar_refs_empresa()',
-    p_table, p_table
-  );
 end;
 $$;
 
@@ -316,6 +280,89 @@ end $$;
 
 comment on column public.usuarios.empresa_id is
   'Membresía: en este slice un auth user pertenece a exactamente una empresa.';
+
+-- Ahora sí: usuarios.empresa_id existe. plpgsql no valida la columna en CREATE;
+-- igual el ALTER ya corrió para que RLS/SQL Editor puedan usarla de inmediato.
+create or replace function public.empresa_id_actual()
+returns uuid
+language plpgsql
+stable
+security definer
+set search_path = public
+as $$
+declare
+  v uuid;
+begin
+  select u.empresa_id
+    into v
+  from public.usuarios u
+  where u.id = auth.uid()
+    and coalesce(u.activo, true) = true;
+  return v;
+end;
+$$;
+
+create or replace function public.misma_empresa(p_empresa_id uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select p_empresa_id is not null
+     and public.empresa_id_actual() is not null
+     and p_empresa_id = public.empresa_id_actual()
+$$;
+
+comment on function public.empresa_id_actual() is
+  'Empresa de la membresía del JWT. Usada por RLS y por RPCs SECURITY DEFINER.';
+comment on function public.misma_empresa(uuid) is
+  'True si el id pertenece a la empresa del usuario autenticado.';
+
+grant execute on function public.empresa_id_actual() to authenticated, anon, service_role;
+grant execute on function public.misma_empresa(uuid) to authenticated, anon, service_role;
+
+do $$
+declare
+  t text;
+begin
+  foreach t in array array[
+    'usuarios',
+    'motos',
+    'contratos',
+    'cobros',
+    'abonos',
+    'pagos',
+    'movimientos_caja',
+    'planes',
+    'talleres_confianza',
+    'depositos',
+    'movimientos_deposito',
+    'entregas',
+    'devoluciones',
+    'mantenimientos',
+    'documentos',
+    'novedades'
+  ]
+  loop
+    if not exists (
+      select 1 from information_schema.tables
+      where table_schema = 'public' and table_name = t
+    ) then
+      continue;
+    end if;
+    execute format('drop trigger if exists trg_%s_stamp_empresa on public.%I', t, t);
+    execute format(
+      'create trigger trg_%s_stamp_empresa before insert or update on public.%I for each row execute function public.stamp_empresa_id()',
+      t, t
+    );
+    execute format('drop trigger if exists trg_%s_validar_empresa on public.%I', t, t);
+    execute format(
+      'create trigger trg_%s_validar_empresa before insert or update on public.%I for each row execute function public.validar_refs_empresa()',
+      t, t
+    );
+  end loop;
+end $$;
 
 -- -----------------------------------------------------------------------------
 -- 3) Unicidad por empresa (antes era global)
