@@ -49,7 +49,8 @@
     *ngIf="sqlPendiente"
     class="mb-4 rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-200"
   >
-    Ejecuta <code class="text-amber-100">supabase/migrations/20260830_dashboard_staff.sql</code> en el SQL Editor y recarga.
+    Ejecuta <code class="text-amber-100">supabase/migrations/20260903_dashboard_ingresos_egresos.sql</code>
+    (después de 20260830 / 20260901) en el SQL Editor y recarga.
   </div>
 
   <div *ngIf="loading" class="flex justify-center items-center h-48">
@@ -62,7 +63,15 @@
         <p class="text-gray-400 text-sm mb-1">Ingresos del periodo</p>
         <p class="text-3xl font-bold text-emerald-300">{{ cop(kpis.ingresosPeriodo) }}</p>
         <p class="text-xs text-gray-400 mt-1">
-          {{ kpis.cantidadAbonosPeriodo }} abonos registrados · {{ etiquetaRango }}
+          {{ cop(kpis.ingresosCuotas) }} cuotas · {{ cop(kpis.ingresosOtros) }} otros
+          · {{ etiquetaRango }}
+        </p>
+      </div>
+      <div class="bg-gray-800 rounded-xl p-5 border border-red-500/20">
+        <p class="text-gray-400 text-sm mb-1">Egresos del periodo</p>
+        <p class="text-3xl font-bold text-red-300">{{ cop(kpis.egresosPeriodo) }}</p>
+        <p class="text-xs text-gray-400 mt-1">
+          {{ kpis.cantidadEgresosPeriodo }} movimientos de caja · {{ etiquetaRango }}
         </p>
       </div>
       <div class="bg-gray-800 rounded-xl p-5 border border-gray-700">
@@ -142,13 +151,13 @@
       </div>
     </div>
 
-    <!-- Crecimiento -->
+    <!-- Ingresos (cuotas + otros) -->
     <div class="bg-gray-800 rounded-xl border border-emerald-500/20 overflow-hidden">
       <div class="p-5 border-b border-gray-700 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h3 class="font-bold text-emerald-300">Crecimiento de ingresos</h3>
+          <h3 class="font-bold text-emerald-300">Ingresos</h3>
           <p class="text-xs text-gray-400 mt-0.5">
-            Abonos registrados por mes (America/Bogota), agregados en Postgres
+            Cuotas (abonos registrados) + otros ingresos de caja, por mes (America/Bogota)
           </p>
         </div>
         <div class="flex items-center gap-1 self-start sm:self-auto bg-gray-900/60 rounded-lg p-1 border border-gray-700">
@@ -209,15 +218,12 @@
           </div>
         </div>
 
-        <div
-          *ngIf="totalIngresosPeriodoChart === 0"
-          class="h-40 flex items-center justify-center text-gray-500 text-sm text-center px-4"
-        >
-          Aún no hay abonos registrados en este periodo. Totales en 0.
-        </div>
+        <p *ngIf="totalIngresosPeriodoChart === 0" class="text-xs text-gray-500 text-center">
+          Sin ingresos en estos meses. Barras en 0.
+        </p>
 
         <div
-          *ngIf="totalIngresosPeriodoChart > 0"
+          *ngIf="ingresosMensuales.length"
           class="crecimiento-chart overflow-x-auto -mx-1 px-1"
         >
           <div
@@ -227,17 +233,87 @@
             <div
               *ngFor="let m of ingresosMensuales"
               class="flex-1 min-w-[2.5rem] flex flex-col items-center justify-end gap-1.5 h-52 group"
-              [title]="m.label + ': ' + cop(m.monto) + ' · ' + m.cantidadAbonos + ' abonos'"
+              [title]="m.label + ': ' + cop(m.monto)"
             >
               <span
                 class="text-[10px] sm:text-xs text-gray-300 font-medium tabular-nums text-center leading-tight min-h-[1.1rem]"
               >
-                {{ m.monto > 0 ? cop(m.monto) : '' }}
+                {{ m.monto > 0 ? cop(m.monto) : '0' }}
               </span>
               <div class="w-full flex items-end justify-center h-40">
                 <div
                   class="w-[70%] max-w-[2.75rem] rounded-t-md bg-gradient-to-t from-emerald-700 to-emerald-400 shadow-lg shadow-emerald-900/30 transition-all duration-500"
                   [style.height.%]="alturaBarra(m.monto)"
+                  [class.opacity-40]="m.monto === 0"
+                ></div>
+              </div>
+              <span class="text-[10px] sm:text-xs text-gray-400 capitalize truncate w-full text-center">
+                {{ m.label }}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Egresos (caja tipo egreso) -->
+    <div class="bg-gray-800 rounded-xl border border-red-500/20 overflow-hidden">
+      <div class="p-5 border-b border-gray-700">
+        <h3 class="font-bold text-red-300">Egresos</h3>
+        <p class="text-xs text-gray-400 mt-0.5">
+          movimientos_caja tipo egreso (mantenimientos y caja). No incluye pagos.gastos.
+        </p>
+      </div>
+
+      <div class="p-5 space-y-5">
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div class="rounded-lg bg-black/30 border border-gray-700 p-3">
+            <p class="text-xs text-gray-400">Total {{ mesesCrecimiento }} meses</p>
+            <p class="text-xl font-bold mt-1 text-red-300">
+              {{ cop(totalEgresosPeriodoChart) }}
+            </p>
+          </div>
+          <div class="rounded-lg bg-black/30 border border-gray-700 p-3">
+            <p class="text-xs text-gray-400">Mes actual</p>
+            <p class="text-xl font-bold mt-1">
+              {{ cop(kpis.egresosMesActual) }}
+            </p>
+          </div>
+          <div class="rounded-lg bg-black/30 border border-gray-700 p-3">
+            <p class="text-xs text-gray-400">Mes con más egresos</p>
+            <p class="text-xl font-bold mt-1">
+              {{ cop(peorMesEgreso?.monto || 0) }}
+            </p>
+            <p class="text-xs text-gray-400 mt-1 capitalize" *ngIf="peorMesEgreso">{{ peorMesEgreso.label }}</p>
+          </div>
+        </div>
+
+        <p *ngIf="totalEgresosPeriodoChart === 0" class="text-xs text-gray-500 text-center">
+          Sin egresos en estos meses. Barras en 0.
+        </p>
+
+        <div
+          *ngIf="egresosMensuales.length"
+          class="crecimiento-chart overflow-x-auto -mx-1 px-1"
+        >
+          <div
+            class="flex items-end gap-1.5 sm:gap-2.5 min-h-[13rem] pb-1"
+            [style.minWidth.px]="egresosMensuales.length * 52"
+          >
+            <div
+              *ngFor="let m of egresosMensuales"
+              class="flex-1 min-w-[2.5rem] flex flex-col items-center justify-end gap-1.5 h-52 group"
+              [title]="m.label + ': ' + cop(m.monto)"
+            >
+              <span
+                class="text-[10px] sm:text-xs text-gray-300 font-medium tabular-nums text-center leading-tight min-h-[1.1rem]"
+              >
+                {{ m.monto > 0 ? cop(m.monto) : '0' }}
+              </span>
+              <div class="w-full flex items-end justify-center h-40">
+                <div
+                  class="w-[70%] max-w-[2.75rem] rounded-t-md bg-gradient-to-t from-red-800 to-red-400 shadow-lg shadow-red-900/30 transition-all duration-500"
+                  [style.height.%]="alturaBarraEgreso(m.monto)"
                   [class.opacity-40]="m.monto === 0"
                 ></div>
               </div>

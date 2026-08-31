@@ -17,6 +17,9 @@ describe('mapResumenDashboardFromRow', () => {
     for (const raw of [null, undefined, '', 'no-json', [], 0, { foo: 1 }]) {
       const k = mapResumenDashboardFromRow(raw);
       expect(k.ingresosPeriodo).toBe(0);
+      expect(k.ingresosOtros).toBe(0);
+      expect(k.egresosPeriodo).toBe(0);
+      expect(k.egresosMensuales).toEqual([]);
       expect(k.contratosActivos).toBe(0);
       expect(k.contratosNuevos).toBe(0);
       expect(k.conductoresActivos).toBe(0);
@@ -38,8 +41,13 @@ describe('mapResumenDashboardFromRow', () => {
       periodo: 'mes',
       periodo_desde: '2026-08-01',
       periodo_hasta: '2026-08-31',
-      ingresos_periodo: 450000,
+      ingresos_periodo: 510000,
+      ingresos_cuotas: 450000,
+      ingresos_otros: 60000,
       cantidad_abonos_periodo: 3,
+      cantidad_otros_periodo: 2,
+      egresos_periodo: 40000,
+      cantidad_egresos_periodo: 1,
       contratos_activos: 2,
       contratos_nuevos: 1,
       conductores_activos: 2,
@@ -59,13 +67,21 @@ describe('mapResumenDashboardFromRow', () => {
       ],
       ingresos_mensuales: [
         { key: '2026-07', monto: 300000, cantidad_abonos: 2 },
-        { key: '2026-08', monto: 450000, cantidad_abonos: 3 },
+        { key: '2026-08', monto: 510000, cantidad_abonos: 3, cantidad_otros: 2 },
+      ],
+      egresos_mensuales: [
+        { key: '2026-07', monto: 0, cantidad: 0 },
+        { key: '2026-08', monto: 40000, cantidad: 1 },
       ],
     });
     expect(k.periodo).toBe('mes');
     expect(k.periodoDesde).toBe('2026-08-01');
-    expect(k.ingresosPeriodo).toBe(450000);
+    expect(k.ingresosPeriodo).toBe(510000);
+    expect(k.ingresosCuotas).toBe(450000);
+    expect(k.ingresosOtros).toBe(60000);
     expect(k.cantidadAbonosPeriodo).toBe(3);
+    expect(k.egresosPeriodo).toBe(40000);
+    expect(k.egresosMensuales[1].monto).toBe(40000);
     expect(k.contratosActivos).toBe(2);
     expect(k.contratosNuevos).toBe(1);
     expect(k.conductoresActivos).toBe(2);
@@ -78,8 +94,16 @@ describe('mapResumenDashboardFromRow', () => {
     expect(k.planes.map((p) => p.planNombre)).toEqual(['Trabajo', 'Sin plan']);
     expect(k.planes[1].ingresos).toBe(150000);
     expect(k.ingresosMensuales).toHaveLength(2);
-    expect(k.ingresosMensuales[1].monto).toBe(450000);
+    expect(k.ingresosMensuales[1].monto).toBe(510000);
     expect(k.ingresosMensuales[1].cantidadAbonos).toBe(3);
+  });
+
+  it('RPC viejo sin ingresos_otros deja el total en cuotas', () => {
+    const k = mapResumenDashboardFromRow({ ingresos_periodo: 180000 });
+    expect(k.ingresosPeriodo).toBe(180000);
+    expect(k.ingresosCuotas).toBe(180000);
+    expect(k.ingresosOtros).toBe(0);
+    expect(k.egresosPeriodo).toBe(0);
   });
 
   it('parsea JSON string (PostgREST a veces entrega texto)', () => {

@@ -137,17 +137,34 @@ export class DashboardComponent implements OnInit {
     return ingresosMensualesVisibles(this.kpis.ingresosMensuales, this.mesesCrecimiento);
   }
 
+  get egresosMensuales() {
+    return ingresosMensualesVisibles(this.kpis.egresosMensuales, this.mesesCrecimiento);
+  }
+
   get totalIngresosPeriodoChart(): number {
     return this.ingresosMensuales.reduce((s, m) => s + m.monto, 0);
+  }
+
+  get totalEgresosPeriodoChart(): number {
+    return this.egresosMensuales.reduce((s, m) => s + m.monto, 0);
   }
 
   get maxIngresoMensual(): number {
     return maxMontoSerie(this.ingresosMensuales);
   }
 
+  get maxEgresoMensual(): number {
+    return maxMontoSerie(this.egresosMensuales);
+  }
+
   get mejorMes() {
     if (!this.ingresosMensuales.length) return null;
     return this.ingresosMensuales.reduce((best, m) => (m.monto > best.monto ? m : best));
+  }
+
+  get peorMesEgreso() {
+    if (!this.egresosMensuales.length) return null;
+    return this.egresosMensuales.reduce((best, m) => (m.monto > best.monto ? m : best));
   }
 
   get etiquetaRango(): string {
@@ -156,6 +173,10 @@ export class DashboardComponent implements OnInit {
 
   alturaBarra(monto: number): number {
     return pctBarra(monto, this.maxIngresoMensual);
+  }
+
+  alturaBarraEgreso(monto: number): number {
+    return pctBarra(monto, this.maxEgresoMensual);
   }
 
   alturaBarraPlan(ingresos: number): number {

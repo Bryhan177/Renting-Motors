@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { Observable, from, map, forkJoin, of, switchMap } from 'rxjs';
+import { Observable, from, map, forkJoin, of, switchMap, throwError } from 'rxjs';
 import { getSupabase } from '../supabase/supabase.client';
 import { AuthService } from '../auth/auth.service';
 import { Moto } from '../shared/interfaces/moto';
@@ -132,6 +132,67 @@ export class PagosService {
       map(({ data, error }) => {
         if (error || !data) throw error || new Error('No se pudo crear pago');
         return this.map(data);
+      }),
+    );
+  }
+
+  registrarOtroIngreso(payload: {
+    motoId?: string | null;
+    conductorId?: string | null;
+    fechaPago: string;
+    valorPagado: number;
+    metodoPago: string;
+    observaciones: string;
+  }): Observable<PagoManual> {
+    const actorId = this.auth.getUserId();
+    const fecha = (payload.fechaPago || '').slice(0, 10);
+    const monto = Number(payload.valorPagado) || 0;
+    if (monto <= 0) {
+      return throwError(() => ({ error: { message: 'Indica un monto válido' } }));
+    }
+    const nota = (payload.observaciones || '').trim() || 'Otros ingresos';
+    const semana = this.isoWeek(new Date(fecha || Date.now()));
+    return from(
+      getSupabase()
+        .from('pagos')
+        .insert(
+          stripClienteEmpresaId({
+            moto_id: payload.motoId || null,
+            conductor_id: payload.conductorId || null,
+            fecha_pago: fecha,
+            monto,
+            valor_pagado: monto,
+            gastos: 0,
+            metodo_pago: payload.metodoPago,
+            observaciones: nota,
+            semana,
+            pagado: true,
+            registrado_por: actorId,
+          }),
+        )
+        .select('*, motos:moto_id(*)')
+        .single(),
+    ).pipe(
+      switchMap(({ data, error }) => {
+        if (error || !data) throw error || new Error('No se pudo registrar el ingreso');
+        const pago = this.map(data);
+        const placa = pago.moto?.placa || '';
+        return from(
+          getSupabase()
+            .from('movimientos_caja')
+            .insert(
+              stripClienteEmpresaId({
+                banco: 'mdd',
+                tipo: 'ingreso',
+                monto,
+                fecha,
+                descripcion: placa ? `${nota} · ${placa}` : nota,
+                moto_id: payload.motoId || null,
+                pago_id: data.id,
+                registrado_por: actorId,
+              }),
+            ),
+        ).pipe(map(() => pago));
       }),
     );
   }

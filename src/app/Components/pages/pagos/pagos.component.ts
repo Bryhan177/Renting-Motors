@@ -9,19 +9,19 @@ import { CobrosService, Abono, Cobro } from '../../../service/cobros.service';
 import { ContratosService, Contrato } from '../../../service/contratos.service';
 import { Moto } from '../../../shared/interfaces/moto';
 import { CurrencyCoDirective } from '../../../shared/directives/currency-co.directive';
-import { diasHasta, etiquetaVencimiento } from '../../../shared/date.util';
-import { FrecuenciaPago, cobroPeriodoVigente, parseDateOnly } from '../../../shared/periodo.util';
+import { diasHasta } from '../../../shared/date.util';
+import { FrecuenciaPago, parseDateOnly } from '../../../shared/periodo.util';
+import {
+  FiltroCartera,
+  GrupoCartera,
+  ItemCartera,
+  agruparCarteraPorConductor,
+  construirCarteraCobros,
+  filtrarCartera,
+  filtrarCarteraPorConductor,
+  opcionesConductorCartera,
+} from '../../../shared/cartera-cobros';
 import Swal from 'sweetalert2';
-
-type FiltroCartera = 'todos' | 'mora' | 'pendientes' | 'al_dia';
-
-interface ItemCartera {
-  cobro: Cobro;
-  frecuencia: FrecuenciaPago;
-  conductorNombre: string;
-  motoPlaca: string;
-  diasMora: number;
-}
 
 @Component({
   selector: 'app-pagos',
@@ -40,18 +40,20 @@ export class PagosComponent implements OnInit {
   loadingAbonos = false;
   loadingCartera = false;
   generandoCobros = false;
+  guardandoPagoCobro = false;
+  guardandoOtroIngreso = false;
   mostrarModal = false;
   mostrarModalCobro = false;
   filtroCartera: FiltroCartera = 'todos';
+  conductorSeleccionadoId = '';
+  busquedaConductor = '';
 
   form = {
-    motoId: '',
+    motoId: '' as string | null,
     fechaPago: new Date().toISOString().slice(0, 10),
     valorPagado: 0,
-    gastos: 0,
-    descripcionGasto: '',
-    metodoPago: 'TRANSFERENCIA',
-    observaciones: '',
+    metodoPago: 'Transferencia',
+    observaciones: 'Alquiler puntual',
   };
 
   cobroPagoForm = {
@@ -62,6 +64,7 @@ export class PagosComponent implements OnInit {
     monto: 0,
     metodoPago: 'Transferencia',
     observaciones: '',
+    comprobante: null as string | null,
   };
 
   constructor(
@@ -128,9 +131,7 @@ export class PagosComponent implements OnInit {
           forkJoin({
             creados: of(creados),
             cobros: this.cobrosService.getCobros().pipe(catchError(() => of([] as Cobro[]))),
-            contratos: this.contratosService
-              .getContratos({ estado: 'activo' })
-              .pipe(catchError(() => of([] as Contrato[]))),
+            contratos: this.contratosService.getContratos().pipe(catchError(() => of([] as Contrato[]))),
           }),
         ),
         finalize(() => {
@@ -141,7 +142,7 @@ export class PagosComponent implements OnInit {
       .subscribe({
         next: ({ creados, cobros, contratos }) => {
           this.contratos = contratos;
-          this.cartera = this.construirCartera(cobros, contratos);
+          this.cartera = construirCarteraCobros(cobros, contratos, this.motos);
           if (!auto && creados.length) {
             Swal.fire({
               icon: 'success',
@@ -173,64 +174,31 @@ export class PagosComponent implements OnInit {
       });
   }
 
-  private construirCartera(cobros: Cobro[], contratos: Contrato[]): ItemCartera[] {
-    const items: ItemCartera[] = [];
-
-    for (const contrato of contratos) {
-      if (!contrato._id) continue;
-
-      const cobro = cobroPeriodoVigente(
-        cobros,
-        contrato._id,
-        contrato.fechaInicio,
-        contrato.frecuenciaPago || 'semanal',
-      );
-
-      if (!cobro || cobro.saldo <= 0 || cobro.estado === 'anulado' || cobro.estado === 'pagado') {
-        continue;
-      }
-
-      const dias = diasHasta(cobro.fechaVencimiento);
-      const diasMora = cobro.enMora && dias !== null ? Math.max(0, -dias) : 0;
-
-      let motoPlaca = '—';
-      if (contrato.motoId && typeof contrato.motoId !== 'string') {
-        motoPlaca = (contrato.motoId as Moto).placa || '—';
-      }
-
-      items.push({
-        cobro,
-        frecuencia: contrato.frecuenciaPago || 'semanal',
-        conductorNombre: this.nombreConductorCobro(cobro),
-        motoPlaca,
-        diasMora,
-      });
-    }
-
-    return items.sort((a, b) => {
-      if (a.cobro.enMora !== b.cobro.enMora) return a.cobro.enMora ? -1 : 1;
-      return (
-        parseDateOnly(a.cobro.fechaVencimiento).getTime() -
-        parseDateOnly(b.cobro.fechaVencimiento).getTime()
-      );
-    });
+  get carteraFiltrada(): ItemCartera[] {
+    const porEstado = filtrarCartera(this.cartera, this.filtroCartera);
+    return filtrarCarteraPorConductor(
+      porEstado,
+      this.conductorSeleccionadoId,
+      this.busquedaConductor,
+    );
   }
 
-  get carteraFiltrada(): ItemCartera[] {
-    switch (this.filtroCartera) {
-      case 'mora':
-        return this.cartera.filter((i) => i.cobro.enMora);
-      case 'pendientes':
-        return this.cartera.filter((i) => !i.cobro.enMora && i.cobro.saldo > 0);
-      case 'al_dia':
-        return this.cartera.filter((i) => !i.cobro.enMora);
-      default:
-        return this.cartera;
-    }
+  get gruposCartera(): GrupoCartera[] {
+    return agruparCarteraPorConductor(this.carteraFiltrada);
+  }
+
+  get conductoresOpciones() {
+    return opcionesConductorCartera(this.cartera);
   }
 
   get totalEnMora(): number {
     return this.cartera.filter((i) => i.cobro.enMora).length;
+  }
+
+  get conductoresEnMora(): number {
+    return new Set(
+      this.cartera.filter((i) => i.cobro.enMora).map((i) => i.conductorId || i.conductorNombre),
+    ).size;
   }
 
   get montoEnMora(): number {
@@ -386,11 +354,12 @@ export class PagosComponent implements OnInit {
     this.cobroPagoForm = {
       cobroId: item.cobro._id,
       conductorNombre: item.conductorNombre,
-      periodoLabel: `#${item.cobro.numeroPeriodo} · ${this.etiquetaFrecuencia(item.frecuencia)}`,
+      periodoLabel: `#${item.cobro.numeroPeriodo} · ${this.etiquetaFrecuencia(item.frecuencia)} · vence ${this.formatearFecha(item.cobro.fechaVencimiento)}`,
       saldo: item.cobro.saldo,
       monto: item.cobro.saldo,
       metodoPago: 'Transferencia',
       observaciones: '',
+      comprobante: null,
     };
     this.mostrarModalCobro = true;
   }
@@ -399,27 +368,46 @@ export class PagosComponent implements OnInit {
     this.mostrarModalCobro = false;
   }
 
+  onComprobantePagoCobro(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file) return;
+    if (file.size > 4 * 1024 * 1024) {
+      Swal.fire({ icon: 'warning', title: 'El comprobante debe pesar máximo 4 MB' });
+      input.value = '';
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      this.cobroPagoForm.comprobante = String(reader.result || '');
+    };
+    reader.readAsDataURL(file);
+  }
+
   guardarPagoCobro(): void {
     if (!this.cobroPagoForm.cobroId || !this.cobroPagoForm.monto || this.cobroPagoForm.monto <= 0) {
       Swal.fire({ icon: 'warning', title: 'Indica un monto válido' });
       return;
     }
+    this.guardandoPagoCobro = true;
     this.cobrosService
       .registrarAbono({
         cobroId: this.cobroPagoForm.cobroId,
         monto: this.cobroPagoForm.monto,
         metodoPago: this.cobroPagoForm.metodoPago,
         observaciones: this.cobroPagoForm.observaciones || undefined,
+        comprobante: this.cobroPagoForm.comprobante || undefined,
         origenAbono: 'admin',
         pendienteConfirmacion: false,
       })
       .subscribe({
         next: () => {
+          this.guardandoPagoCobro = false;
           this.mostrarModalCobro = false;
           Swal.fire({
             icon: 'success',
             title: 'Pago registrado',
-            text: 'El cobro se actualizó. Si quedó saldado, ya no estará en mora.',
+            text: 'Abono registrado (no pendiente). El cobro y la caja se actualizan.',
             timer: 2000,
             showConfirmButton: false,
           });
@@ -427,12 +415,14 @@ export class PagosComponent implements OnInit {
           this.cargarAbonosPendientes();
           this.cargar();
         },
-        error: (e) =>
+        error: (e) => {
+          this.guardandoPagoCobro = false;
           Swal.fire({
             icon: 'error',
             title: 'No se pudo registrar',
             text: e?.error?.message || e?.message || '',
-          }),
+          });
+        },
       });
   }
 
@@ -442,51 +432,52 @@ export class PagosComponent implements OnInit {
 
   abrirModal(): void {
     this.form = {
-      motoId: '',
+      motoId: null,
       fechaPago: new Date().toISOString().slice(0, 10),
       valorPagado: 0,
-      gastos: 0,
-      descripcionGasto: '',
-      metodoPago: 'TRANSFERENCIA',
-      observaciones: '',
+      metodoPago: 'Transferencia',
+      observaciones: 'Alquiler puntual',
     };
     this.mostrarModal = true;
   }
 
-  onMotoChange(): void {
-    const m = this.motoSeleccionada();
-    if (m?.precioCobro) this.form.valorPagado = m.precioCobro;
-  }
-
   guardar(): void {
-    if (!this.form.motoId || !this.form.valorPagado) {
-      Swal.fire({ icon: 'warning', title: 'Elige MDD y valor pagado' });
+    if (!this.form.valorPagado || this.form.valorPagado <= 0) {
+      Swal.fire({ icon: 'warning', title: 'Indica el valor del ingreso' });
       return;
     }
+    this.guardandoOtroIngreso = true;
     const m = this.motoSeleccionada();
     this.pagosService
-      .registrarManual({
-        motoId: this.form.motoId,
+      .registrarOtroIngreso({
+        motoId: this.form.motoId || null,
         conductorId: m?.conductorId || null,
         fechaPago: this.form.fechaPago,
         valorPagado: this.form.valorPagado,
-        gastos: this.form.gastos,
-        descripcionGasto: this.form.descripcionGasto,
         metodoPago: this.form.metodoPago,
-        observaciones: this.form.observaciones,
+        observaciones: this.form.observaciones || 'Otros ingresos',
       })
       .subscribe({
         next: () => {
+          this.guardandoOtroIngreso = false;
           this.mostrarModal = false;
-          Swal.fire({ icon: 'success', title: 'Pago registrado', timer: 1500, showConfirmButton: false });
+          Swal.fire({
+            icon: 'success',
+            title: 'Ingreso registrado',
+            text: 'Queda en Pagos y Flujo de caja. El dashboard lo suma como otros ingresos (no es cuota).',
+            timer: 2200,
+            showConfirmButton: false,
+          });
           this.cargar();
         },
-        error: (e) =>
+        error: (e) => {
+          this.guardandoOtroIngreso = false;
           Swal.fire({
             icon: 'error',
             title: 'Error',
             text: e?.message || e?.error?.message || 'No se pudo guardar',
-          }),
+          });
+        },
       });
   }
 }

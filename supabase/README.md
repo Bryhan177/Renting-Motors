@@ -16,6 +16,7 @@ Ejecuta en Supabase SQL Editor, en este orden si aún no lo hiciste:
 12. **`20260831_abono_registrado_pagos_caja.sql`** ← al confirmar un abono (`estado = registrado`) crea fila en `pagos` + ingreso en `movimientos_caja` (banco MDD). No borra filas (anulado). Backfill de abonos ya aprobados. RLS de caja/pagos: escribe solo staff.
 13. **`20260901_multi_tenant_empresas.sql`** ← aísla producción vs pruebas (`empresas` + `empresa_id` + RLS). **Obligatorio** si quieres un login de TEST que no vea plata real.
 14. **`20260902_assert_misma_empresa_grant.sql`** ← hotfix si el owner ve `permission denied for function assert_misma_empresa` al INSERT/UPDATE. **No re-ejecutes 20260901.** Un `grant execute … to authenticated` ya desbloquea; este archivo es el arreglo durable.
+15. **`20260903_dashboard_ingresos_egresos.sql`** ← `resumen_dashboard` suma **cuotas** (abonos registrados) **+ otros ingresos** (caja ingreso sin `abono_id`: alquiler puntual). Añade `egresos_periodo` / `egresos_mensuales` (`movimientos_caja.tipo = egreso`). **No duplica** caja ligada a un abono. No toca mora, talleres ni planes.
 
 Luego cierra sesión y vuelve a entrar.
 
@@ -122,10 +123,12 @@ El plan **sugiere**. No hay tarifa global $160.000 / $180.000 para contratos.
 6. Entra como **empleado** → `/empleados`. No debe ver el dashboard staff. El RPC responde `42501` si un conductor lo llama.
 
 Definiciones:
-- **Ingresos** = `sum(abonos.monto)` con `estado = 'registrado'` (excluye `anulado` y `pendiente_confirmacion`). Fecha = `fecha_pago` en `America/Bogota`.
+- **Ingresos** = cuotas (`sum(abonos.monto)` con `estado = 'registrado'`) **+ otros** (`movimientos_caja` ingreso, `abono_id IS NULL`, no anulado). Fecha de cuota = `fecha_pago` en `America/Bogota`. Fecha de otros = `movimientos_caja.fecha`.
+- **Egresos** = `movimientos_caja.tipo = 'egreso'` no anulado (mantenimientos, Flujo de caja). `pagos.gastos` no es este stream (el pago manual legacy lo resta del neto).
+- **No duplicar:** la caja que crea el trigger 20260831 tiene `abono_id` y **no** se vuelve a sumar.
 - **Contratos nuevos** = `fecha_inicio` en el periodo y `estado <> anulado`. Se eligió `fecha_inicio` porque es el inicio comercial del arriendo; `created_at` es el alta del borrador.
 - **Motos alquiladas / disponibles** = `motos.estado` `en_uso` / `disponible` (no se inventan estados).
-- **Planes** = snapshot `contratos.plan_nombre`; NULL o vacío → **Sin plan**.
+- **Planes** = snapshot `contratos.plan_nombre`; NULL o vacío → **Sin plan**. Solo cuotas de contrato (otros ingresos no tienen plan).
 
 No toca talleres, catálogo de planes, wizard de contrato, SQL de mora, generación de cobros ni `cuota_semanal` histórica.
 
@@ -258,6 +261,31 @@ where n.nspname = 'public'
 ```
 
 No toca Angular, mora, wizard, planes, talleres UX ni cobros.
+
+## Dashboard: otros ingresos + egresos (20260903)
+
+El alquiler puntual (ej. 30.000 COP × 2) que la asesora registraba con “pago manual” por moto **nunca era un abono**. `resumen_dashboard` solo sumaba `abonos.estado = 'registrado'`, así que no salía en KPIs ni en la gráfica.
+
+1. Supabase → **SQL Editor** → pega `supabase/migrations/20260903_dashboard_ingresos_egresos.sql` → **Run**.
+2. En la app, **Pagos → Otros ingresos**: concepto (Alquiler puntual), valor, MDD opcional. Eso escribe `pagos` + `movimientos_caja` ingreso **sin** `abono_id`.
+3. Verificar:
+   ```sql
+   -- Otros ingresos del mes (no cuotas)
+   select id, monto, fecha, descripcion, abono_id, tipo, estado
+   from public.movimientos_caja
+   where tipo = 'ingreso' and abono_id is null
+     and estado is distinct from 'anulado'
+     and fecha between (select desde from public.rango_periodo_dashboard('mes'))
+                   and (select hasta from public.rango_periodo_dashboard('mes'));
+
+   -- El RPC (staff JWT). ingresos_periodo = cuotas + otros
+   select public.resumen_dashboard('mes') -> 'ingresos_periodo';
+   select public.resumen_dashboard('mes') -> 'ingresos_otros';
+   select public.resumen_dashboard('mes') -> 'egresos_periodo';
+   ```
+4. Dashboard: gráfica **Ingresos** (cuotas + otros) y gráfica **Egresos** (solo caja `tipo = egreso`). Un egreso no sube ingresos.
+
+No borra filas, no reescribe `cuota_semanal`, no cambia talleres / planes / mora.
 
 ## Si en producción no ves usuarios / pagos / caja / documentos
 

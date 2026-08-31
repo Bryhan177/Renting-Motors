@@ -68,6 +68,23 @@ describe('DashboardComponent', () => {
     expect(component.kpis.ingresosPeriodo).toBe(25000);
   });
 
+  it('la serie de egresos no se mezcla con la de ingresos', () => {
+    const ingresos = [
+      { key: '2026-08', label: 'ago 26', monto: 60000, cantidadAbonos: 2 },
+    ];
+    const egresos = [
+      { key: '2026-08', label: 'ago 26', monto: 15000, cantidadAbonos: 1 },
+    ];
+    dashboardService.getResumen.mockReturnValue(
+      of(kpis({ ingresosMensuales: ingresos, egresosMensuales: egresos, egresosPeriodo: 15000 })),
+    );
+    component.ngOnInit();
+    expect(component.ingresosMensuales.map((m) => m.monto)).toEqual([60000]);
+    expect(component.egresosMensuales.map((m) => m.monto)).toEqual([15000]);
+    expect(component.totalEgresosPeriodoChart).toBe(15000);
+    expect(component.kpis.egresosPeriodo).toBe(15000);
+  });
+
   it('lista operativa pide cobros con saldo (no todo el histórico pagado)', () => {
     component.ngOnInit();
     expect(cobrosService.getCobros).toHaveBeenCalledWith({ soloConSaldo: true });
