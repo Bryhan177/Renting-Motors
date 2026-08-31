@@ -217,7 +217,7 @@ export class HomeEmpleadosComponent implements OnInit {
         .getContratos({ conductorId: userId, estado: 'activo' })
         .pipe(catchError(() => of([]))),
       novedades: this.novedadesService
-        .list({ conductorId: userId })
+        .list({ conductorId: userId, conFoto: true })
         .pipe(catchError(() => of([]))),
     }).subscribe({
       next: ({ usuario, motos, cobros, estado, abonos, docs, contratos, novedades }) => {

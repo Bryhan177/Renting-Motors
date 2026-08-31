@@ -310,7 +310,8 @@
 }
 
 .fleet-item {
-  display: block;
+  display: flex;
+  flex-direction: column;
   width: 100%;
   text-align: left;
   background: #15191e;
@@ -338,6 +339,8 @@
   position: relative;
   height: 10.5rem;
   background: #0a0c0e;
+  overflow: hidden;
+  flex-shrink: 0;
 }
 
 .fleet-photo img {
@@ -378,7 +381,10 @@
 }
 
 .fleet-meta {
+  position: relative;
+  z-index: 1;
   padding: 1rem 1.1rem 1.2rem;
+  background: #15191e;
 }
 
 .fleet-meta h3 {

@@ -17,6 +17,8 @@ Ejecuta en Supabase SQL Editor, en este orden si aún no lo hiciste:
 13. **`20260901_multi_tenant_empresas.sql`** ← aísla producción vs pruebas (`empresas` + `empresa_id` + RLS). **Obligatorio** si quieres un login de TEST que no vea plata real.
 14. **`20260902_assert_misma_empresa_grant.sql`** ← hotfix si el owner ve `permission denied for function assert_misma_empresa` al INSERT/UPDATE. **No re-ejecutes 20260901.** Un `grant execute … to authenticated` ya desbloquea; este archivo es el arreglo durable.
 15. **`20260903_dashboard_ingresos_egresos.sql`** ← `resumen_dashboard` suma **cuotas** (abonos registrados) **+ otros ingresos** (caja ingreso sin `abono_id`: alquiler puntual). Añade `egresos_periodo` / `egresos_mensuales` (`movimientos_caja.tipo = egreso`). **No duplica** caja ligada a un abono. No toca mora, talleres ni planes.
+16. **`20260904_motos_imagen_url.sql`** ← columna `motos.imagen_url` (URL http corta). Backfill solo de `imagen LIKE 'http%'`. **No copia `data:`.** Las listas (landing, inventario, contratos) leen **solo** `imagen_url`. **No re-ejecutes 20260901.**
+17. **`20260905_motos_imagen_drop_data.sql`** ← **después de 20260904.** Pone `imagen = imagen_url` cuando el blob es `data:` y ya hay URL http; luego `imagen = NULL` en el resto de `data:`. **Puede tardar 1–2 min UNA vez.** Motos que solo tenían `data:` (sin `imagen_url` http) pierden el blob (fallback hasta re-subir). `VACUUM ANALYZE` va **comentado**: córrelo en otra query si el rol puede; si falla, sáltalo. **No re-ejecutes 20260901.**
 
 Luego cierra sesión y vuelve a entrar.
 
@@ -286,6 +288,16 @@ El alquiler puntual (ej. 30.000 COP × 2) que la asesora registraba con “pago 
 4. Dashboard: gráfica **Ingresos** (cuotas + otros) y gráfica **Egresos** (solo caja `tipo = egreso`). Un egreso no sube ingresos.
 
 No borra filas, no reescribe `cuota_semanal`, no cambia talleres / planes / mora.
+
+## motos.imagen data: → drop (20260905)
+
+Después de **20260904**, los `data:` **siguen** en `motos.imagen` (TOAST de varios MB). Eso congela el pintado de Planes/landing aunque Angular ya no seleccione la columna: cualquier embed `motos(*)` o un LIKE/SELECT residual lee los blobs.
+
+1. Supabase → SQL Editor → pega **`supabase/migrations/20260905_motos_imagen_drop_data.sql`** → **Run**.
+2. ⚠️ Puede tardar **1–2 minutos una vez**. No re-ejecutes 20260901. No re-ejecutes 20260904.
+3. Motos que **solo** tenían `data:` (sin `imagen_url` http) quedan sin foto (fallback) hasta re-subir desde Inventario MDD.
+4. Opcional, **otra** query (no en el mismo paste): `VACUUM ANALYZE public.motos;` — si el rol no puede, sáltalo.
+5. Reinicia `ng serve`, recarga dura. `/planes` las 3 filas deben pintar juntas. Landing: fotos http sin minutos.
 
 ## Si en producción no ves usuarios / pagos / caja / documentos
 

@@ -16,7 +16,7 @@ function kpis(partial: Partial<ResumenDashboard> = {}): ResumenDashboard {
 }
 
 describe('DashboardComponent', () => {
-  const motosService = { getMotos: jest.fn() };
+  const motosService = { getMotosOperativo: jest.fn() };
   const cobrosService = {
     getCobros: jest.fn(),
     getAbonos: jest.fn(),
@@ -29,7 +29,7 @@ describe('DashboardComponent', () => {
   let component: DashboardComponent;
 
   beforeEach(() => {
-    motosService.getMotos.mockReturnValue(of([]));
+    motosService.getMotosOperativo.mockReturnValue(of([]));
     cobrosService.getCobros.mockReturnValue(of([]));
     cobrosService.getAbonos.mockReturnValue(of([]));
     novedadesService.list.mockReturnValue(of([]));
@@ -88,6 +88,7 @@ describe('DashboardComponent', () => {
   it('lista operativa pide cobros con saldo (no todo el histórico pagado)', () => {
     component.ngOnInit();
     expect(cobrosService.getCobros).toHaveBeenCalledWith({ soloConSaldo: true });
+    expect(motosService.getMotosOperativo).toHaveBeenCalled();
   });
 
   it('si falta el SQL, deja ceros y marca sqlPendiente', () => {
@@ -98,6 +99,19 @@ describe('DashboardComponent', () => {
     expect(component.kpis.ingresosPeriodo).toBe(0);
     expect(component.sqlPendiente).toBe(true);
     expect(component.loading).toBe(false);
+  });
+
+  it('si el RPC falla, el Resumen sigue con cards en cero (no loader infinito)', () => {
+    dashboardService.getResumen.mockReturnValue(
+      throwError(() => ({ message: 'schema cache' })),
+    );
+    component.ngOnInit();
+    expect(component.loading).toBe(false);
+    expect(component.seccion).toBe('resumen');
+    expect(component.kpis.ingresosPeriodo).toBe(0);
+    expect(component.kpis.egresosPeriodo).toBe(0);
+    expect(component.kpis.contratosActivos).toBe(0);
+    expect(component.sqlPendiente).toBe(true);
   });
 
   it('cop formatea COP es-CO', () => {

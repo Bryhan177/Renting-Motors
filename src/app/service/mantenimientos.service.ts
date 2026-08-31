@@ -2,7 +2,9 @@ import { Injectable } from '@angular/core';
 import { Observable, from, map, switchMap } from 'rxjs';
 import { getSupabase } from '../supabase/supabase.client';
 import { AuthService } from '../auth/auth.service';
-import { MotosService } from './motos.service';
+import { MotosService, MOTOS_EMBED_SELECT, fotoDesdeImagenUrl } from './motos.service';
+
+export const MANTENIMIENTOS_LISTA_SELECT = `*, motos:moto_id(${MOTOS_EMBED_SELECT})`;
 
 export interface Mantenimiento {
   _id?: string;
@@ -32,7 +34,7 @@ export class MantenimientosService {
             placa: row.motos.placa,
             marca: row.motos.marca,
             modelo: row.motos.modelo,
-            imagen: row.motos.imagen,
+            imagen: fotoDesdeImagenUrl(row.motos),
           }
         : undefined,
       valor: Number(row.valor) || 0,
@@ -48,7 +50,7 @@ export class MantenimientosService {
     return from(
       getSupabase()
         .from('mantenimientos')
-        .select('*, motos:moto_id(placa,marca,modelo,imagen)')
+        .select(MANTENIMIENTOS_LISTA_SELECT)
         .order('fecha_ingreso', { ascending: false }),
     ).pipe(
       map(({ data, error }) => {
@@ -79,7 +81,7 @@ export class MantenimientosService {
           estado: 'en_taller',
           registrado_por: actorId,
         })
-        .select('*, motos:moto_id(placa,marca,modelo,imagen)')
+        .select(MANTENIMIENTOS_LISTA_SELECT)
         .single(),
     ).pipe(
       switchMap(({ data, error }) => {
@@ -110,7 +112,7 @@ export class MantenimientosService {
         .from('mantenimientos')
         .update({ estado: 'finalizado', fecha_salida: new Date().toISOString().slice(0, 10) })
         .eq('id', id)
-        .select('*, motos:moto_id(placa,marca,modelo,imagen)')
+        .select(MANTENIMIENTOS_LISTA_SELECT)
         .single(),
     ).pipe(
       switchMap(({ data, error }) => {

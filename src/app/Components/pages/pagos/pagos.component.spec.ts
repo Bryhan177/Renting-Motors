@@ -68,9 +68,10 @@ describe('PagosComponent', () => {
     registrarManual: jest.fn(),
     registrarOtroIngreso: jest.fn(),
   };
-  const motosService = { getMotos: jest.fn() };
+  const motosService = { getMotos: jest.fn(), getMotosLista: jest.fn() };
   const cobrosService = {
     getAbonos: jest.fn(),
+    getAbonoComprobante: jest.fn(),
     getCobros: jest.fn(),
     generarPendientes: jest.fn(),
     confirmarAbono: jest.fn(),
@@ -85,7 +86,7 @@ describe('PagosComponent', () => {
     jest.clearAllMocks();
     pagosService.getPagos.mockReturnValue(of([]));
     pagosService.registrarOtroIngreso.mockReturnValue(of({ valorPagado: 30000, gastos: 0 }));
-    motosService.getMotos.mockReturnValue(of([]));
+    motosService.getMotosLista.mockReturnValue(of([]));
     cobrosService.getAbonos.mockReturnValue(of([]));
     cobrosService.getCobros.mockReturnValue(of([]));
     cobrosService.generarPendientes.mockReturnValue(of([]));

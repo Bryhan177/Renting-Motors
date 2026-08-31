@@ -24,7 +24,9 @@ export interface Moto {
   estado: 'disponible' | 'en_uso' | 'en_mantenimiento' | 'fuera_servicio';
   conductorId?: string | null;
   conductor?: Usuario;
+  /** Foto de listas: URL http de `motos.imagen_url`. Nunca un data:. */
   imagen?: string;
+  imagenUrl?: string;
   createdAt?: Date | string;
   updatedAt?: Date | string;
 }

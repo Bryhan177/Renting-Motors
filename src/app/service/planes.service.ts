@@ -6,6 +6,9 @@ import { FrecuenciaPago } from '../shared/periodo.util';
 import { PERIODICIDADES, periodicidadesDe } from '../shared/plan-economia';
 import { stripClienteEmpresaId } from '../shared/empresa-scope';
 
+export const PLANES_LISTA_SELECT =
+  'id, nombre, descripcion, condiciones_uso, periodicidades_permitidas, valor_sugerido, permite_negociacion, duracion_minima_meses, requiere_cuota_inicial, activo, created_at, updated_at';
+
 @Injectable({ providedIn: 'root' })
 export class PlanesService {
   private map(row: any): Plan {
@@ -52,7 +55,7 @@ export class PlanesService {
   }
 
   getPlanes(incluirInactivos = true): Observable<Plan[]> {
-    let q = getSupabase().from('planes').select('*').order('nombre', { ascending: true });
+    let q = getSupabase().from('planes').select(PLANES_LISTA_SELECT).order('nombre', { ascending: true });
     if (!incluirInactivos) q = q.eq('activo', true);
     return from(q).pipe(
       map(({ data, error }) => {

@@ -1,12 +1,13 @@
-import { of, throwError } from 'rxjs';
+import { of, throwError, Subject } from 'rxjs';
 import { ContratosComponent } from './contratos.component';
-import { ContratosService, Contrato } from '../../../service/contratos.service';
+import { ContratosService, Contrato, CONTRATOS_LISTA_SELECT } from '../../../service/contratos.service';
 import { CobrosService } from '../../../service/cobros.service';
 import { MotosService } from '../../../service/motos.service';
 import { UsuariosService } from '../../../service/usuarios.service';
 import { PlanesService } from '../../../service/planes.service';
 import { AuthService } from '../../../auth/auth.service';
 import { Plan } from '../../../shared/interfaces/plan';
+import { Moto } from '../../../shared/interfaces/moto';
 import { aplicarCambioPlan, formularioListoParaCrear, formWizardVacio } from '../../../shared/contrato-wizard';
 
 jest.mock('sweetalert2', () => ({
@@ -23,7 +24,7 @@ describe('ContratosComponent', () => {
     anular: jest.fn(),
   };
   const cobrosService = { generarPendientes: jest.fn().mockReturnValue(of([])) };
-  const motosService = { getMotos: jest.fn().mockReturnValue(of([])) };
+  const motosService = { getMotos: jest.fn().mockReturnValue(of([])), getMotosLista: jest.fn().mockReturnValue(of([])) };
   const usuariosService = { getUsuarios: jest.fn().mockReturnValue(of([])) };
   const planesService = { getActivos: jest.fn().mockReturnValue(of([])) };
   const auth = { getUserId: jest.fn().mockReturnValue('staff-1') };
@@ -46,6 +47,7 @@ describe('ContratosComponent', () => {
   beforeEach(() => {
     contratosService.getContratos.mockReturnValue(of([]));
     contratosService.create.mockReset();
+    motosService.getMotosLista.mockReturnValue(of([]));
     planesService.getActivos.mockReturnValue(of([planPersonal]));
     component = new ContratosComponent(
       contratosService as unknown as ContratosService,
@@ -60,6 +62,45 @@ describe('ContratosComponent', () => {
 
   it('should create', () => {
     expect(component).toBeTruthy();
+  });
+
+  it('el listado de contratos no embebe motos.* ni imagen', () => {
+    expect(CONTRATOS_LISTA_SELECT).not.toMatch(/motos:moto_id\(\*\)/);
+    expect(CONTRATOS_LISTA_SELECT).not.toMatch(/usuarios:conductor_id\(\*\)/);
+    expect(CONTRATOS_LISTA_SELECT).not.toMatch(/imagen/);
+    expect(CONTRATOS_LISTA_SELECT).toMatch(/motos:moto_id\(id,marca,modelo,placa,estado\)/);
+  });
+
+  it('pinta la tabla de contratos sin pedir motos', () => {
+    contratosService.getContratos.mockReturnValue(
+      of([
+        {
+          estado: 'activo',
+          conductorId: { _id: 'c1', nombre: 'Wbelmar', apellido: 'Berrio' },
+          motoId: { _id: 'm1', placa: 'FSS51B', marca: 'AUTECO', modelo: '2008' },
+          fechaInicio: '2026-01-01',
+          cuotaSemanal: 180000,
+          depositoPactado: 0,
+          frecuenciaPago: 'semanal',
+        },
+      ] as Contrato[]),
+    );
+    component.cargar();
+    expect(component.contratos).toHaveLength(1);
+    expect(component.cargando).toBe(false);
+    expect(component.motos).toEqual([]);
+    expect(motosService.getMotosLista).not.toHaveBeenCalled();
+    expect(usuariosService.getUsuarios).not.toHaveBeenCalled();
+  });
+
+  it('carga motos solo al abrir el wizard de crear', () => {
+    const motos$ = new Subject<Moto[]>();
+    motosService.getMotosLista.mockReturnValue(motos$);
+    component.abrirCrear();
+    expect(motosService.getMotosLista).toHaveBeenCalled();
+    expect(component.motos).toEqual([]);
+    motos$.next([{ _id: 'm1', placa: 'FSS51B', marca: 'AUTECO', modelo: '2008', precio: 0, estado: 'en_uso' }]);
+    expect(component.motos).toHaveLength(1);
   });
 
   it('no llama create sin plan (red de seguridad del wizard)', () => {

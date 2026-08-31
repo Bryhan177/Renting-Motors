@@ -1,7 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { catchError, forkJoin, of } from 'rxjs';
+import { catchError, of } from 'rxjs';
 import Swal from 'sweetalert2';
 import { ContratosService, Contrato } from '../../../service/contratos.service';
 import { CobrosService } from '../../../service/cobros.service';
@@ -99,17 +99,9 @@ export class ContratosComponent implements OnInit {
 
   cargar(): void {
     this.cargando = true;
-    forkJoin({
-      contratos: this.contratosService.getContratos().pipe(catchError(() => of([] as Contrato[]))),
-      motos: this.motosService.getMotos().pipe(catchError(() => of([] as Moto[]))),
-      usuarios: this.usuariosService.getUsuarios(false).pipe(catchError(() => of([] as Usuario[]))),
-      planes: this.planesService.getActivos().pipe(catchError(() => of([] as Plan[]))),
-    }).subscribe({
-      next: ({ contratos, motos, usuarios, planes }) => {
+    this.contratosService.getContratos().pipe(catchError(() => of([] as Contrato[]))).subscribe({
+      next: (contratos) => {
         this.contratos = contratos;
-        this.motos = motos;
-        this.conductores = usuarios.filter((u) => u.rol === 'empleado' && u.activo);
-        this.planes = planes;
         this.cargando = false;
       },
       error: (e) => {
@@ -119,9 +111,23 @@ export class ContratosComponent implements OnInit {
     });
   }
 
+  /** Motos/usuarios/planes solo al abrir el wizard — la tabla no espera MotosService. */
+  private cargarCatalogoWizard(): void {
+    this.motosService.getMotosLista().pipe(catchError(() => of([] as Moto[]))).subscribe({
+      next: (motos) => (this.motos = motos),
+    });
+    this.usuariosService.getUsuarios(false).pipe(catchError(() => of([] as Usuario[]))).subscribe({
+      next: (usuarios) => (this.conductores = usuarios.filter((u) => u.rol === 'empleado' && u.activo)),
+    });
+    this.planesService.getActivos().pipe(catchError(() => of([] as Plan[]))).subscribe({
+      next: (planes) => (this.planes = planes),
+    });
+  }
+
   abrirCrear(): void {
     this.modalCrear = true;
     this.guardando = false;
+    this.cargarCatalogoWizard();
   }
 
   cerrarCrear(): void {

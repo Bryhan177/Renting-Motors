@@ -79,7 +79,7 @@ export class UsuariosComponent implements OnInit {
     this.usuariosService.getUsuarios(true).subscribe({
       next: (usuarios) => {
         this.usuarios = usuarios;
-        this.motosService.getMotos().subscribe({
+        this.motosService.getMotosLista().subscribe({
           next: (motos) => {
             this.conductoresAsignados = new Set(
               motos.map((m) => (typeof m.conductorId === 'string' ? m.conductorId : '')).filter(Boolean),

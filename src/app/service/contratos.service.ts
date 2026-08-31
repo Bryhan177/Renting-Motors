@@ -49,6 +49,9 @@ export interface CreateContratoPayload {
   duracionMeses?: number;
 }
 
+export const CONTRATOS_LISTA_SELECT =
+  'id, conductor_id, moto_id, fecha_inicio, fecha_fin, cuota_semanal, deposito_pactado, frecuencia_pago, estado, saldo_a_favor, activado_en, finalizado_en, plan_id, plan_nombre, cuota_inicial, duracion_meses, created_at, usuarios:conductor_id(id,nombre,apellido), motos:moto_id(id,marca,modelo,placa,estado)';
+
 @Injectable({ providedIn: 'root' })
 export class ContratosService {
   private map(row: any): Contrato {
@@ -79,7 +82,7 @@ export class ContratosService {
   getContratos(params?: { estado?: string; motoId?: string; conductorId?: string }): Observable<Contrato[]> {
     let q = getSupabase()
       .from('contratos')
-      .select('*, usuarios:conductor_id(*), motos:moto_id(*)')
+      .select(CONTRATOS_LISTA_SELECT)
       .order('created_at', { ascending: false });
     if (params?.estado) q = q.eq('estado', params.estado);
     if (params?.motoId) q = q.eq('moto_id', params.motoId);
@@ -96,7 +99,7 @@ export class ContratosService {
     return from(
       getSupabase()
         .from('contratos')
-        .select('*, usuarios:conductor_id(*), motos:moto_id(*)')
+        .select(CONTRATOS_LISTA_SELECT)
         .eq('id', id)
         .single(),
     ).pipe(
