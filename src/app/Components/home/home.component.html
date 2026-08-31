@@ -72,8 +72,15 @@
         <li *ngFor="let m of mdds">
           <button type="button" class="fleet-item" (click)="interesMdd(m)" [attr.aria-label]="'WhatsApp por ' + m.placa">
             <div class="fleet-photo">
-              <img *ngIf="m.imagen" [src]="m.imagen" [alt]="m.marca + ' ' + m.modelo + ' ' + m.placa" />
-              <div *ngIf="!m.imagen" class="fleet-photo-fallback">Moto</div>
+              <img
+                *ngIf="fotoSrc(m) as src"
+                [src]="src"
+                [alt]="tituloMdd(m) + ' ' + placaMdd(m)"
+                loading="lazy"
+                decoding="async"
+                (error)="onFotoError(m)"
+              />
+              <div *ngIf="!mostrarFoto(m)" class="fleet-photo-fallback">Moto</div>
               <span
                 class="fleet-tag"
                 [class.tag-arriendo]="m.modalidad !== 'liquidacion'"
@@ -83,8 +90,8 @@
               </span>
             </div>
             <div class="fleet-meta">
-              <h3>{{ m.marca }} {{ m.modelo }}</h3>
-              <p class="placa">{{ m.placa }}</p>
+              <h3>{{ tituloMdd(m) }}</h3>
+              <p class="placa">{{ placaMdd(m) }}</p>
               <p class="estado-mdd">{{ etiquetaEstado(m) }}</p>
               <p class="precio" *ngIf="m.precioCobro">Cuota desde $ {{ m.precioCobro | number:'1.0-0':'es-CO' }}</p>
               <p class="wa-hint">WhatsApp · me interesa esta moto</p>

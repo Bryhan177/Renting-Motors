@@ -6,6 +6,36 @@ import { Usuario } from '../shared/interfaces/usuario';
 import { Estadisticas } from '../shared/interfaces/pago';
 import { stripClienteEmpresaId } from '../shared/empresa-scope';
 
+/** Columnas de la landing anónima. Sin embed de `usuarios` (RLS anon). */
+export const MOTOS_CATALOGO_SELECT =
+  'id, marca, modelo, placa, estado, modalidad, precio_cobro, imagen';
+
+/** `data:` (fallback de upload) no se usa como src: cuelga el pintado. */
+export function imagenCatalogoPublico(raw: unknown): string | undefined {
+  if (raw == null) return undefined;
+  const s = String(raw).trim();
+  if (!s || /^data:/i.test(s)) return undefined;
+  return s;
+}
+
+/** Mapeo de catálogo público: nunca conductor / PII. */
+export function mapMotoCatalogo(row: any): Moto {
+  return {
+    _id: row?.id,
+    marca: row?.marca || '',
+    modelo: row?.modelo || '',
+    placa: row?.placa || '',
+    precio: 0,
+    precioCompra: 0,
+    precioCobro: Number(row?.precio_cobro) || 180000,
+    modalidad: row?.modalidad === 'liquidacion' ? 'liquidacion' : 'arriendo',
+    estado: row?.estado || 'disponible',
+    conductorId: null,
+    conductor: undefined,
+    imagen: imagenCatalogoPublico(row?.imagen),
+  };
+}
+
 @Injectable({ providedIn: 'root' })
 export class MotosService {
   private mapUsuario(row: any): Usuario | undefined {
@@ -86,6 +116,24 @@ export class MotosService {
       map(({ data, error }) => {
         if (error) throw error;
         return (data || []).map((r) => this.mapMoto(r));
+      }),
+    );
+  }
+
+  /**
+   * Catálogo de la landing (`/`). Solo columnas livianas, sin join a `usuarios`.
+   * El staff sigue usando `getMotos()` (conductor + docs).
+   */
+  getMotosPublicas(): Observable<Moto[]> {
+    return from(
+      getSupabase()
+        .from('motos')
+        .select(MOTOS_CATALOGO_SELECT)
+        .order('created_at', { ascending: false }),
+    ).pipe(
+      map(({ data, error }) => {
+        if (error) throw error;
+        return (data || []).map((r) => mapMotoCatalogo(r));
       }),
     );
   }

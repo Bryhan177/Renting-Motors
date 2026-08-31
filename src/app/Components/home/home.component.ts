@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, PLATFORM_ID } from '@angular/core';
+import { Component, Inject, OnInit, PLATFORM_ID } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { MotosService } from '../../service/motos.service';
@@ -14,19 +14,26 @@ import { WhatsappFloatComponent } from '../../shared/components/whatsapp-float/w
   styleUrl: './home.component.css',
 })
 export class HomeComponent implements OnInit {
-  private platformId = inject(PLATFORM_ID);
   mdds: Moto[] = [];
   cargando = true;
+  /** ids cuya foto http falló (onerror). */
+  private fotosRotas = new Set<string>();
 
-  constructor(private motosService: MotosService) {}
+  constructor(
+    private motosService: MotosService,
+    @Inject(PLATFORM_ID) private platformId: object,
+  ) {}
 
   ngOnInit(): void {
+    // SSR prerender of `/` must keep the same first paint as the browser
+    // (`cargando === true`). Flipping it to false here produced a hydration
+    // mismatch: two fleet cards painted as black voids with only the static
+    // WhatsApp hint. Fetch only in the browser after hydrate.
     if (!isPlatformBrowser(this.platformId)) {
-      this.cargando = false;
       return;
     }
 
-    this.motosService.getMotos().subscribe({
+    this.motosService.getMotosPublicas().subscribe({
       next: (list) => {
         this.mdds = list;
         this.cargando = false;
@@ -36,6 +43,14 @@ export class HomeComponent implements OnInit {
         this.cargando = false;
       },
     });
+  }
+
+  tituloMdd(m: Moto): string {
+    return `${m.marca || ''} ${m.modelo || ''}`.trim() || 'Moto';
+  }
+
+  placaMdd(m: Moto): string {
+    return (m.placa || '').trim() || 'Sin placa';
   }
 
   etiquetaEstado(m: Moto): string {
@@ -49,8 +64,25 @@ export class HomeComponent implements OnInit {
       case 'fuera_servicio':
         return 'Fuera de servicio';
       default:
-        return m.estado || '';
+        return m.estado || 'Sin estado';
     }
+  }
+
+  fotoSrc(m: Moto): string | null {
+    const src = (m.imagen || '').trim();
+    if (!src || /^data:/i.test(src)) return null;
+    const key = m._id || m.placa || src;
+    if (this.fotosRotas.has(key)) return null;
+    return src;
+  }
+
+  mostrarFoto(m: Moto): boolean {
+    return !!this.fotoSrc(m);
+  }
+
+  onFotoError(m: Moto): void {
+    const key = m._id || m.placa || m.imagen || '';
+    if (key) this.fotosRotas.add(key);
   }
 
   whatsapp(): void {

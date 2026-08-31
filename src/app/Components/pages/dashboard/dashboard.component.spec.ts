@@ -100,6 +100,19 @@ describe('DashboardComponent', () => {
     expect(component.loading).toBe(false);
   });
 
+  it('si el RPC falla, el Resumen sigue con cards en cero (no loader infinito)', () => {
+    dashboardService.getResumen.mockReturnValue(
+      throwError(() => ({ message: 'schema cache' })),
+    );
+    component.ngOnInit();
+    expect(component.loading).toBe(false);
+    expect(component.seccion).toBe('resumen');
+    expect(component.kpis.ingresosPeriodo).toBe(0);
+    expect(component.kpis.egresosPeriodo).toBe(0);
+    expect(component.kpis.contratosActivos).toBe(0);
+    expect(component.sqlPendiente).toBe(true);
+  });
+
   it('cop formatea COP es-CO', () => {
     expect(component.cop(25000)).toMatch(/25/);
   });
