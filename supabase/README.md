@@ -15,6 +15,7 @@ Ejecuta en Supabase SQL Editor, en este orden si aún no lo hiciste:
 11. **`20260830_dashboard_staff.sql`** ← RPC `resumen_dashboard(semana|mes|anio)` para el panel staff. Agrega en Postgres (ingresos, contratos, flota, cartera, mora, planes). **No toca** talleres, planes, wizard, mora SQL, ni `cuota_semanal`.
 12. **`20260831_abono_registrado_pagos_caja.sql`** ← al confirmar un abono (`estado = registrado`) crea fila en `pagos` + ingreso en `movimientos_caja` (banco MDD). No borra filas (anulado). Backfill de abonos ya aprobados. RLS de caja/pagos: escribe solo staff.
 13. **`20260901_multi_tenant_empresas.sql`** ← aísla producción vs pruebas (`empresas` + `empresa_id` + RLS). **Obligatorio** si quieres un login de TEST que no vea plata real.
+14. **`20260902_assert_misma_empresa_grant.sql`** ← hotfix si el owner ve `permission denied for function assert_misma_empresa` al INSERT/UPDATE. **No re-ejecutes 20260901.** Un `grant execute … to authenticated` ya desbloquea; este archivo es el arreglo durable.
 
 Luego cierra sesión y vuelve a entrar.
 
@@ -232,6 +233,31 @@ ng serve
    ```
 
 Helpers: `empresa_id_actual()`, `empresa_id_produccion()`, `empresa_id_pruebas()`, `misma_empresa(uuid)`.
+
+## Hotfix: permission denied for `assert_misma_empresa` (20260902)
+
+Después de 20260901, INSERT/UPDATE autenticados (contrato, moto, usuario, taller, abono, …) fallan con `permission denied for function assert_misma_empresa`. El trigger `validar_refs_empresa` corría como el JWT (`SECURITY INVOKER`) y llamaba un helper al que se le había hecho `REVOKE` de `authenticated`.
+
+**Aplica ya (SQL Editor):** pega `supabase/migrations/20260902_assert_misma_empresa_grant.sql` → **Run**. No re-ejecutes 20260901.
+
+Desbloqueo de una línea (si aún no puedes pegar el archivo):
+
+```sql
+grant execute on function public.assert_misma_empresa(text, uuid, uuid) to authenticated;
+```
+
+Ese GRANT ya deja escribir. El archivo 20260902 es el arreglo durable: recrea `assert_misma_empresa` y `validar_refs_empresa` como `SECURITY DEFINER` (`search_path = public`), concede `EXECUTE` a `authenticated` y `service_role`, y deja `validar_refs_empresa` / `stamp_empresa_id` sin `EXECUTE` para anon/authenticated (solo trigger).
+
+```sql
+select p.proname, p.prosecdef
+from pg_proc p
+join pg_namespace n on n.oid = p.pronamespace
+where n.nspname = 'public'
+  and p.proname in ('assert_misma_empresa', 'validar_refs_empresa');
+-- prosecdef = true en ambos
+```
+
+No toca Angular, mora, wizard, planes, talleres UX ni cobros.
 
 ## Si en producción no ves usuarios / pagos / caja / documentos
 
