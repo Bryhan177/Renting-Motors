@@ -103,4 +103,33 @@ describe('DashboardComponent', () => {
   it('cop formatea COP es-CO', () => {
     expect(component.cop(25000)).toMatch(/25/);
   });
+
+  it('por defecto abre Resumen y la gráfica en Ingresos', () => {
+    expect(component.seccion).toBe('resumen');
+    expect(component.serieChart).toBe('ingresos');
+    expect(component.tabs.map((t) => t.id)).toEqual(['resumen', 'graficas', 'cartera', 'planes']);
+  });
+
+  it('al cambiar a Egresos la serie visible es solo egresos', () => {
+    const ingresos = [
+      { key: '2026-08', label: 'ago 26', monto: 60000, cantidadAbonos: 2 },
+    ];
+    const egresos = [
+      { key: '2026-08', label: 'ago 26', monto: 15000, cantidadAbonos: 1 },
+    ];
+    dashboardService.getResumen.mockReturnValue(
+      of(kpis({ ingresosMensuales: ingresos, egresosMensuales: egresos })),
+    );
+    component.ngOnInit();
+    expect(component.serieVisible.map((m) => m.monto)).toEqual([60000]);
+
+    component.setSeccion('graficas');
+    component.setSerieChart('egresos');
+    expect(component.seccion).toBe('graficas');
+    expect(component.serieChart).toBe('egresos');
+    expect(component.mostrandoEgresos).toBe(true);
+    expect(component.serieVisible.map((m) => m.monto)).toEqual([15000]);
+    expect(component.serieVisible.map((m) => m.monto)).not.toContain(60000);
+    expect(component.totalSerieChart).toBe(15000);
+  });
 });

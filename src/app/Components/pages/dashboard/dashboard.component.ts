@@ -22,6 +22,9 @@ import {
 } from '../../../shared/dashboard-kpis';
 import Swal from 'sweetalert2';
 
+type SeccionDashboard = 'resumen' | 'graficas' | 'cartera' | 'planes';
+type SerieChart = 'ingresos' | 'egresos';
+
 interface AlertaVencimiento {
   moto: Moto;
   tipo: 'SOAT' | 'Tecnomecánica' | 'Cuota';
@@ -49,6 +52,15 @@ export class DashboardComponent implements OnInit {
   periodo: PeriodoDashboard = 'mes';
   kpis: ResumenDashboard = emptyResumenDashboard('mes');
   mesesCrecimiento: 6 | 12 = 12;
+  seccion: SeccionDashboard = 'resumen';
+  serieChart: SerieChart = 'ingresos';
+
+  readonly tabs: { id: SeccionDashboard; label: string }[] = [
+    { id: 'resumen', label: 'Resumen' },
+    { id: 'graficas', label: 'Gráficas' },
+    { id: 'cartera', label: 'Cartera' },
+    { id: 'planes', label: 'Planes' },
+  ];
 
   constructor(
     private motosService: MotosService,
@@ -133,12 +145,37 @@ export class DashboardComponent implements OnInit {
     this.mesesCrecimiento = meses;
   }
 
+  setSeccion(seccion: SeccionDashboard): void {
+    this.seccion = seccion;
+  }
+
+  setSerieChart(serie: SerieChart): void {
+    this.serieChart = serie;
+  }
+
+  get mostrandoEgresos(): boolean {
+    return this.serieChart === 'egresos';
+  }
+
   get ingresosMensuales() {
     return ingresosMensualesVisibles(this.kpis.ingresosMensuales, this.mesesCrecimiento);
   }
 
   get egresosMensuales() {
     return ingresosMensualesVisibles(this.kpis.egresosMensuales, this.mesesCrecimiento);
+  }
+
+  /** Serie de la gráfica visible (ingresos o egresos, nunca ambas). */
+  get serieVisible() {
+    return this.mostrandoEgresos ? this.egresosMensuales : this.ingresosMensuales;
+  }
+
+  get totalSerieChart(): number {
+    return this.serieVisible.reduce((s, m) => s + m.monto, 0);
+  }
+
+  get maxSerieChart(): number {
+    return maxMontoSerie(this.serieVisible);
   }
 
   get totalIngresosPeriodoChart(): number {
@@ -167,6 +204,15 @@ export class DashboardComponent implements OnInit {
     return this.egresosMensuales.reduce((best, m) => (m.monto > best.monto ? m : best));
   }
 
+  get picoSerie() {
+    if (!this.serieVisible.length) return null;
+    return this.serieVisible.reduce((best, m) => (m.monto > best.monto ? m : best));
+  }
+
+  get mesActualSerie(): number {
+    return this.mostrandoEgresos ? this.kpis.egresosMesActual : this.kpis.ingresosMesActual;
+  }
+
   get etiquetaRango(): string {
     return etiquetaPeriodo(this.kpis.periodo || this.periodo, this.kpis.periodoDesde, this.kpis.periodoHasta);
   }
@@ -177,6 +223,10 @@ export class DashboardComponent implements OnInit {
 
   alturaBarraEgreso(monto: number): number {
     return pctBarra(monto, this.maxEgresoMensual);
+  }
+
+  alturaBarraSerie(monto: number): number {
+    return pctBarra(monto, this.maxSerieChart);
   }
 
   alturaBarraPlan(ingresos: number): number {
