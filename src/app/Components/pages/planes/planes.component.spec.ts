@@ -1,6 +1,6 @@
 import { of, throwError } from 'rxjs';
 import { PlanesComponent } from './planes.component';
-import { PlanesService } from '../../../service/planes.service';
+import { PlanesService, PLANES_LISTA_SELECT } from '../../../service/planes.service';
 import { Plan } from '../../../shared/interfaces/plan';
 
 jest.mock('sweetalert2', () => ({
@@ -26,6 +26,13 @@ describe('PlanesComponent', () => {
 
   it('should create', () => {
     expect(component).toBeTruthy();
+  });
+
+  it('el listado de planes no usa select *', () => {
+    expect(PLANES_LISTA_SELECT).not.toMatch(/\*/);
+    expect(PLANES_LISTA_SELECT).not.toMatch(/imagen/);
+    expect(PLANES_LISTA_SELECT).toMatch(/nombre/);
+    expect(PLANES_LISTA_SELECT).toMatch(/valor_sugerido/);
   });
 
   it('el formulario nuevo no usa 160000/180000 como tarifa global', () => {
