@@ -3,7 +3,7 @@
     <div>
       <h2 class="text-3xl font-bold text-white">Pagos</h2>
       <p class="text-gray-300 mt-1">
-        Cartera de cuotas, mora, confirmación de abonos y pagos manuales
+        Periodos con saldo por conductor, confirmación de abonos y otros ingresos
       </p>
     </div>
     <div class="flex flex-wrap gap-2 justify-end">
@@ -20,19 +20,19 @@
         (click)="abrirModal()"
         class="bg-emerald-600 hover:bg-emerald-500 text-white font-medium py-2.5 px-5 rounded-lg"
       >
-        Registrar pago manual
+        Otros ingresos
       </button>
     </div>
   </div>
 
-  <!-- Cartera / mora -->
+  <!-- Cartera: todos los periodos con saldo, agrupados por conductor -->
   <div class="bg-gray-800 border border-red-500/25 rounded-xl overflow-hidden mb-8">
     <div class="px-5 py-4 border-b border-gray-700 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
       <div>
-        <h3 class="font-bold text-red-300">Cartera de cuotas</h3>
+        <h3 class="font-bold text-red-300">Estado de cuenta (staff)</h3>
         <p class="text-xs text-gray-400 mt-0.5">
-          Una fila por conductor: solo la cuota del periodo actual (semana / quincena / mes).
-          El día de cobro se define al activar el contrato (fecha de inicio + frecuencia).
+          Todos los periodos con saldo (mora vieja, parcial y cuota actual), como el panel del conductor.
+          El pago de oficina queda registrado de inmediato (no pendiente de confirmación).
         </p>
       </div>
       <div class="flex flex-wrap gap-2 text-xs">
@@ -77,15 +77,35 @@
 
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 p-4 border-b border-gray-700/80 bg-black/20">
       <div class="rounded-lg border border-red-500/20 bg-red-500/5 px-4 py-3">
-        <p class="text-xs text-gray-400">Conductores en mora (cuota actual)</p>
+        <p class="text-xs text-gray-400">Periodos en mora</p>
         <p class="text-2xl font-bold text-red-400 mt-0.5">{{ totalEnMora }}</p>
-        <p class="text-xs text-red-300/80 mt-1">$ {{ montoEnMora | number:'1.0-0' }}</p>
+        <p class="text-xs text-red-300/80 mt-1">
+          $ {{ montoEnMora | number:'1.0-0' }} · {{ conductoresEnMora }} conductor(es)
+        </p>
       </div>
       <div class="rounded-lg border border-gray-700 bg-gray-900/40 px-4 py-3">
-        <p class="text-xs text-gray-400">Cuota actual sin pagar</p>
+        <p class="text-xs text-gray-400">Periodos con saldo</p>
         <p class="text-2xl font-bold mt-0.5">{{ totalPendientesCartera }}</p>
-        <p class="text-xs text-gray-500 mt-1">Incluye mora y por vencer</p>
+        <p class="text-xs text-gray-500 mt-1">Incluye mora vieja, parcial y vigente</p>
       </div>
+    </div>
+
+    <div class="px-4 py-3 border-b border-gray-700/80 flex flex-col sm:flex-row gap-2">
+      <select
+        [(ngModel)]="conductorSeleccionadoId"
+        class="flex-1 bg-gray-900 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white"
+      >
+        <option value="">Todos los conductores</option>
+        <option *ngFor="let c of conductoresOpciones" [value]="c.conductorId">
+          {{ c.conductorNombre }} ({{ c.periodos }})
+        </option>
+      </select>
+      <input
+        type="search"
+        [(ngModel)]="busquedaConductor"
+        placeholder="Buscar conductor o placa..."
+        class="flex-1 bg-gray-900 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white placeholder:text-gray-500"
+      />
     </div>
 
     <div *ngIf="loadingCartera" class="p-8 text-center text-gray-400 text-sm">
@@ -93,59 +113,64 @@
     </div>
 
     <div
-      *ngIf="!loadingCartera && carteraFiltrada.length === 0"
+      *ngIf="!loadingCartera && gruposCartera.length === 0"
       class="p-8 text-center text-gray-500 text-sm"
     >
       <p *ngIf="filtroCartera === 'mora'">Nadie en mora por ahora.</p>
-      <p *ngIf="filtroCartera !== 'mora'">
-        No hay cuotas pendientes del periodo actual.
-      </p>
+      <p *ngIf="filtroCartera !== 'mora'">No hay periodos con saldo.</p>
     </div>
 
-    <div *ngIf="!loadingCartera && carteraFiltrada.length" class="divide-y divide-gray-700 max-h-[28rem] overflow-y-auto">
-      <div
-        *ngFor="let item of carteraFiltrada"
-        class="px-5 py-4 flex flex-col lg:flex-row lg:items-center gap-3"
-        [class.cobro-en-mora]="item.cobro.enMora"
-      >
-        <div class="flex-1 min-w-0">
-          <div class="flex flex-wrap items-center gap-2">
-            <p class="font-medium">{{ item.conductorNombre }}</p>
-            <span class="text-xs px-2 py-0.5 rounded-full" [ngClass]="claseEstadoCobro(item)">
-              {{ etiquetaEstadoCobro(item) }}
-            </span>
-          </div>
-          <p class="text-sm text-gray-300 mt-1">
-            Periodo #{{ item.cobro.numeroPeriodo }}
-            · {{ etiquetaFrecuencia(item.frecuencia) }}
-            · MDD {{ item.motoPlaca }}
-          </p>
-          <p class="text-xs text-gray-500 mt-1">
-            Paga / vence:
-            <span class="text-gray-300">{{ formatearFecha(item.cobro.fechaVencimiento) }}</span>
-            <span *ngIf="item.cobro.enMora" class="text-red-400">
-              · sin pago registrado
-            </span>
-          </p>
-        </div>
-        <div class="flex items-center justify-between lg:justify-end gap-4 shrink-0">
-          <div class="text-left lg:text-right">
-            <p
-              class="font-bold text-lg"
-              [class.text-red-400]="item.cobro.enMora"
-              [class.text-yellow-300]="!item.cobro.enMora"
-            >
-              $ {{ item.cobro.saldo | number:'1.0-0' }}
+    <div *ngIf="!loadingCartera && gruposCartera.length" class="max-h-[36rem] overflow-y-auto divide-y divide-gray-700">
+      <div *ngFor="let grupo of gruposCartera" class="bg-gray-800">
+        <div class="px-5 py-3 bg-black/25 flex flex-wrap items-baseline justify-between gap-2">
+          <div>
+            <p class="font-semibold">{{ grupo.conductorNombre }}</p>
+            <p class="text-xs text-gray-500 mt-0.5">
+              MDD {{ grupo.motoPlaca }} · {{ grupo.items.length }} periodo(s)
+              <span *ngIf="grupo.periodosMora" class="text-red-400"> · {{ grupo.periodosMora }} en mora</span>
             </p>
-            <p class="text-xs text-gray-500">Saldo</p>
           </div>
-          <button
-            type="button"
-            (click)="abrirRegistrarPagoCobro(item)"
-            class="px-3 py-2 rounded-lg text-sm bg-emerald-600/90 hover:bg-emerald-500 text-white font-medium"
+          <p class="text-amber-300 font-bold">$ {{ grupo.saldoTotal | number:'1.0-0' }}</p>
+        </div>
+        <div class="divide-y divide-gray-800">
+          <div
+            *ngFor="let item of grupo.items"
+            class="px-5 py-3 flex flex-col lg:flex-row lg:items-center gap-3"
+            [class.cobro-en-mora]="item.cobro.enMora"
           >
-            Registrar pago
-          </button>
+            <div class="flex-1 min-w-0">
+              <div class="flex flex-wrap items-center gap-2">
+                <p class="font-medium">Periodo #{{ item.cobro.numeroPeriodo }}</p>
+                <span class="text-xs px-2 py-0.5 rounded-full" [ngClass]="claseEstadoCobro(item)">
+                  {{ etiquetaEstadoCobro(item) }}
+                </span>
+              </div>
+              <p class="text-xs text-gray-400 mt-1">
+                {{ etiquetaFrecuencia(item.frecuencia) }}
+                · {{ formatearFecha(item.cobro.periodoInicio) }} — {{ formatearFecha(item.cobro.periodoFin) }}
+                · vence {{ formatearFecha(item.cobro.fechaVencimiento) }}
+              </p>
+            </div>
+            <div class="flex items-center justify-between lg:justify-end gap-4 shrink-0">
+              <div class="text-left lg:text-right">
+                <p
+                  class="font-bold text-lg"
+                  [class.text-red-400]="item.cobro.enMora"
+                  [class.text-yellow-300]="!item.cobro.enMora"
+                >
+                  $ {{ item.cobro.saldo | number:'1.0-0' }}
+                </p>
+                <p class="text-xs text-gray-500">Saldo</p>
+              </div>
+              <button
+                type="button"
+                (click)="abrirRegistrarPagoCobro(item)"
+                class="px-3 py-2 rounded-lg text-sm bg-emerald-600/90 hover:bg-emerald-500 text-white font-medium"
+              >
+                Pagar
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -232,8 +257,8 @@
       </div>
       <div class="flex-1 min-w-0">
         <h4 class="font-bold text-white truncate">
-          {{ p.moto ? (p.moto.marca + ' ' + p.moto.modelo) : 'MDD' }}
-          <span class="text-gray-400 font-normal">· {{ p.moto?.placa }}</span>
+          {{ p.moto ? (p.moto.marca + ' ' + p.moto.modelo) : 'Otro ingreso' }}
+          <span class="text-gray-400 font-normal" *ngIf="p.moto?.placa">· {{ p.moto?.placa }}</span>
         </h4>
         <p class="text-sm text-gray-300">{{ p.fechaPago | date:'mediumDate' }} · {{ p.metodoPago }}</p>
         <p class="text-xs text-gray-400" *ngIf="p.descripcionGasto">Gasto: {{ p.descripcionGasto }}</p>
@@ -247,7 +272,7 @@
   </div>
 </div>
 
-<!-- Modal pago aplicado a cobro (quita mora) -->
+<!-- Modal pago de un periodo (oficina: registrado inmediato) -->
 <div
   *ngIf="mostrarModalCobro"
   class="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/80 p-0 sm:p-4"
@@ -255,8 +280,8 @@
   <div class="bg-gray-800 rounded-t-2xl sm:rounded-2xl w-full max-w-md border border-gray-600 text-white">
     <div class="p-5 border-b border-gray-600 flex justify-between items-center">
       <div>
-        <h3 class="text-lg font-bold">Registrar pago de cuota</h3>
-        <p class="text-xs text-gray-400 mt-0.5">Aplica al cobro y baja el saldo / mora</p>
+        <h3 class="text-lg font-bold">Pagar periodo</h3>
+        <p class="text-xs text-gray-400 mt-0.5">Se registra ahora. No va a pendiente de confirmación.</p>
       </div>
       <button type="button" (click)="cerrarModalCobro()" class="text-2xl leading-none">&times;</button>
     </div>
@@ -267,7 +292,7 @@
         <p class="text-amber-300 mt-1">Saldo: $ {{ cobroPagoForm.saldo | number:'1.0-0' }}</p>
       </div>
       <div>
-        <label class="text-xs text-gray-300">Monto</label>
+        <label class="text-xs text-gray-300">Monto (puedes abonar parcial)</label>
         <input
           type="text"
           inputmode="numeric"
@@ -289,6 +314,16 @@
         </select>
       </div>
       <div>
+        <label class="text-xs text-gray-300">Comprobante (opcional)</label>
+        <input
+          type="file"
+          accept="image/*,application/pdf"
+          (change)="onComprobantePagoCobro($event)"
+          class="w-full text-sm text-gray-300 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:bg-emerald-600 file:text-white file:text-sm"
+        />
+        <p *ngIf="cobroPagoForm.comprobante" class="text-xs text-emerald-400 mt-1">Archivo listo</p>
+      </div>
+      <div>
         <label class="text-xs text-gray-300">Observación (opcional)</label>
         <input
           type="text"
@@ -303,66 +338,73 @@
       <button
         type="button"
         (click)="guardarPagoCobro()"
-        class="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 rounded-lg text-white font-medium"
+        [disabled]="guardandoPagoCobro"
+        class="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 rounded-lg text-white font-medium disabled:opacity-50"
       >
-        Guardar pago
+        {{ guardandoPagoCobro ? 'Guardando...' : 'Registrar pago' }}
       </button>
     </div>
   </div>
 </div>
 
-<!-- Modal pago manual caja -->
+<!-- Modal otros ingresos (no es cuota de contrato) -->
 <div *ngIf="mostrarModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
   <div class="bg-gray-800 rounded-2xl w-full max-w-lg border border-gray-600 text-white">
     <div class="p-5 border-b border-gray-600 flex justify-between">
-      <h3 class="text-xl font-bold">Registrar pago</h3>
-      <button (click)="mostrarModal = false" class="text-2xl">&times;</button>
+      <div>
+        <h3 class="text-xl font-bold">Otros ingresos</h3>
+        <p class="text-xs text-gray-400 mt-0.5">
+          Alquiler puntual u otro ingreso que no es cuota semanal. Entra al dashboard como otros, no como abono de cobro.
+        </p>
+      </div>
+      <button type="button" (click)="mostrarModal = false" class="text-2xl">&times;</button>
     </div>
     <div class="p-5 space-y-3">
       <div>
-        <label class="text-xs text-gray-300">MDD</label>
-        <select [(ngModel)]="form.motoId" (ngModelChange)="onMotoChange()" class="w-full bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-white">
-          <option value="">Seleccionar...</option>
-          <option *ngFor="let m of motos" [value]="m._id">{{ m.placa }} — {{ m.marca }} {{ m.modelo }}</option>
+        <label class="text-xs text-gray-300">MDD (opcional)</label>
+        <select [(ngModel)]="form.motoId" class="w-full bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-white">
+          <option [ngValue]="null">Sin MDD</option>
+          <option *ngFor="let m of motos" [ngValue]="m._id">{{ m.placa }} — {{ m.marca }} {{ m.modelo }}</option>
         </select>
-      </div>
-      <div *ngIf="motoSeleccionada()" class="flex items-center gap-3 bg-gray-900 rounded-lg p-3 border border-gray-600">
-        <img *ngIf="motoSeleccionada()?.imagen" [src]="motoSeleccionada()?.imagen" class="w-16 h-16 object-cover rounded">
-        <div>
-          <p class="font-bold">{{ motoSeleccionada()?.marca }} {{ motoSeleccionada()?.modelo }}</p>
-          <p class="text-sm text-gray-300">{{ motoSeleccionada()?.placa }}</p>
-        </div>
       </div>
       <div class="grid grid-cols-2 gap-3">
         <div>
-          <label class="text-xs text-gray-300">Fecha de pago</label>
+          <label class="text-xs text-gray-300">Fecha</label>
           <input type="date" [(ngModel)]="form.fechaPago" class="w-full bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-white">
         </div>
         <div>
-          <label class="text-xs text-gray-300">Valor pagado</label>
+          <label class="text-xs text-gray-300">Valor</label>
           <input type="text" inputmode="numeric" appCurrencyCo [(ngModel)]="form.valorPagado" class="w-full bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-white">
         </div>
-        <div>
-          <label class="text-xs text-gray-300">Gastos</label>
-          <input type="text" inputmode="numeric" appCurrencyCo [(ngModel)]="form.gastos" class="w-full bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-white">
-        </div>
-        <div>
-          <label class="text-xs text-gray-300">Método de pago</label>
-          <select [(ngModel)]="form.metodoPago" class="w-full bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-white">
-            <option value="TRANSFERENCIA">Transferencia</option>
-            <option value="EFECTIVO">Efectivo</option>
-            <option value="NEQUI">Nequi</option>
-            <option value="DAVIVIENDA">Davivienda</option>
-            <option value="OTRO">Otro</option>
-          </select>
-        </div>
       </div>
-      <input [(ngModel)]="form.descripcionGasto" placeholder="Descripción del gasto" class="w-full bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-white placeholder:text-gray-400">
-      <textarea [(ngModel)]="form.observaciones" rows="2" placeholder="Observaciones" class="w-full bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-white placeholder:text-gray-400"></textarea>
+      <div>
+        <label class="text-xs text-gray-300">Método</label>
+        <select [(ngModel)]="form.metodoPago" class="w-full bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-white">
+          <option value="Transferencia">Transferencia</option>
+          <option value="Efectivo">Efectivo</option>
+          <option value="Nequi">Nequi</option>
+          <option value="Otro">Otro</option>
+        </select>
+      </div>
+      <div>
+        <label class="text-xs text-gray-300">Concepto</label>
+        <input
+          [(ngModel)]="form.observaciones"
+          placeholder="Alquiler puntual, depósito extra..."
+          class="w-full bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-white placeholder:text-gray-400"
+        />
+      </div>
     </div>
     <div class="p-4 border-t border-gray-600 flex justify-end gap-2">
-      <button (click)="mostrarModal = false" class="px-4 py-2 text-white">Cancelar</button>
-      <button (click)="guardar()" class="px-4 py-2 bg-emerald-600 rounded-lg text-white">Guardar</button>
+      <button type="button" (click)="mostrarModal = false" class="px-4 py-2 text-white">Cancelar</button>
+      <button
+        type="button"
+        (click)="guardar()"
+        [disabled]="guardandoOtroIngreso"
+        class="px-4 py-2 bg-emerald-600 rounded-lg text-white disabled:opacity-50"
+      >
+        {{ guardandoOtroIngreso ? 'Guardando...' : 'Guardar ingreso' }}
+      </button>
     </div>
   </div>
 </div>

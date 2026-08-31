@@ -23,7 +23,14 @@ export interface ResumenDashboard {
   periodoDesde: string;
   periodoHasta: string;
   ingresosPeriodo: number;
+  /** Abonos de cuota (cobro). Parte de ingresosPeriodo. */
+  ingresosCuotas: number;
+  /** Caja ingreso sin abono_id (alquiler puntual / otros). Parte de ingresosPeriodo. */
+  ingresosOtros: number;
   cantidadAbonosPeriodo: number;
+  cantidadOtrosPeriodo: number;
+  egresosPeriodo: number;
+  cantidadEgresosPeriodo: number;
   contratosActivos: number;
   /** Contratos con fecha_inicio en el periodo y estado <> anulado. */
   contratosNuevos: number;
@@ -40,10 +47,13 @@ export interface ResumenDashboard {
   moraMonto: number;
   ingresosMesActual: number;
   ingresosMesAnterior: number;
+  egresosMesActual: number;
+  egresosMesAnterior: number;
   /** % mes actual vs anterior. 0 si ambos son 0; 100 si anterior es 0 y hay ingresos. */
   crecimientoMensualPct: number;
   planes: PlanKpi[];
   ingresosMensuales: IngresoMensualKpi[];
+  egresosMensuales: IngresoMensualKpi[];
 }
 
 export function emptyResumenDashboard(periodo: PeriodoDashboard = 'mes'): ResumenDashboard {
@@ -52,7 +62,12 @@ export function emptyResumenDashboard(periodo: PeriodoDashboard = 'mes'): Resume
     periodoDesde: '',
     periodoHasta: '',
     ingresosPeriodo: 0,
+    ingresosCuotas: 0,
+    ingresosOtros: 0,
     cantidadAbonosPeriodo: 0,
+    cantidadOtrosPeriodo: 0,
+    egresosPeriodo: 0,
+    cantidadEgresosPeriodo: 0,
     contratosActivos: 0,
     contratosNuevos: 0,
     conductoresActivos: 0,
@@ -66,9 +81,12 @@ export function emptyResumenDashboard(periodo: PeriodoDashboard = 'mes'): Resume
     moraMonto: 0,
     ingresosMesActual: 0,
     ingresosMesAnterior: 0,
+    egresosMesActual: 0,
+    egresosMesAnterior: 0,
     crecimientoMensualPct: 0,
     planes: [],
     ingresosMensuales: [],
+    egresosMensuales: [],
   };
 }
 
@@ -151,7 +169,9 @@ export function mapIngresoMensualKpi(row: any): IngresoMensualKpi {
     key,
     label: row?.label ? String(row.label) : etiquetaMes(key),
     monto: toNonNegNumber(row?.monto),
-    cantidadAbonos: toNonNegNumber(row?.cantidad_abonos ?? row?.cantidadAbonos),
+    cantidadAbonos: toNonNegNumber(
+      row?.cantidad_abonos ?? row?.cantidadAbonos ?? row?.cantidad,
+    ),
   };
 }
 
@@ -169,13 +189,31 @@ export function mapResumenDashboardFromRow(row: any, periodoDefault: PeriodoDash
   );
   const planesRaw = parsed.planes;
   const seriesRaw = parsed.ingresos_mensuales ?? parsed.ingresosMensuales;
+  const egresosRaw = parsed.egresos_mensuales ?? parsed.egresosMensuales;
   return {
     periodo: normalizarPeriodo(parsed.periodo ?? periodoDefault),
     periodoDesde: String(parsed.periodo_desde ?? parsed.periodoDesde ?? ''),
     periodoHasta: String(parsed.periodo_hasta ?? parsed.periodoHasta ?? ''),
     ingresosPeriodo: toNonNegNumber(parsed.ingresos_periodo ?? parsed.ingresosPeriodo),
+    ingresosCuotas: toNonNegNumber(
+      parsed.ingresos_cuotas ??
+        parsed.ingresosCuotas ??
+        Math.max(
+          0,
+          toNonNegNumber(parsed.ingresos_periodo ?? parsed.ingresosPeriodo) -
+            toNonNegNumber(parsed.ingresos_otros ?? parsed.ingresosOtros),
+        ),
+    ),
+    ingresosOtros: toNonNegNumber(parsed.ingresos_otros ?? parsed.ingresosOtros),
     cantidadAbonosPeriodo: toNonNegNumber(
       parsed.cantidad_abonos_periodo ?? parsed.cantidadAbonosPeriodo,
+    ),
+    cantidadOtrosPeriodo: toNonNegNumber(
+      parsed.cantidad_otros_periodo ?? parsed.cantidadOtrosPeriodo,
+    ),
+    egresosPeriodo: toNonNegNumber(parsed.egresos_periodo ?? parsed.egresosPeriodo),
+    cantidadEgresosPeriodo: toNonNegNumber(
+      parsed.cantidad_egresos_periodo ?? parsed.cantidadEgresosPeriodo,
     ),
     contratosActivos: toNonNegNumber(parsed.contratos_activos ?? parsed.contratosActivos),
     contratosNuevos: toNonNegNumber(parsed.contratos_nuevos ?? parsed.contratosNuevos),
@@ -194,9 +232,14 @@ export function mapResumenDashboardFromRow(row: any, periodoDefault: PeriodoDash
     moraMonto: toNonNegNumber(parsed.mora_monto ?? parsed.moraMonto),
     ingresosMesActual,
     ingresosMesAnterior,
+    egresosMesActual: toNonNegNumber(parsed.egresos_mes_actual ?? parsed.egresosMesActual),
+    egresosMesAnterior: toNonNegNumber(
+      parsed.egresos_mes_anterior ?? parsed.egresosMesAnterior,
+    ),
     crecimientoMensualPct: variacionPorcentual(ingresosMesActual, ingresosMesAnterior),
     planes: Array.isArray(planesRaw) ? planesRaw.map(mapPlanKpi) : [],
     ingresosMensuales: Array.isArray(seriesRaw) ? seriesRaw.map(mapIngresoMensualKpi) : [],
+    egresosMensuales: Array.isArray(egresosRaw) ? egresosRaw.map(mapIngresoMensualKpi) : [],
   };
 }
 
