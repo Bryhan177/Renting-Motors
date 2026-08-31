@@ -77,7 +77,7 @@ export class PagosComponent implements OnInit {
   ngOnInit(): void {
     this.cargar();
     this.cargarAbonosPendientes();
-    this.motosService.getMotos().subscribe({ next: (m) => (this.motos = m) });
+    this.motosService.getMotosLista().subscribe({ next: (m) => (this.motos = m) });
     this.cargarCartera(true);
   }
 
@@ -276,21 +276,27 @@ export class PagosComponent implements OnInit {
   }
 
   verComprobante(a: Abono): void {
-    if (!a.comprobante) {
-      Swal.fire({ icon: 'info', title: 'Sin comprobante' });
-      return;
-    }
-    if (a.comprobante.startsWith('data:image') || a.comprobante.startsWith('http')) {
-      Swal.fire({
-        title: 'Comprobante',
-        imageUrl: a.comprobante,
-        imageAlt: 'Comprobante',
-        width: 560,
-        confirmButtonText: 'Cerrar',
-      });
-      return;
-    }
-    window.open(a.comprobante, '_blank', 'noopener,noreferrer');
+    if (!a._id) return;
+    this.cobrosService.getAbonoComprobante(a._id).subscribe({
+      next: (url) => {
+        if (!url) {
+          Swal.fire({ icon: 'info', title: 'Sin comprobante' });
+          return;
+        }
+        if (url.startsWith('data:image') || url.startsWith('http')) {
+          Swal.fire({
+            title: 'Comprobante',
+            imageUrl: url,
+            imageAlt: 'Comprobante',
+            width: 560,
+            confirmButtonText: 'Cerrar',
+          });
+          return;
+        }
+        window.open(url, '_blank', 'noopener,noreferrer');
+      },
+      error: () => Swal.fire({ icon: 'info', title: 'Sin comprobante' }),
+    });
   }
 
   confirmarAbono(a: Abono): void {

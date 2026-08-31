@@ -103,7 +103,7 @@ export class DashboardComponent implements OnInit {
   }
 
   cargarOperativo(): void {
-    this.motosService.getMotos().subscribe({
+    this.motosService.getMotosOperativo().subscribe({
       next: (motos) => {
         this.motos = motos;
         this.recalcularAlertas();

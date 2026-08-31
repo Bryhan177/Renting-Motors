@@ -21,6 +21,16 @@ export const MOTOS_CATALOGO_SELECT =
 /** Staff: nombres del conductor, no `usuarios(*)`. */
 export const MOTOS_LISTA_CONDUCTOR_SELECT = `${MOTOS_LISTA_SELECT}, usuarios:conductor_id(id,nombre,apellido)`;
 
+/** Embed en pagos/novedades/mantenimientos: nunca la columna `imagen`. */
+export const MOTOS_EMBED_SELECT = 'id,marca,modelo,placa,estado,imagen_url';
+
+/**
+ * Dashboard operativo (alertas SOAT/tecno + flota). Sin blob `imagen`.
+ * Los KPIs del panel salen del RPC `resumen_dashboard`, no de este SELECT.
+ */
+export const MOTOS_OPERATIVO_SELECT =
+  'id, marca, modelo, placa, estado, conductor_id, soat, tecnomecanica, imagen_url';
+
 export function columnasDelSelect(select: string): string[] {
   return select
     .split(',')
@@ -123,7 +133,7 @@ export class MotosService {
   private mapMoto(row: any): Moto {
     const conductor = this.mapUsuario(row.usuarios || row.conductor);
     const precioCompra = Number(row.precio_compra ?? row.precio) || 0;
-    const foto = fotoDesdeImagenUrl(row) || imagenCatalogoPublico(row.imagen);
+    const foto = fotoDesdeImagenUrl(row);
     return {
       _id: row.id,
       marca: row.marca,
@@ -188,6 +198,11 @@ export class MotosService {
   /** Lista sin embed de usuarios. Contratos / wizard / filtros. */
   getMotosLista(): Observable<Moto[]> {
     return this.queryLista(MOTOS_LISTA_SELECT);
+  }
+
+  /** Dashboard: alertas y flota. No toca `imagen`. */
+  getMotosOperativo(): Observable<Moto[]> {
+    return this.queryLista(MOTOS_OPERATIVO_SELECT);
   }
 
   /**
@@ -369,7 +384,9 @@ export class MotosService {
 
   getConductoresDisponibles(): Observable<Usuario[]> {
     const sb = getSupabase();
-    return from(sb.from('usuarios').select('*').eq('rol', 'empleado').eq('activo', true)).pipe(
+    return from(
+      sb.from('usuarios').select('id,nombre,apellido,email,cedula,telefono,rol,activo').eq('rol', 'empleado').eq('activo', true),
+    ).pipe(
       switchMap(({ data: usuarios, error }) => {
         if (error) throw error;
         return from(

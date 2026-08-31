@@ -16,7 +16,7 @@ function kpis(partial: Partial<ResumenDashboard> = {}): ResumenDashboard {
 }
 
 describe('DashboardComponent', () => {
-  const motosService = { getMotos: jest.fn() };
+  const motosService = { getMotosOperativo: jest.fn() };
   const cobrosService = {
     getCobros: jest.fn(),
     getAbonos: jest.fn(),
@@ -29,7 +29,7 @@ describe('DashboardComponent', () => {
   let component: DashboardComponent;
 
   beforeEach(() => {
-    motosService.getMotos.mockReturnValue(of([]));
+    motosService.getMotosOperativo.mockReturnValue(of([]));
     cobrosService.getCobros.mockReturnValue(of([]));
     cobrosService.getAbonos.mockReturnValue(of([]));
     novedadesService.list.mockReturnValue(of([]));
@@ -88,6 +88,7 @@ describe('DashboardComponent', () => {
   it('lista operativa pide cobros con saldo (no todo el histórico pagado)', () => {
     component.ngOnInit();
     expect(cobrosService.getCobros).toHaveBeenCalledWith({ soloConSaldo: true });
+    expect(motosService.getMotosOperativo).toHaveBeenCalled();
   });
 
   it('si falta el SQL, deja ceros y marca sqlPendiente', () => {

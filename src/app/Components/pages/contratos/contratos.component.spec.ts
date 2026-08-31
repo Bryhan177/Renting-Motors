@@ -71,9 +71,7 @@ describe('ContratosComponent', () => {
     expect(CONTRATOS_LISTA_SELECT).toMatch(/motos:moto_id\(id,marca,modelo,placa,estado\)/);
   });
 
-  it('pinta la tabla de contratos sin esperar motos', () => {
-    const motos$ = new Subject<Moto[]>();
-    motosService.getMotosLista.mockReturnValue(motos$);
+  it('pinta la tabla de contratos sin pedir motos', () => {
     contratosService.getContratos.mockReturnValue(
       of([
         {
@@ -90,6 +88,16 @@ describe('ContratosComponent', () => {
     component.cargar();
     expect(component.contratos).toHaveLength(1);
     expect(component.cargando).toBe(false);
+    expect(component.motos).toEqual([]);
+    expect(motosService.getMotosLista).not.toHaveBeenCalled();
+    expect(usuariosService.getUsuarios).not.toHaveBeenCalled();
+  });
+
+  it('carga motos solo al abrir el wizard de crear', () => {
+    const motos$ = new Subject<Moto[]>();
+    motosService.getMotosLista.mockReturnValue(motos$);
+    component.abrirCrear();
+    expect(motosService.getMotosLista).toHaveBeenCalled();
     expect(component.motos).toEqual([]);
     motos$.next([{ _id: 'm1', placa: 'FSS51B', marca: 'AUTECO', modelo: '2008', precio: 0, estado: 'en_uso' }]);
     expect(component.motos).toHaveLength(1);

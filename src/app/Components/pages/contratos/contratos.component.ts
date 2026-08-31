@@ -109,6 +109,10 @@ export class ContratosComponent implements OnInit {
         Swal.fire({ icon: 'error', title: 'No se pudieron cargar contratos', text: mensajeErrorContrato(e) });
       },
     });
+  }
+
+  /** Motos/usuarios/planes solo al abrir el wizard — la tabla no espera MotosService. */
+  private cargarCatalogoWizard(): void {
     this.motosService.getMotosLista().pipe(catchError(() => of([] as Moto[]))).subscribe({
       next: (motos) => (this.motos = motos),
     });
@@ -123,6 +127,7 @@ export class ContratosComponent implements OnInit {
   abrirCrear(): void {
     this.modalCrear = true;
     this.guardando = false;
+    this.cargarCatalogoWizard();
   }
 
   cerrarCrear(): void {

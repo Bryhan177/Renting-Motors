@@ -1,9 +1,10 @@
 import { Injectable } from '@angular/core';
-import { Observable, from, map, forkJoin, of, switchMap, throwError } from 'rxjs';
+import { Observable, from, map, of, switchMap, throwError } from 'rxjs';
 import { getSupabase } from '../supabase/supabase.client';
 import { AuthService } from '../auth/auth.service';
 import { Moto } from '../shared/interfaces/moto';
 import { aplicarFiltroEmpresa, stripClienteEmpresaId } from '../shared/empresa-scope';
+import { MOTOS_EMBED_SELECT, fotoDesdeImagenUrl } from './motos.service';
 
 export interface PagoManual {
   _id?: string;
@@ -19,6 +20,9 @@ export interface PagoManual {
   semana?: string | null;
   pagado?: boolean;
 }
+
+/** Lista de pagos: sin `comprobante_imagen` y sin `motos(*)` (blob imagen). */
+export const PAGOS_LISTA_SELECT = `id, conductor_id, moto_id, fecha_pago, created_at, valor_pagado, monto, gastos, descripcion_gasto, metodo_pago, observaciones, semana, pagado, estado, motos:moto_id(${MOTOS_EMBED_SELECT})`;
 
 @Injectable({ providedIn: 'root' })
 export class PagosService {
@@ -38,7 +42,7 @@ export class PagosService {
             placa: motoRow.placa,
             precio: Number(motoRow.precio) || 0,
             estado: motoRow.estado,
-            imagen: motoRow.imagen,
+            imagen: fotoDesdeImagenUrl(motoRow),
             modalidad: motoRow.modalidad,
           }
         : null,
@@ -56,7 +60,7 @@ export class PagosService {
   getPagos(): Observable<PagoManual[]> {
     let q = getSupabase()
       .from('pagos')
-      .select('*, motos:moto_id(*)')
+      .select(PAGOS_LISTA_SELECT)
       .neq('estado', 'anulado')
       .order('fecha_pago', { ascending: false });
     q = aplicarFiltroEmpresa(q, this.auth.getEmpresaId());
@@ -71,7 +75,7 @@ export class PagosService {
   getPagosBySemana(semana: string): Observable<PagoManual[]> {
     let q = getSupabase()
       .from('pagos')
-      .select('*, motos:moto_id(*)')
+      .select(PAGOS_LISTA_SELECT)
       .eq('semana', semana)
       .neq('estado', 'anulado');
     q = aplicarFiltroEmpresa(q, this.auth.getEmpresaId());
@@ -86,7 +90,7 @@ export class PagosService {
   getPagosByConductor(conductorId: string): Observable<PagoManual[]> {
     let q = getSupabase()
       .from('pagos')
-      .select('*, motos:moto_id(*)')
+      .select(PAGOS_LISTA_SELECT)
       .eq('conductor_id', conductorId)
       .neq('estado', 'anulado')
       .order('fecha_pago', { ascending: false });
@@ -126,7 +130,7 @@ export class PagosService {
           fecha_pago: new Date().toISOString(),
           gastos: 0,
         }))
-        .select('*, motos:moto_id(*)')
+        .select(PAGOS_LISTA_SELECT)
         .single(),
     ).pipe(
       map(({ data, error }) => {
@@ -170,7 +174,7 @@ export class PagosService {
             registrado_por: actorId,
           }),
         )
-        .select('*, motos:moto_id(*)')
+        .select(PAGOS_LISTA_SELECT)
         .single(),
     ).pipe(
       switchMap(({ data, error }) => {
@@ -226,7 +230,7 @@ export class PagosService {
           pagado: true,
           registrado_por: actorId,
         }))
-        .select('*, motos:moto_id(*)')
+        .select(PAGOS_LISTA_SELECT)
         .single(),
     ).pipe(
       switchMap(({ data, error }) => {

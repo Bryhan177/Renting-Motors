@@ -21,7 +21,11 @@ import {
 import { aplicarFiltroEmpresa, stripClienteEmpresaId } from '../shared/empresa-scope';
 
 /** PostgREST: * no incluye la columna computada en_mora; hay que pedirla. */
-const COBRO_SELECT = '*, en_mora, usuarios:conductor_id(*)';
+const COBRO_SELECT = '*, en_mora, usuarios:conductor_id(id,nombre,apellido,email,cedula,telefono,rol,activo)';
+
+/** Lista de abonos: sin `comprobante` (data: de hasta 4 MB). */
+export const ABONOS_LISTA_SELECT =
+  'id, cobro_id, contrato_id, conductor_id, monto, fecha_pago, metodo_pago, referencia, origen_abono, estado, observaciones, created_at, usuarios:conductor_id(id,nombre,apellido,email,cedula,telefono,rol,activo)';
 
 export interface Cobro {
   _id?: string;
@@ -160,7 +164,7 @@ export class CobrosService {
   getAbonos(estado?: string, conductorId?: string): Observable<Abono[]> {
     let q = getSupabase()
       .from('abonos')
-      .select('*, usuarios:conductor_id(id,nombre,apellido,email,cedula,telefono,rol,activo)')
+      .select(ABONOS_LISTA_SELECT)
       .order('created_at', { ascending: false });
     q = aplicarFiltroEmpresa(q, this.auth.getEmpresaId());
     if (estado) q = q.eq('estado', estado);
@@ -169,6 +173,16 @@ export class CobrosService {
       map(({ data, error }) => {
         if (error) throw error;
         return (data || []).map((r) => this.mapAbono(r));
+      }),
+    );
+  }
+
+  /** Un comprobante (data:/http) al hacer clic en Ver. No va en la lista. */
+  getAbonoComprobante(id: string): Observable<string | null> {
+    return from(getSupabase().from('abonos').select('id, comprobante').eq('id', id).single()).pipe(
+      map(({ data, error }) => {
+        if (error) throw error;
+        return data?.comprobante ? String(data.comprobante) : null;
       }),
     );
   }
@@ -320,7 +334,7 @@ export class CobrosService {
               confirmado_por: pendiente ? null : actorId,
               confirmado_en: pendiente ? null : new Date().toISOString(),
             }))
-            .select('*')
+            .select(ABONOS_LISTA_SELECT)
             .single(),
         ).pipe(
           switchMap(({ data: abono, error: e2 }) => {
@@ -349,7 +363,7 @@ export class CobrosService {
   confirmarAbono(id: string): Observable<Abono> {
     const sb = getSupabase();
     const actorId = this.auth.getUserId();
-    return from(sb.from('abonos').select('*').eq('id', id).single()).pipe(
+    return from(sb.from('abonos').select('id, estado').eq('id', id).single()).pipe(
       switchMap(({ data: abono, error }) => {
         if (error || !abono) return throwError(() => ({ error: { message: 'Abono no encontrado' } }));
         if (abono.estado !== 'pendiente_confirmacion') {
@@ -366,7 +380,7 @@ export class CobrosService {
               confirmado_en: new Date().toISOString(),
             })
             .eq('id', id)
-            .select('*, usuarios:conductor_id(id,nombre,apellido,email,cedula,telefono,rol,activo)')
+            .select(ABONOS_LISTA_SELECT)
             .single(),
         ).pipe(
           switchMap(({ data: conf, error: e2 }) => {
@@ -401,7 +415,7 @@ export class CobrosService {
               motivo_anulacion: motivoTrim,
             })
             .eq('id', id)
-            .select('*, usuarios:conductor_id(id,nombre,apellido,email,cedula,telefono,rol,activo)')
+            .select(ABONOS_LISTA_SELECT)
             .single(),
         ).pipe(
           map(({ data, error: e2 }) => {

@@ -9,6 +9,9 @@ import {
   stripClienteEmpresaId,
 } from '../shared/empresa-scope';
 
+export const USUARIOS_LISTA_SELECT =
+  'id, nombre, apellido, email, cedula, telefono, edad, direccion, uso, tiempo_contrato, ref1_nombre, ref1_parentesco, ref1_telefono, ref1_direccion, ref2_nombre, ref2_parentesco, ref2_telefono, ref2_direccion, rol, activo, empresa_id, created_at, updated_at';
+
 @Injectable({ providedIn: 'root' })
 export class UsuariosService {
   constructor(private auth: AuthService) {}
@@ -83,7 +86,7 @@ export class UsuariosService {
   }
 
   getUsuarios(incluirInactivos = true): Observable<Usuario[]> {
-    let q = getSupabase().from('usuarios').select('*').order('created_at', { ascending: false });
+    let q = getSupabase().from('usuarios').select(USUARIOS_LISTA_SELECT).order('created_at', { ascending: false });
     q = aplicarFiltroEmpresa(q, this.auth.getEmpresaId());
     if (!incluirInactivos) q = q.eq('activo', true);
     return from(q).pipe(
@@ -95,7 +98,7 @@ export class UsuariosService {
   }
 
   getUsuario(id: string): Observable<Usuario> {
-    return from(getSupabase().from('usuarios').select('*').eq('id', id).single()).pipe(
+    return from(getSupabase().from('usuarios').select(USUARIOS_LISTA_SELECT).eq('id', id).single()).pipe(
       map(({ data, error }) => {
         if (error || !data) throw error || new Error('Usuario no encontrado');
         return this.mapUsuario(data);
@@ -131,7 +134,7 @@ export class UsuariosService {
           ...this.toDb({ ...usuario, rol: this.normalizeRol(usuario.rol) as any }),
           activo: usuario.activo !== false,
         });
-        const { data: row, error: err } = await sb.from('usuarios').insert(body).select('*').single();
+        const { data: row, error: err } = await sb.from('usuarios').insert(body).select(USUARIOS_LISTA_SELECT).single();
         if (err || !row) throw err || new Error('No se pudo crear perfil');
         return this.mapUsuario(row);
       })(),
@@ -140,7 +143,7 @@ export class UsuariosService {
 
   updateUsuario(id: string, usuario: Partial<Usuario>): Observable<Usuario> {
     return from(
-      getSupabase().from('usuarios').update(this.toDb(usuario)).eq('id', id).select('*').maybeSingle(),
+      getSupabase().from('usuarios').update(this.toDb(usuario)).eq('id', id).select(USUARIOS_LISTA_SELECT).maybeSingle(),
     ).pipe(
       map(({ data, error }) => {
         if (error) throw error;

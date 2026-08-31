@@ -46,7 +46,7 @@ export class HistoryVehicleComponent implements OnInit {
   cargar(): void {
     this.loading = true;
     forkJoin({
-      motos: this.motos.getMotos().pipe(catchError(() => of([]))),
+      motos: this.motos.getMotosLista().pipe(catchError(() => of([]))),
       contratos: this.contratos.getContratos().pipe(catchError(() => of([]))),
       pagos: this.pagos.getPagos().pipe(catchError(() => of([]))),
       mant: this.mant.list().pipe(catchError(() => of([]))),

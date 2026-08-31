@@ -4,9 +4,21 @@ import { getSupabase } from '../supabase/supabase.client';
 import { AuthService } from '../auth/auth.service';
 import { Usuario } from '../shared/interfaces/usuario';
 import { Moto } from '../shared/interfaces/moto';
+import { MOTOS_EMBED_SELECT, fotoDesdeImagenUrl } from './motos.service';
 
 export type TipoNovedad = 'pinchazo' | 'choque' | 'falla' | 'documento' | 'pago' | 'otro';
 export type EstadoNovedad = 'abierta' | 'en_proceso' | 'resuelta' | 'cerrada';
+
+const NOVEDAD_COLS =
+  'id,conductor_id,moto_id,tipo,titulo,descripcion,estado,respuesta_staff,atendido_por,atendido_en,created_at';
+const USUARIOS_EMBED = 'usuarios:conductor_id(id,nombre,apellido,email,cedula,telefono,rol,activo)';
+const MOTOS_EMBED = `motos:moto_id(${MOTOS_EMBED_SELECT})`;
+
+/** Lista staff/dashboard: sin `foto` (data:) y sin `motos.imagen`. */
+export const NOVEDADES_LISTA_SELECT = `${NOVEDAD_COLS},${USUARIOS_EMBED},${MOTOS_EMBED}`;
+
+/** Detalle / alta: incluye `foto` de esa fila (un blob, no toda la tabla). */
+export const NOVEDADES_DETALLE_SELECT = `${NOVEDAD_COLS},foto,${USUARIOS_EMBED},${MOTOS_EMBED}`;
 
 export interface Novedad {
   _id?: string;
@@ -45,6 +57,7 @@ export class NovedadesService {
 
   private mapMoto(row: any): Moto | undefined {
     if (!row) return undefined;
+    const foto = fotoDesdeImagenUrl(row);
     return {
       _id: row.id,
       marca: row.marca,
@@ -52,7 +65,8 @@ export class NovedadesService {
       placa: row.placa,
       precio: Number(row.precio) || 0,
       estado: row.estado,
-      imagen: row.imagen || undefined,
+      imagen: foto,
+      imagenUrl: foto,
     };
   }
 
@@ -75,11 +89,9 @@ export class NovedadesService {
     };
   }
 
-  list(params?: { estado?: EstadoNovedad; conductorId?: string }): Observable<Novedad[]> {
-    let q = getSupabase()
-      .from('novedades')
-      .select('*, usuarios:conductor_id(id,nombre,apellido,email,cedula,telefono,rol,activo), motos:moto_id(id,marca,modelo,placa,precio,estado,imagen)')
-      .order('created_at', { ascending: false });
+  list(params?: { estado?: EstadoNovedad; conductorId?: string; conFoto?: boolean }): Observable<Novedad[]> {
+    const columns = params?.conFoto ? NOVEDADES_DETALLE_SELECT : NOVEDADES_LISTA_SELECT;
+    let q = getSupabase().from('novedades').select(columns).order('created_at', { ascending: false });
     if (params?.estado) q = q.eq('estado', params.estado);
     if (params?.conductorId) q = q.eq('conductor_id', params.conductorId);
     return from(q).pipe(
@@ -111,7 +123,7 @@ export class NovedadesService {
           foto: payload.foto || null,
           estado: 'abierta',
         })
-        .select('*, usuarios:conductor_id(id,nombre,apellido,email,cedula,telefono,rol,activo), motos:moto_id(id,marca,modelo,placa,precio,estado,imagen)')
+        .select(NOVEDADES_DETALLE_SELECT)
         .single(),
     ).pipe(
       map(({ data, error }) => {
@@ -142,7 +154,7 @@ export class NovedadesService {
         .from('novedades')
         .update(update)
         .eq('id', id)
-        .select('*, usuarios:conductor_id(id,nombre,apellido,email,cedula,telefono,rol,activo), motos:moto_id(id,marca,modelo,placa,precio,estado,imagen)')
+        .select(NOVEDADES_LISTA_SELECT)
         .single(),
     ).pipe(
       map(({ data, error }) => {

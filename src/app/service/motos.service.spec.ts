@@ -2,6 +2,8 @@ import {
   MOTOS_CATALOGO_SELECT,
   MOTOS_LISTA_SELECT,
   MOTOS_LISTA_CONDUCTOR_SELECT,
+  MOTOS_EMBED_SELECT,
+  MOTOS_OPERATIVO_SELECT,
   columnasDelSelect,
   imagenCatalogoPublico,
   fotoDesdeImagenUrl,
@@ -27,6 +29,15 @@ describe('listas livianas de motos (imagen_url)', () => {
     expect(MOTOS_LISTA_SELECT).not.toMatch(/usuarios/);
     expect(MOTOS_LISTA_CONDUCTOR_SELECT).toMatch(/usuarios:conductor_id\(id,nombre,apellido\)/);
     expect(MOTOS_LISTA_CONDUCTOR_SELECT).not.toMatch(/conductor_id\(\*\)/);
+  });
+
+  it('el embed y el operativo piden imagen_url y nunca la columna imagen', () => {
+    expect(columnasDelSelect(MOTOS_EMBED_SELECT)).toContain('imagen_url');
+    expect(columnasDelSelect(MOTOS_EMBED_SELECT)).not.toContain('imagen');
+    expect(MOTOS_EMBED_SELECT).not.toMatch(/\*/);
+    expect(columnasDelSelect(MOTOS_OPERATIVO_SELECT)).toContain('imagen_url');
+    expect(columnasDelSelect(MOTOS_OPERATIVO_SELECT)).not.toContain('imagen');
+    expect(MOTOS_OPERATIVO_SELECT).not.toMatch(/\*/);
   });
 
   it('mapea motos sin join de conductor aunque el row traiga usuarios', () => {

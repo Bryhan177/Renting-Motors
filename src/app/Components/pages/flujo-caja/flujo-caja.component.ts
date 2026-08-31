@@ -35,7 +35,7 @@ export class FlujoCajaComponent implements OnInit {
 
   ngOnInit(): void {
     this.cargar();
-    this.motosService.getMotos().subscribe({ next: (m) => (this.motos = m) });
+    this.motosService.getMotosLista().subscribe({ next: (m) => (this.motos = m) });
   }
 
   cargar(): void {

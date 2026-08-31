@@ -64,7 +64,7 @@ export class DocumentationComponent implements OnInit {
 
   ngOnInit(): void {
     this.cargar();
-    this.motosService.getMotos().subscribe({ next: (m) => (this.motos = m) });
+    this.motosService.getMotosLista().subscribe({ next: (m) => (this.motos = m) });
     this.usuariosService.getUsuarios().subscribe({
       next: (u) => (this.conductores = u.filter((x) => x.rol === 'empleado')),
     });

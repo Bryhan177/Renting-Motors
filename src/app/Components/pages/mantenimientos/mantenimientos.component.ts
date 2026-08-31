@@ -32,7 +32,7 @@ export class MantenimientosComponent implements OnInit {
 
   ngOnInit(): void {
     this.cargar();
-    this.motosService.getMotos().subscribe({ next: (m) => (this.motos = m) });
+    this.motosService.getMotosLista().subscribe({ next: (m) => (this.motos = m) });
   }
 
   cargar(): void {
@@ -62,7 +62,7 @@ export class MantenimientosComponent implements OnInit {
       next: () => {
         this.mostrarModal = false;
         this.cargar();
-        this.motosService.getMotos().subscribe({ next: (m) => (this.motos = m) });
+        this.motosService.getMotosLista().subscribe({ next: (m) => (this.motos = m) });
         Swal.fire({ icon: 'success', title: 'MDD en mantenimiento', toast: true, timer: 1500, showConfirmButton: false, position: 'top-end' });
       },
       error: (e) => Swal.fire({ icon: 'error', title: e?.message || 'Error' }),
