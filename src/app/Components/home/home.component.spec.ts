@@ -17,7 +17,7 @@ describe('HomeComponent catálogo', () => {
       placa: 'FSS51B',
       estado: 'en_uso',
       modalidad: 'liquidacion',
-      imagen: 'https://cdn.example/fss51b.jpg',
+      imagen_url: 'https://cdn.example/fss51b.jpg',
     }),
     mapMotoCatalogo({
       id: '2',
@@ -26,7 +26,7 @@ describe('HomeComponent catálogo', () => {
       placa: 'DAN78D',
       estado: 'disponible',
       modalidad: 'arriendo',
-      imagen: 'data:image/jpeg;base64,/9j/broken',
+      imagen_url: 'data:image/jpeg;base64,/9j/broken',
     }),
     mapMotoCatalogo({
       id: '3',
@@ -35,7 +35,7 @@ describe('HomeComponent catálogo', () => {
       placa: 'RIP-44G',
       estado: 'en_uso',
       modalidad: 'arriendo',
-      imagen: 'https://storage.example/broken.jpg',
+      imagen_url: 'https://storage.example/broken.jpg',
     }),
   ];
 

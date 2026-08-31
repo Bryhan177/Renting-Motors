@@ -35,6 +35,11 @@ describe('PlanesComponent', () => {
     expect(PLANES_LISTA_SELECT).toMatch(/valor_sugerido/);
   });
 
+  it('al cargar solo pide planes, no motos', () => {
+    component.ngOnInit();
+    expect(planesService.getPlanes).toHaveBeenCalledWith(true);
+  });
+
   it('el formulario nuevo no usa 160000/180000 como tarifa global', () => {
     const form = component.formVacio();
     expect(form.valorSugerido).toBe(0);

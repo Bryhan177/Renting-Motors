@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { Observable, from, map, switchMap, catchError, of, concat } from 'rxjs';
+import { Observable, from, map, switchMap, catchError, of } from 'rxjs';
 import { getSupabase } from '../supabase/supabase.client';
 import { Moto } from '../shared/interfaces/moto';
 import { Usuario } from '../shared/interfaces/usuario';
@@ -7,23 +7,28 @@ import { Estadisticas } from '../shared/interfaces/pago';
 import { stripClienteEmpresaId } from '../shared/empresa-scope';
 
 /**
- * Listas (landing, contratos, inventario): NUNCA `imagen` ni `*`.
- * Un `data:` de varios MB en Postgres viaja entero en el JSON y congela el hilo.
- * Fotos http se piden aparte con `like('imagen','http%')`.
+ * Listas (landing, inventario, contratos): NUNCA la columna `imagen` (blob).
+ * La foto de grilla sale de `imagen_url` (URL corta). Un LIKE/SELECT sobre
+ * `imagen` hace que Postgres lea cada data: de varios MB.
  */
 export const MOTOS_LISTA_SELECT =
-  'id, marca, modelo, placa, estado, modalidad, precio_cobro, precio, precio_compra, conductor_id, pico_y_placa, soat, tecnomecanica, aceite, transito_matricula, fecha_ingreso, created_at, updated_at';
+  'id, marca, modelo, placa, estado, modalidad, precio_cobro, precio, precio_compra, conductor_id, pico_y_placa, soat, tecnomecanica, aceite, transito_matricula, fecha_ingreso, imagen_url, created_at, updated_at';
 
-/** Landing anónima: aún más liviano, sin conductor. */
-export const MOTOS_CATALOGO_SELECT = 'id, marca, modelo, placa, estado, modalidad, precio_cobro';
+/** Landing anónima: sin conductor. Foto = imagen_url, no imagen. */
+export const MOTOS_CATALOGO_SELECT =
+  'id, marca, modelo, placa, estado, modalidad, precio_cobro, imagen_url';
 
 /** Staff: nombres del conductor, no `usuarios(*)`. */
 export const MOTOS_LISTA_CONDUCTOR_SELECT = `${MOTOS_LISTA_SELECT}, usuarios:conductor_id(id,nombre,apellido)`;
 
-/** Solo filas cuya foto ya es URL pública (no `data:`). */
-export const MOTOS_FOTOS_HTTP_PATTERN = 'http%';
+export function columnasDelSelect(select: string): string[] {
+  return select
+    .split(',')
+    .map((part) => part.trim().split(':')[0].trim())
+    .filter(Boolean);
+}
 
-/** `data:` (fallback de upload) no se usa como src: cuelga el pintado. */
+/** Solo URL http(s). `data:` y paths relativos no se usan como src. */
 export function imagenCatalogoPublico(raw: unknown): string | undefined {
   if (raw == null) return undefined;
   const s = String(raw).trim();
@@ -32,24 +37,14 @@ export function imagenCatalogoPublico(raw: unknown): string | undefined {
   return s;
 }
 
-export function mergeFotosHttp(
-  motos: Moto[],
-  fotos: Array<{ id?: string; imagen?: string | null }>,
-): Moto[] {
-  const byId = new Map<string, string>();
-  for (const f of fotos) {
-    const url = imagenCatalogoPublico(f.imagen);
-    if (f.id && url) byId.set(f.id, url);
-  }
-  if (!byId.size) return motos;
-  return motos.map((m) => {
-    const url = m._id ? byId.get(m._id) : undefined;
-    return url ? { ...m, imagen: url } : m;
-  });
+/** Foto de lista: SOLO `imagen_url`. Ignora el blob `imagen`. */
+export function fotoDesdeImagenUrl(row: any): string | undefined {
+  return imagenCatalogoPublico(row?.imagen_url);
 }
 
 /** Landing: nunca conductor / PII aunque el row traiga usuarios. */
 export function mapMotoCatalogo(row: any): Moto {
+  const foto = fotoDesdeImagenUrl(row);
   return {
     _id: row?.id,
     marca: row?.marca || '',
@@ -62,16 +57,17 @@ export function mapMotoCatalogo(row: any): Moto {
     estado: row?.estado || 'disponible',
     conductorId: null,
     conductor: undefined,
-    imagen: imagenCatalogoPublico(row?.imagen),
+    imagen: foto,
+    imagenUrl: foto,
   };
 }
 
-/** Lista staff: conductor_id + nombre, sin blob de foto. */
+/** Lista staff: conductor_id + nombre, foto desde imagen_url. */
 export function mapMotoLista(row: any): Moto {
   const conductorRow = row?.usuarios;
   const conductor =
     conductorRow && conductorRow.id
-      ? {
+      ? ({
           _id: conductorRow.id,
           nombre: conductorRow.nombre,
           apellido: conductorRow.apellido,
@@ -80,8 +76,9 @@ export function mapMotoLista(row: any): Moto {
           telefono: '',
           rol: 'empleado',
           activo: conductorRow.activo !== false,
-        } as Usuario
+        } as Usuario)
       : undefined;
+  const foto = fotoDesdeImagenUrl(row);
   return {
     _id: row?.id,
     marca: row?.marca || '',
@@ -100,7 +97,8 @@ export function mapMotoLista(row: any): Moto {
     estado: row?.estado || 'disponible',
     conductorId: row?.conductor_id || conductor?._id || null,
     conductor,
-    imagen: imagenCatalogoPublico(row?.imagen),
+    imagen: foto,
+    imagenUrl: foto,
     createdAt: row?.created_at,
     updatedAt: row?.updated_at,
   };
@@ -125,6 +123,7 @@ export class MotosService {
   private mapMoto(row: any): Moto {
     const conductor = this.mapUsuario(row.usuarios || row.conductor);
     const precioCompra = Number(row.precio_compra ?? row.precio) || 0;
+    const foto = fotoDesdeImagenUrl(row) || imagenCatalogoPublico(row.imagen);
     return {
       _id: row.id,
       marca: row.marca,
@@ -143,7 +142,8 @@ export class MotosService {
       estado: row.estado,
       conductorId: row.conductor_id || conductor?._id || null,
       conductor,
-      imagen: imagenCatalogoPublico(row.imagen),
+      imagen: foto,
+      imagenUrl: foto,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     };
@@ -169,49 +169,33 @@ export class MotosService {
     if (moto.modalidad !== undefined) payload['modalidad'] = moto.modalidad || 'arriendo';
     if (moto.estado !== undefined) payload['estado'] = moto.estado;
     if (moto.conductorId !== undefined) payload['conductor_id'] = moto.conductorId || null;
-    if (imagenUrl !== undefined) payload['imagen'] = imagenUrl;
-    else if (moto.imagen !== undefined && !String(moto.imagen).startsWith('data:')) {
-      payload['imagen'] = moto.imagen;
+    if (imagenUrl !== undefined) {
+      const url = imagenCatalogoPublico(imagenUrl) || null;
+      payload['imagen_url'] = url;
+      payload['imagen'] = url;
+    } else if (moto.imagen !== undefined) {
+      const url = imagenCatalogoPublico(moto.imagen) || null;
+      payload['imagen_url'] = url;
+      if (url) payload['imagen'] = url;
     }
     return stripClienteEmpresaId(payload);
   }
 
   getMotos(): Observable<Moto[]> {
-    return this.queryLista(MOTOS_LISTA_CONDUCTOR_SELECT).pipe(
-      switchMap((motos) => concat(of(motos), this.adjuntarFotosHttp(motos))),
-    );
+    return this.queryLista(MOTOS_LISTA_CONDUCTOR_SELECT);
   }
 
-  /** Lista sin foto ni embed de usuarios. Contratos / wizard / filtros. */
+  /** Lista sin embed de usuarios. Contratos / wizard / filtros. */
   getMotosLista(): Observable<Moto[]> {
     return this.queryLista(MOTOS_LISTA_SELECT);
   }
 
   /**
    * Catálogo de la landing (`/`). Columnas livianas, sin join a `usuarios`
-   * y sin columna `imagen` (los `data:` no viajan). Emite texto ya, luego fotos http.
+   * y sin columna `imagen`. La foto sale de `imagen_url` en el mismo SELECT.
    */
   getMotosPublicas(): Observable<Moto[]> {
-    return this.queryLista(MOTOS_CATALOGO_SELECT, mapMotoCatalogo).pipe(
-      switchMap((motos) => concat(of(motos), this.adjuntarFotosHttp(motos))),
-    );
-  }
-
-  /** Solo URLs http(s). Filtra `data:` en Postgres, no las baja al browser. */
-  getMotosFotosHttp(): Observable<Array<{ id: string; imagen?: string }>> {
-    return from(
-      getSupabase()
-        .from('motos')
-        .select('id, imagen')
-        .like('imagen', MOTOS_FOTOS_HTTP_PATTERN),
-    ).pipe(
-      map(({ data, error }) => {
-        if (error) throw error;
-        return (data || [])
-          .map((r: any) => ({ id: r.id as string, imagen: imagenCatalogoPublico(r.imagen) }))
-          .filter((r: { id: string; imagen?: string }) => !!r.imagen);
-      }),
-    );
+    return this.queryLista(MOTOS_CATALOGO_SELECT, mapMotoCatalogo);
   }
 
   private queryLista(
@@ -228,17 +212,13 @@ export class MotosService {
     );
   }
 
-  private adjuntarFotosHttp(motos: Moto[]): Observable<Moto[]> {
-    if (!motos.length) return of(motos);
-    return this.getMotosFotosHttp().pipe(
-      map((fotos) => mergeFotosHttp(motos, fotos)),
-      catchError(() => of(motos)),
-    );
-  }
-
   getMoto(id: string): Observable<Moto> {
     return from(
-      getSupabase().from('motos').select('*, usuarios:conductor_id(*)').eq('id', id).single(),
+      getSupabase()
+        .from('motos')
+        .select(MOTOS_LISTA_CONDUCTOR_SELECT)
+        .eq('id', id)
+        .single(),
     ).pipe(
       map(({ data, error }) => {
         if (error || !data) throw error || new Error('MDD no encontrada');
@@ -276,7 +256,7 @@ export class MotosService {
         modalidad: moto.modalidad || 'arriendo',
         fecha_ingreso: moto.fechaIngreso || new Date().toISOString().slice(0, 10),
       };
-      return from(sb.from('motos').insert(payload).select('*, usuarios:conductor_id(*)').single()).pipe(
+      return from(sb.from('motos').insert(payload).select(MOTOS_LISTA_CONDUCTOR_SELECT).single()).pipe(
         map(({ data, error }) => {
           if (error || !data) {
             const msg = error?.message || 'No se pudo crear la MDD';
@@ -309,7 +289,7 @@ export class MotosService {
       const payload = this.toPayload(moto, imagenUrl);
       payload['updated_at'] = new Date().toISOString();
       return from(
-        getSupabase().from('motos').update(payload).eq('id', id).select('*, usuarios:conductor_id(*)').single(),
+        getSupabase().from('motos').update(payload).eq('id', id).select(MOTOS_LISTA_CONDUCTOR_SELECT).single(),
       ).pipe(
         map(({ data, error }) => {
           if (error || !data) throw error || new Error('No se pudo actualizar');
@@ -360,7 +340,7 @@ export class MotosService {
       sb.from('novedades').update({ moto_id: null }).eq('moto_id', id),
     ]);
 
-    const { data, error } = await sb.from('motos').delete().eq('id', id).select('*').single();
+    const { data, error } = await sb.from('motos').delete().eq('id', id).select(MOTOS_LISTA_SELECT).single();
     if (error || !data) {
       const msg = error?.message || 'No se pudo eliminar';
       if (String(msg).includes('foreign key') || String(msg).includes('violates')) {
@@ -384,7 +364,6 @@ export class MotosService {
         if (error) throw error;
         return (data || []).map((r) => mapMotoLista(r));
       }),
-      switchMap((motos) => concat(of(motos), this.adjuntarFotosHttp(motos))),
     );
   }
 

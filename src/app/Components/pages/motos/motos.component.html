@@ -27,7 +27,7 @@
         <span [class]="'px-3 py-1 rounded-full text-xs font-bold uppercase ' + getEstadoClass(moto.estado)">{{ getEstadoText(moto.estado) }}</span>
       </div>
       <div class="h-40 bg-gray-900 flex items-center justify-center relative">
-        <img *ngIf="moto.imagen" [src]="moto.imagen" class="w-full h-full object-cover" alt="mdd">
+        <img *ngIf="moto.imagen" [src]="moto.imagen" class="w-full h-full object-cover" alt="mdd" (error)="moto.imagen = undefined">
         <span *ngIf="!moto.imagen" class="text-5xl text-white opacity-40">MDD</span>
         <p class="absolute bottom-2 left-4 text-2xl font-black tracking-widest text-white drop-shadow">{{ moto.placa }}</p>
       </div>

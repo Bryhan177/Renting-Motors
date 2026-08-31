@@ -69,8 +69,8 @@ export class HomeComponent implements OnInit {
   }
 
   fotoSrc(m: Moto): string | null {
-    const src = (m.imagen || '').trim();
-    if (!src || /^data:/i.test(src)) return null;
+    const src = (m.imagenUrl || m.imagen || '').trim();
+    if (!src || /^data:/i.test(src) || !/^https?:\/\//i.test(src)) return null;
     const key = m._id || m.placa || src;
     if (this.fotosRotas.has(key)) return null;
     return src;
