@@ -1,7 +1,7 @@
 import { Component, Inject, OnInit, PLATFORM_ID } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { RouterLink } from '@angular/router';
-import { MotosService } from '../../service/motos.service';
+import { esMotoCatalogoPublico, MotosService } from '../../service/motos.service';
 import { Moto } from '../../shared/interfaces/moto';
 import { WHATSAPP_NUMERO } from '../../shared/constants';
 import { WhatsappFloatComponent } from '../../shared/components/whatsapp-float/whatsapp-float.component';
@@ -35,7 +35,7 @@ export class HomeComponent implements OnInit {
 
     this.motosService.getMotosPublicas().subscribe({
       next: (list) => {
-        this.mdds = list;
+        this.mdds = (list || []).filter(esMotoCatalogoPublico);
         this.cargando = false;
       },
       error: () => {

@@ -25,6 +25,13 @@
           {{ moto.modalidad === 'liquidacion' ? 'Liquidación' : 'Arriendo' }}
         </span>
         <span [class]="'px-3 py-1 rounded-full text-xs font-bold uppercase ' + getEstadoClass(moto.estado)">{{ getEstadoText(moto.estado) }}</span>
+        <span
+          class="px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wide text-white"
+          [class.bg-slate-600]="moto.uso !== 'personal'"
+          [class.bg-amber-700]="moto.uso === 'personal'"
+        >
+          {{ moto.uso === 'personal' ? 'Personal' : 'Flota' }}
+        </span>
       </div>
       <div class="h-40 bg-gray-900 flex items-center justify-center relative">
         <img *ngIf="moto.imagen" [src]="moto.imagen" class="w-full h-full object-cover" alt="mdd" (error)="moto.imagen = undefined">
@@ -35,6 +42,12 @@
         <h3 class="text-lg font-bold mb-1 text-white">{{ moto.marca }} {{ moto.modelo }}</h3>
           <p class="text-green-300 font-bold text-lg">Compra $ {{ (moto.precioCompra || moto.precio) | number:'1.0-0':'es-CO' }}</p>
           <p class="text-blue-300 text-sm mb-2">Cobro conductor $ {{ (moto.precioCobro || 0) | number:'1.0-0':'es-CO' }}</p>
+        <p class="text-xs text-gray-300 mb-1" *ngIf="moto.color || moto.cilindraje || moto.anio">
+          <span *ngIf="moto.color">{{ moto.color }}</span>
+          <span *ngIf="moto.cilindraje"> · {{ moto.cilindraje }} cc</span>
+          <span *ngIf="moto.anio"> · {{ moto.anio }}</span>
+        </p>
+        <p class="text-xs text-amber-300 mb-1" *ngIf="moto.tieneMultas">Multas: sí</p>
         <p class="text-xs text-gray-300 mb-3" *ngIf="moto.picoYPlaca">Pico y placa: {{ moto.picoYPlaca }}</p>
         <div class="bg-gray-900/80 rounded-lg p-3 mb-4 border border-gray-600">
           <p class="text-xs text-gray-300">Conductor</p>
@@ -70,6 +83,17 @@
           <option value="arriendo">Arriendo</option>
           <option value="liquidacion">Liquidación</option>
         </select>
+        <input [(ngModel)]="motoForm.cilindraje" type="number" min="0" name="cilindraje" placeholder="Cilindraje (cc)" class="bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-white placeholder:text-gray-400">
+        <input [(ngModel)]="motoForm.color" name="color" placeholder="Color" class="bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-white placeholder:text-gray-400">
+        <input [(ngModel)]="motoForm.anio" type="number" min="1990" max="2100" name="anio" placeholder="Año" class="bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-white placeholder:text-gray-400">
+        <select [(ngModel)]="motoForm.uso" name="uso" class="bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-white">
+          <option value="flota">Uso: flota (arriendo)</option>
+          <option value="personal">Uso: personal (no sale en landing)</option>
+        </select>
+        <label class="col-span-2 flex items-center gap-2 text-sm text-white">
+          <input type="checkbox" name="tieneMultas" [(ngModel)]="motoForm.tieneMultas" class="rounded">
+          Tiene multas
+        </label>
         <div>
           <label class="text-xs text-gray-300">Precio compra (valió la moto)</label>
           <input type="text" inputmode="numeric" appCurrencyCo [(ngModel)]="motoForm.precioCompra" class="w-full bg-gray-900 border border-gray-500 rounded-lg px-3 py-2 text-white">

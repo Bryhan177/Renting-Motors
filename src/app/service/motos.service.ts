@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { Observable, from, map, switchMap, catchError, of } from 'rxjs';
 import { getSupabase } from '../supabase/supabase.client';
-import { Moto } from '../shared/interfaces/moto';
+import { Moto, UsoMoto } from '../shared/interfaces/moto';
 import { Usuario } from '../shared/interfaces/usuario';
 import { Estadisticas } from '../shared/interfaces/pago';
 import { stripClienteEmpresaId } from '../shared/empresa-scope';
@@ -12,11 +12,11 @@ import { stripClienteEmpresaId } from '../shared/empresa-scope';
  * `imagen` hace que Postgres lea cada data: de varios MB.
  */
 export const MOTOS_LISTA_SELECT =
-  'id, marca, modelo, placa, estado, modalidad, precio_cobro, precio, precio_compra, conductor_id, pico_y_placa, soat, tecnomecanica, aceite, transito_matricula, fecha_ingreso, imagen_url, created_at, updated_at';
+  'id, marca, modelo, placa, estado, modalidad, precio_cobro, precio, precio_compra, conductor_id, pico_y_placa, soat, tecnomecanica, aceite, transito_matricula, fecha_ingreso, cilindraje, color, anio, tiene_multas, uso, imagen_url, created_at, updated_at';
 
-/** Landing anónima: sin conductor. Foto = imagen_url, no imagen. */
+/** Landing anónima: sin conductor. Foto = imagen_url, no imagen. `uso` filtra personal. */
 export const MOTOS_CATALOGO_SELECT =
-  'id, marca, modelo, placa, estado, modalidad, precio_cobro, imagen_url';
+  'id, marca, modelo, placa, estado, modalidad, precio_cobro, uso, imagen_url';
 
 /** Staff: nombres del conductor, no `usuarios(*)`. */
 export const MOTOS_LISTA_CONDUCTOR_SELECT = `${MOTOS_LISTA_SELECT}, usuarios:conductor_id(id,nombre,apellido)`;
@@ -30,6 +30,12 @@ export const MOTOS_EMBED_SELECT = 'id,marca,modelo,placa,estado,imagen_url';
  */
 export const MOTOS_OPERATIVO_SELECT =
   'id, marca, modelo, placa, estado, conductor_id, soat, tecnomecanica, imagen_url';
+
+function enteroOpcional(value: unknown): number | null {
+  if (value == null || value === '') return null;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+}
 
 export function columnasDelSelect(select: string): string[] {
   return select
@@ -52,6 +58,15 @@ export function fotoDesdeImagenUrl(row: any): string | undefined {
   return imagenCatalogoPublico(row?.imagen_url);
 }
 
+export function normalizarUsoMoto(raw: unknown): UsoMoto {
+  return String(raw || '').toLowerCase().trim() === 'personal' ? 'personal' : 'flota';
+}
+
+/** Landing / catálogo público: personal nunca. null o ausente = flota. */
+export function esMotoCatalogoPublico(moto: Pick<Moto, 'uso'> | { uso?: string | null }): boolean {
+  return normalizarUsoMoto(moto?.uso) !== 'personal';
+}
+
 /** Landing: nunca conductor / PII aunque el row traiga usuarios. */
 export function mapMotoCatalogo(row: any): Moto {
   const foto = fotoDesdeImagenUrl(row);
@@ -65,6 +80,7 @@ export function mapMotoCatalogo(row: any): Moto {
     precioCobro: Number(row?.precio_cobro) || 180000,
     modalidad: row?.modalidad === 'liquidacion' ? 'liquidacion' : 'arriendo',
     estado: row?.estado || 'disponible',
+    uso: normalizarUsoMoto(row?.uso),
     conductorId: null,
     conductor: undefined,
     imagen: foto,
@@ -105,6 +121,11 @@ export function mapMotoLista(row: any): Moto {
     picoYPlaca: row?.pico_y_placa || null,
     modalidad: row?.modalidad === 'liquidacion' ? 'liquidacion' : 'arriendo',
     estado: row?.estado || 'disponible',
+    cilindraje: row?.cilindraje != null && row.cilindraje !== '' ? Number(row.cilindraje) : null,
+    color: row?.color || null,
+    anio: row?.anio != null && row.anio !== '' ? Number(row.anio) : null,
+    tieneMultas: !!row?.tiene_multas,
+    uso: normalizarUsoMoto(row?.uso),
     conductorId: row?.conductor_id || conductor?._id || null,
     conductor,
     imagen: foto,
@@ -150,6 +171,11 @@ export class MotosService {
       picoYPlaca: row.pico_y_placa || null,
       modalidad: row.modalidad === 'liquidacion' ? 'liquidacion' : 'arriendo',
       estado: row.estado,
+      cilindraje: row.cilindraje != null && row.cilindraje !== '' ? Number(row.cilindraje) : null,
+      color: row.color || null,
+      anio: row.anio != null && row.anio !== '' ? Number(row.anio) : null,
+      tieneMultas: !!row.tiene_multas,
+      uso: normalizarUsoMoto(row.uso),
       conductorId: row.conductor_id || conductor?._id || null,
       conductor,
       imagen: foto,
@@ -178,6 +204,11 @@ export class MotosService {
     if (moto.picoYPlaca !== undefined) payload['pico_y_placa'] = moto.picoYPlaca || null;
     if (moto.modalidad !== undefined) payload['modalidad'] = moto.modalidad || 'arriendo';
     if (moto.estado !== undefined) payload['estado'] = moto.estado;
+    if (moto.cilindraje !== undefined) payload['cilindraje'] = enteroOpcional(moto.cilindraje);
+    if (moto.color !== undefined) payload['color'] = moto.color || null;
+    if (moto.anio !== undefined) payload['anio'] = enteroOpcional(moto.anio);
+    if (moto.tieneMultas !== undefined) payload['tiene_multas'] = !!moto.tieneMultas;
+    if (moto.uso !== undefined) payload['uso'] = normalizarUsoMoto(moto.uso);
     if (moto.conductorId !== undefined) payload['conductor_id'] = moto.conductorId || null;
     if (imagenUrl !== undefined) {
       const url = imagenCatalogoPublico(imagenUrl) || null;
@@ -210,7 +241,18 @@ export class MotosService {
    * y sin columna `imagen`. La foto sale de `imagen_url` en el mismo SELECT.
    */
   getMotosPublicas(): Observable<Moto[]> {
-    return this.queryLista(MOTOS_CATALOGO_SELECT, mapMotoCatalogo);
+    return from(
+      getSupabase()
+        .from('motos')
+        .select(MOTOS_CATALOGO_SELECT)
+        .not('uso', 'eq', 'personal')
+        .order('created_at', { ascending: false }),
+    ).pipe(
+      map(({ data, error }) => {
+        if (error) throw error;
+        return (data || []).map(mapMotoCatalogo).filter(esMotoCatalogoPublico);
+      }),
+    );
   }
 
   private queryLista(
@@ -269,6 +311,7 @@ export class MotosService {
         estado: moto.estado || 'disponible',
         conductor_id: moto.conductorId || null,
         modalidad: moto.modalidad || 'arriendo',
+        uso: normalizarUsoMoto(moto.uso),
         fecha_ingreso: moto.fechaIngreso || new Date().toISOString().slice(0, 10),
       };
       return from(sb.from('motos').insert(payload).select(MOTOS_LISTA_CONDUCTOR_SELECT).single()).pipe(
