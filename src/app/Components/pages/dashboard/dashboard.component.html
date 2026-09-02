@@ -63,8 +63,8 @@
     *ngIf="sqlPendiente"
     class="mb-4 rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-200"
   >
-    Ejecuta <code class="text-amber-100">supabase/migrations/20260903_dashboard_ingresos_egresos.sql</code>
-    (después de 20260830 / 20260901) en el SQL Editor y recarga.
+    Ejecuta <code class="text-amber-100">supabase/migrations/20260909_dashboard_desde_pagos.sql</code>
+    (después de 20260903 / 20260908) en el SQL Editor y recarga.
   </div>
 
   <div *ngIf="loading" class="flex justify-center items-center h-48">
@@ -79,14 +79,14 @@
           <p class="text-gray-400 text-sm mb-1">Ingresos del periodo</p>
           <p class="text-3xl font-bold text-emerald-300">{{ cop(kpis.ingresosPeriodo) }}</p>
           <p class="text-xs text-gray-400 mt-1">
-            {{ cop(kpis.ingresosCuotas) }} cuotas · {{ cop(kpis.ingresosOtros) }} otros
+            cobrado (pagos)
           </p>
         </div>
         <div class="bg-gray-800 rounded-xl p-5 border border-red-500/20">
           <p class="text-gray-400 text-sm mb-1">Egresos del periodo</p>
           <p class="text-3xl font-bold text-red-300">{{ cop(kpis.egresosPeriodo) }}</p>
           <p class="text-xs text-gray-400 mt-1">
-            {{ kpis.cantidadEgresosPeriodo }} movimientos de caja
+            {{ kpis.cantidadEgresosPeriodo }} gastos (pagos)
           </p>
         </div>
         <div class="bg-gray-800 rounded-xl p-5 border border-gray-700">
@@ -177,10 +177,10 @@
             </h3>
             <p class="text-xs text-gray-400 mt-0.5">
               <ng-container *ngIf="!mostrandoEgresos">
-                Cuotas (abonos registrados) + otros ingresos de caja, por mes (America/Bogota)
+                Cobrado (pagos.valor_pagado / Excel), por mes (America/Bogota)
               </ng-container>
               <ng-container *ngIf="mostrandoEgresos">
-                movimientos_caja tipo egreso (mantenimientos y caja). No incluye pagos.gastos.
+                Gastos (pagos.gastos / Excel), por mes (America/Bogota)
               </ng-container>
             </p>
           </div>
@@ -458,12 +458,12 @@
         <div class="p-5 border-b border-gray-700">
           <h3 class="font-bold text-blue-300">Distribución e ingresos por plan</h3>
           <p class="text-xs text-gray-400 mt-0.5">
-            Contratos activos e ingresos (abonos registrados) del periodo. Usa el snapshot
+            Contratos activos e ingresos (cobrado en pagos) del periodo. Usa el snapshot
             <code class="text-gray-300">plan_nombre</code>; un cambio en el catálogo no reescribe contratos viejos.
           </p>
         </div>
         <div *ngIf="kpis.planes.length === 0" class="p-8 text-center text-gray-500 text-sm">
-          Sin contratos ni abonos por plan. Los totales son 0.
+          Sin contratos ni pagos por plan. Los totales son 0.
         </div>
         <div *ngIf="kpis.planes.length" class="p-5 space-y-3">
           <div *ngFor="let p of kpis.planes" class="grid grid-cols-1 sm:grid-cols-12 gap-2 sm:gap-3 items-center">
