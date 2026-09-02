@@ -214,7 +214,8 @@ begin
     registrado_por, abono_id, estado, empresa_id
   )
   select
-    c.usuario_id,
+    -- DAN78D/Franklin: sin conductor de contrato; pagos.conductor_id es NOT NULL → admin actor
+    coalesce(c.usuario_id, v_actor),
     m.moto_id,
     (e.fecha_pago::timestamp + interval '12 hours') at time zone 'America/Bogota',
     case when e.valor_pagado > 0 then e.valor_pagado else e.gastos end,
