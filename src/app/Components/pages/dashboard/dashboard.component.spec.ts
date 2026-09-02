@@ -146,4 +146,35 @@ describe('DashboardComponent', () => {
     expect(component.serieVisible.map((m) => m.monto)).not.toContain(60000);
     expect(component.totalSerieChart).toBe(15000);
   });
+
+  it('el toggle Egresos caja no suma pagos.gastos (overlap)', () => {
+    const egresos = [
+      { key: '2026-08', label: 'ago 26', monto: 1357613, cantidadAbonos: 10 },
+    ];
+    const caja = [
+      { key: '2026-08', label: 'ago 26', monto: 5216611, cantidadAbonos: 20 },
+    ];
+    dashboardService.getResumen.mockReturnValue(
+      of(
+        kpis({
+          egresosMensuales: egresos,
+          egresosCajaMensuales: caja,
+          egresosPeriodo: 1357613,
+          egresosCajaPeriodo: 5216611,
+        }),
+      ),
+    );
+    component.ngOnInit();
+    component.setSerieChart('egresos');
+    expect(component.serieEgresos).toBe('gastos_pagos');
+    expect(component.serieVisible.map((m) => m.monto)).toEqual([1357613]);
+    expect(component.totalSerieChart).toBe(1357613);
+
+    component.setSerieEgresos('egresos_caja');
+    expect(component.serieVisible.map((m) => m.monto)).toEqual([5216611]);
+    expect(component.totalSerieChart).toBe(5216611);
+    expect(component.totalSerieChart).not.toBe(1357613 + 5216611);
+    expect(component.kpis.egresosPeriodo).toBe(1357613);
+    expect(component.kpis.egresosCajaPeriodo).toBe(5216611);
+  });
 });

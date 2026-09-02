@@ -13,6 +13,7 @@ import { formatCop } from '../../../shared/currency-co.util';
 import {
   PeriodoDashboard,
   ResumenDashboard,
+  SerieEgresosChart,
   emptyResumenDashboard,
   etiquetaPeriodo,
   ingresosMensualesVisibles,
@@ -54,6 +55,7 @@ export class DashboardComponent implements OnInit {
   mesesCrecimiento: 6 | 12 = 12;
   seccion: SeccionDashboard = 'resumen';
   serieChart: SerieChart = 'ingresos';
+  serieEgresos: SerieEgresosChart = 'gastos_pagos';
 
   readonly tabs: { id: SeccionDashboard; label: string }[] = [
     { id: 'resumen', label: 'Resumen' },
@@ -153,6 +155,10 @@ export class DashboardComponent implements OnInit {
     this.serieChart = serie;
   }
 
+  setSerieEgresos(serie: SerieEgresosChart): void {
+    this.serieEgresos = serie;
+  }
+
   get mostrandoEgresos(): boolean {
     return this.serieChart === 'egresos';
   }
@@ -165,9 +171,16 @@ export class DashboardComponent implements OnInit {
     return ingresosMensualesVisibles(this.kpis.egresosMensuales, this.mesesCrecimiento);
   }
 
-  /** Serie de la gráfica visible (ingresos o egresos, nunca ambas). */
+  get egresosCajaMensuales() {
+    return ingresosMensualesVisibles(this.kpis.egresosCajaMensuales, this.mesesCrecimiento);
+  }
+
+  /** Una sola serie a la vez. Egresos nunca suma pagos+caja (overlap). */
   get serieVisible() {
-    return this.mostrandoEgresos ? this.egresosMensuales : this.ingresosMensuales;
+    if (!this.mostrandoEgresos) return this.ingresosMensuales;
+    return this.serieEgresos === 'egresos_caja'
+      ? this.egresosCajaMensuales
+      : this.egresosMensuales;
   }
 
   get totalSerieChart(): number {
@@ -210,7 +223,10 @@ export class DashboardComponent implements OnInit {
   }
 
   get mesActualSerie(): number {
-    return this.mostrandoEgresos ? this.kpis.egresosMesActual : this.kpis.ingresosMesActual;
+    if (!this.mostrandoEgresos) return this.kpis.ingresosMesActual;
+    return this.serieEgresos === 'egresos_caja'
+      ? this.kpis.egresosCajaMesActual
+      : this.kpis.egresosMesActual;
   }
 
   get etiquetaRango(): string {

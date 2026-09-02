@@ -83,10 +83,23 @@
           </p>
         </div>
         <div class="bg-gray-800 rounded-xl p-5 border border-red-500/20">
-          <p class="text-gray-400 text-sm mb-1">Egresos del periodo</p>
+          <p class="text-gray-400 text-sm mb-1">Gastos (pagos)</p>
           <p class="text-3xl font-bold text-red-300">{{ cop(kpis.egresosPeriodo) }}</p>
           <p class="text-xs text-gray-400 mt-1">
-            {{ kpis.cantidadEgresosPeriodo }} gastos (pagos)
+            operativos / Excel · {{ kpis.cantidadEgresosPeriodo }} filas
+          </p>
+        </div>
+        <div class="bg-gray-800 rounded-xl p-5 border border-orange-500/25">
+          <p class="text-gray-400 text-sm mb-1">Egresos caja</p>
+          <p class="text-3xl font-bold text-orange-300">{{ cop(kpis.egresosCajaPeriodo) }}</p>
+          <p class="text-xs text-gray-400 mt-1">
+            Flujo de caja (MDD + Ahorro) · {{ kpis.cantidadEgresosCajaPeriodo }} movs
+          </p>
+          <p class="text-xs text-orange-200/70 mt-1">
+            incluye gastos operativos ya reflejados en pagos + compras/préstamos
+          </p>
+          <p class="text-xs text-gray-500 mt-1">
+            MDD {{ cop(kpis.egresosCajaMddPeriodo) }} · Ahorro {{ cop(kpis.egresosCajaAhorroPeriodo) }}
           </p>
         </div>
         <div class="bg-gray-800 rounded-xl p-5 border border-gray-700">
@@ -179,8 +192,11 @@
               <ng-container *ngIf="!mostrandoEgresos">
                 Cobrado (pagos.valor_pagado / Excel), por mes (America/Bogota)
               </ng-container>
-              <ng-container *ngIf="mostrandoEgresos">
-                Gastos (pagos.gastos / Excel), por mes (America/Bogota)
+              <ng-container *ngIf="mostrandoEgresos && serieEgresos === 'gastos_pagos'">
+                Gastos pagos (Excel / operativos). No suma caja: hay overlap.
+              </ng-container>
+              <ng-container *ngIf="mostrandoEgresos && serieEgresos === 'egresos_caja'">
+                Egresos caja (Flujo: MDD + Ahorro, todos los egresos no anulados)
               </ng-container>
             </p>
           </div>
@@ -205,6 +221,31 @@
                 "
               >
                 Egresos
+              </button>
+            </div>
+            <div
+              *ngIf="mostrandoEgresos"
+              class="flex items-center gap-1 bg-gray-900/60 rounded-lg p-1 border border-gray-700"
+            >
+              <button
+                type="button"
+                (click)="setSerieEgresos('gastos_pagos')"
+                [class]="
+                  'text-xs px-3 py-1.5 rounded-md transition ' +
+                  (serieEgresos === 'gastos_pagos' ? 'bg-red-600 text-white' : 'text-gray-400 hover:text-white')
+                "
+              >
+                Gastos pagos
+              </button>
+              <button
+                type="button"
+                (click)="setSerieEgresos('egresos_caja')"
+                [class]="
+                  'text-xs px-3 py-1.5 rounded-md transition ' +
+                  (serieEgresos === 'egresos_caja' ? 'bg-orange-600 text-white' : 'text-gray-400 hover:text-white')
+                "
+              >
+                Egresos caja
               </button>
             </div>
             <div class="flex items-center gap-1 bg-gray-900/60 rounded-lg p-1 border border-gray-700">
@@ -239,11 +280,20 @@
         <div class="p-5 space-y-5">
           <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div class="rounded-lg bg-black/30 border border-gray-700 p-3">
-              <p class="text-xs text-gray-400">Total {{ mesesCrecimiento }} meses</p>
+              <p class="text-xs text-gray-400">
+                {{
+                  !mostrandoEgresos
+                    ? 'Total ' + mesesCrecimiento + ' meses'
+                    : serieEgresos === 'egresos_caja'
+                      ? 'Egresos caja · ' + mesesCrecimiento + ' meses'
+                      : 'Gastos pagos · ' + mesesCrecimiento + ' meses'
+                }}
+              </p>
               <p
                 class="text-xl font-bold mt-1"
                 [class.text-emerald-300]="!mostrandoEgresos"
-                [class.text-red-300]="mostrandoEgresos"
+                [class.text-red-300]="mostrandoEgresos && serieEgresos === 'gastos_pagos'"
+                [class.text-orange-300]="mostrandoEgresos && serieEgresos === 'egresos_caja'"
               >
                 {{ cop(totalSerieChart) }}
               </p>
@@ -268,7 +318,15 @@
           </div>
 
           <p *ngIf="totalSerieChart === 0" class="text-xs text-gray-500 text-center">
-            Sin {{ mostrandoEgresos ? 'egresos' : 'ingresos' }} en estos meses. Barras en 0.
+            Sin
+            {{
+              !mostrandoEgresos
+                ? 'ingresos'
+                : serieEgresos === 'egresos_caja'
+                  ? 'egresos de caja'
+                  : 'gastos de pagos'
+            }}
+            en estos meses. Barras en 0.
           </p>
 
           <div
@@ -293,9 +351,11 @@
                   <div
                     class="w-[70%] max-w-[2.75rem] rounded-t-md shadow-lg transition-all duration-500"
                     [ngClass]="
-                      mostrandoEgresos
-                        ? 'bg-gradient-to-t from-red-800 to-red-400 shadow-red-900/30'
-                        : 'bg-gradient-to-t from-emerald-700 to-emerald-400 shadow-emerald-900/30'
+                      !mostrandoEgresos
+                        ? 'bg-gradient-to-t from-emerald-700 to-emerald-400 shadow-emerald-900/30'
+                        : serieEgresos === 'egresos_caja'
+                          ? 'bg-gradient-to-t from-orange-800 to-amber-400 shadow-orange-900/30'
+                          : 'bg-gradient-to-t from-red-800 to-red-400 shadow-red-900/30'
                     "
                     [style.height.%]="alturaBarraSerie(m.monto)"
                     [class.opacity-40]="m.monto === 0"

@@ -21,10 +21,23 @@
 --   cantidad_abonos_periodo = count de esas filas (nombre UI legado)
 --   cantidad_otros_periodo  = 0
 --   egresos_periodo     = sum(pagos.gastos) no anulado, gastos > 0
+--                         (gastos operativos Excel; NO incluye caja)
 --   cantidad_egresos_periodo = count de esas filas
---   Fecha = (timezone('America/Bogota', pagos.fecha_pago))::date
+--   egresos_caja_periodo = sum(movimientos_caja.monto) tipo=egreso, no anulado
+--                          TODOS los bancos (mdd + ahorro_mdd), sin filtro de texto.
+--                          Es el stream completo de Flujo de caja (inversiones +
+--                          otros egresos, incl. COMPRA TERCERA MDD).
+--   egresos_caja_mdd_periodo / egresos_caja_ahorro_periodo = mismo filtro + banco
+--   cantidad_egresos_caja_periodo = count de esas filas
+--   Fecha pagos = (timezone('America/Bogota', pagos.fecha_pago))::date
+--   Fecha caja  = movimientos_caja.fecha (date)
+--
+-- NO sumar egresos_periodo + egresos_caja_periodo: hay overlap (pólizas, SOAT,
+-- kit, carenaje, llanta, etc. viven en ambos). Leer las dos tarjetas aparte.
 --
 -- Qué NO hace:
+--   - NO publica un "total salidas" = pagos.gastos + caja (doble conteo).
+--   - NO filtra caja por descripción/palabra clave (ningún egreso de Flujo se omite).
 --   - NO toca Flujo de caja / resumen_caja / saldos MDD-Ahorro.
 --   - NO toca cobro_en_mora / cartera / contratos / flota.
 --   - NO borra filas financieras (solo REPLACE de la función).
@@ -118,6 +131,44 @@ begin
           and p.empresa_id = v_empresa
           and coalesce(p.gastos, 0) > 0
           and (timezone('America/Bogota', p.fecha_pago))::date between v_desde and v_hasta
+      ), 0),
+    'egresos_caja_periodo',
+      coalesce((
+        select sum(mc.monto)::numeric(12,0)
+        from public.movimientos_caja mc
+        where mc.tipo = 'egreso'
+          and mc.estado is distinct from 'anulado'
+          and mc.empresa_id = v_empresa
+          and mc.fecha between v_desde and v_hasta
+      ), 0),
+    'cantidad_egresos_caja_periodo',
+      coalesce((
+        select count(*)::int
+        from public.movimientos_caja mc
+        where mc.tipo = 'egreso'
+          and mc.estado is distinct from 'anulado'
+          and mc.empresa_id = v_empresa
+          and mc.fecha between v_desde and v_hasta
+      ), 0),
+    'egresos_caja_mdd_periodo',
+      coalesce((
+        select sum(mc.monto)::numeric(12,0)
+        from public.movimientos_caja mc
+        where mc.tipo = 'egreso'
+          and mc.estado is distinct from 'anulado'
+          and mc.empresa_id = v_empresa
+          and mc.banco = 'mdd'
+          and mc.fecha between v_desde and v_hasta
+      ), 0),
+    'egresos_caja_ahorro_periodo',
+      coalesce((
+        select sum(mc.monto)::numeric(12,0)
+        from public.movimientos_caja mc
+        where mc.tipo = 'egreso'
+          and mc.estado is distinct from 'anulado'
+          and mc.empresa_id = v_empresa
+          and mc.banco = 'ahorro_mdd'
+          and mc.fecha between v_desde and v_hasta
       ), 0),
     'contratos_activos',
       coalesce((
@@ -215,6 +266,24 @@ begin
           and p.empresa_id = v_empresa
           and coalesce(p.gastos, 0) > 0
           and (timezone('America/Bogota', p.fecha_pago))::date between v_mes_ant_ini and v_mes_ant_fin
+      ), 0),
+    'egresos_caja_mes_actual',
+      coalesce((
+        select sum(mc.monto)::numeric(12,0)
+        from public.movimientos_caja mc
+        where mc.tipo = 'egreso'
+          and mc.estado is distinct from 'anulado'
+          and mc.empresa_id = v_empresa
+          and mc.fecha between v_mes_ini and v_hoy
+      ), 0),
+    'egresos_caja_mes_anterior',
+      coalesce((
+        select sum(mc.monto)::numeric(12,0)
+        from public.movimientos_caja mc
+        where mc.tipo = 'egreso'
+          and mc.estado is distinct from 'anulado'
+          and mc.empresa_id = v_empresa
+          and mc.fecha between v_mes_ant_ini and v_mes_ant_fin
       ), 0),
     'planes',
       coalesce((
@@ -316,6 +385,32 @@ begin
             and coalesce(p.gastos, 0) > 0
             and date_trunc('month', timezone('America/Bogota', p.fecha_pago)) = mes
         ) sumas on true
+      ), '[]'::jsonb),
+    'egresos_caja_mensuales',
+      coalesce((
+        select jsonb_agg(
+          jsonb_build_object(
+            'key', to_char(mes, 'YYYY-MM'),
+            'monto', coalesce(sumas.monto, 0),
+            'cantidad', coalesce(sumas.cantidad, 0)
+          )
+          order by mes
+        )
+        from generate_series(
+          date_trunc('month', v_hoy::timestamp) - interval '11 months',
+          date_trunc('month', v_hoy::timestamp),
+          interval '1 month'
+        ) as mes
+        left join lateral (
+          select
+            coalesce(sum(mc.monto), 0)::numeric(12,0) as monto,
+            count(*)::int as cantidad
+          from public.movimientos_caja mc
+          where mc.tipo = 'egreso'
+            and mc.estado is distinct from 'anulado'
+            and mc.empresa_id = v_empresa
+            and date_trunc('month', mc.fecha::timestamp) = mes
+        ) sumas on true
       ), '[]'::jsonb)
   )
   into v_result;
@@ -325,7 +420,7 @@ end;
 $$;
 
 comment on function public.resumen_dashboard(text) is
-  'KPIs staff de LA EMPRESA del JWT. Ingresos = sum(pagos.valor_pagado) no anulado. Egresos = sum(pagos.gastos) no anulado. ingresos_otros = 0 (Excel ya incluye otros en valor_pagado). No toca caja. Mora = cobro_en_mora().';
+  'KPIs staff de LA EMPRESA del JWT. Ingresos = sum(pagos.valor_pagado). egresos_periodo = sum(pagos.gastos) Excel. egresos_caja_* = TODOS los movimientos_caja tipo egreso no anulados (mdd + ahorro_mdd). NO sumar ambos: overlap operativo. Mora = cobro_en_mora().';
 
 create index if not exists pagos_dashboard_fecha_idx
   on public.pagos (empresa_id, fecha_pago)

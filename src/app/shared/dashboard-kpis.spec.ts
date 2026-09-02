@@ -1,10 +1,12 @@
 import {
   alturaBarra,
+  combinarEgresosMensuales,
   emptyResumenDashboard,
   etiquetaMes,
   etiquetaPeriodo,
   ingresosMensualesVisibles,
   mapResumenDashboardFromRow,
+  montoSerieEgresos,
   nombrePlan,
   normalizarPeriodo,
   porcentajeDisponibles,
@@ -19,7 +21,9 @@ describe('mapResumenDashboardFromRow', () => {
       expect(k.ingresosPeriodo).toBe(0);
       expect(k.ingresosOtros).toBe(0);
       expect(k.egresosPeriodo).toBe(0);
+      expect(k.egresosCajaPeriodo).toBe(0);
       expect(k.egresosMensuales).toEqual([]);
+      expect(k.egresosCajaMensuales).toEqual([]);
       expect(k.contratosActivos).toBe(0);
       expect(k.contratosNuevos).toBe(0);
       expect(k.conductoresActivos).toBe(0);
@@ -48,6 +52,10 @@ describe('mapResumenDashboardFromRow', () => {
       cantidad_otros_periodo: 2,
       egresos_periodo: 40000,
       cantidad_egresos_periodo: 1,
+      egresos_caja_periodo: 5216611,
+      cantidad_egresos_caja_periodo: 20,
+      egresos_caja_mdd_periodo: 5216611,
+      egresos_caja_ahorro_periodo: 0,
       contratos_activos: 2,
       contratos_nuevos: 1,
       conductores_activos: 2,
@@ -73,6 +81,9 @@ describe('mapResumenDashboardFromRow', () => {
         { key: '2026-07', monto: 0, cantidad: 0 },
         { key: '2026-08', monto: 40000, cantidad: 1 },
       ],
+      egresos_caja_mensuales: [
+        { key: '2026-08', monto: 3000000, cantidad: 4 },
+      ],
     });
     expect(k.periodo).toBe('mes');
     expect(k.periodoDesde).toBe('2026-08-01');
@@ -81,7 +92,11 @@ describe('mapResumenDashboardFromRow', () => {
     expect(k.ingresosOtros).toBe(60000);
     expect(k.cantidadAbonosPeriodo).toBe(3);
     expect(k.egresosPeriodo).toBe(40000);
+    expect(k.egresosCajaPeriodo).toBe(5216611);
+    expect(k.egresosCajaMddPeriodo).toBe(5216611);
+    expect(k.egresosCajaAhorroPeriodo).toBe(0);
     expect(k.egresosMensuales[1].monto).toBe(40000);
+    expect(k.egresosCajaMensuales[0].monto).toBe(3000000);
     expect(k.contratosActivos).toBe(2);
     expect(k.contratosNuevos).toBe(1);
     expect(k.conductoresActivos).toBe(2);
@@ -104,6 +119,30 @@ describe('mapResumenDashboardFromRow', () => {
     expect(k.ingresosCuotas).toBe(180000);
     expect(k.ingresosOtros).toBe(0);
     expect(k.egresosPeriodo).toBe(0);
+    expect(k.egresosCajaPeriodo).toBe(0);
+  });
+
+  it('no inventa un total salidas = pagos + caja', () => {
+    const k = mapResumenDashboardFromRow({
+      egresos_periodo: 1357613,
+      egresos_caja_periodo: 5216611,
+    });
+    expect(k.egresosPeriodo).toBe(1357613);
+    expect(k.egresosCajaPeriodo).toBe(5216611);
+    expect((k as any).egresosTotalPeriodo).toBeUndefined();
+  });
+
+  it('combinarEgresosMensuales no usa la suma como salida única', () => {
+    const split = combinarEgresosMensuales(
+      [{ key: '2026-08', label: 'ago 26', monto: 1357613, cantidadAbonos: 10 }],
+      [{ key: '2026-08', label: 'ago 26', monto: 5216611, cantidadAbonos: 20 }],
+    );
+    expect(split).toHaveLength(1);
+    expect(split[0].montoPagos).toBe(1357613);
+    expect(split[0].montoCaja).toBe(5216611);
+    expect(split[0].monto).toBe(0);
+    expect(montoSerieEgresos(split[0], 'gastos_pagos')).toBe(1357613);
+    expect(montoSerieEgresos(split[0], 'egresos_caja')).toBe(5216611);
   });
 
   it('parsea JSON string (PostgREST a veces entrega texto)', () => {

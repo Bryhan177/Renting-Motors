@@ -18,6 +18,20 @@ export interface IngresoMensualKpi {
   cantidadAbonos: number;
 }
 
+/** Un mes con las dos salidas etiquetadas (pagos.gastos vs caja egreso). */
+export interface EgresoMensualSplit {
+  key: string;
+  label: string;
+  montoPagos: number;
+  montoCaja: number;
+  /** pagos + caja (solo para totales; la UI no lo muestra sin etiqueta). */
+  monto: number;
+  cantidadPagos: number;
+  cantidadCaja: number;
+}
+
+export type SerieEgresosChart = 'gastos_pagos' | 'egresos_caja';
+
 export interface ResumenDashboard {
   periodo: PeriodoDashboard;
   periodoDesde: string;
@@ -29,8 +43,16 @@ export interface ResumenDashboard {
   ingresosOtros: number;
   cantidadAbonosPeriodo: number;
   cantidadOtrosPeriodo: number;
+  /** Gastos operativos Excel: sum(pagos.gastos). No incluye caja. */
   egresosPeriodo: number;
   cantidadEgresosPeriodo: number;
+  /** Todos los egresos de Flujo de caja (mdd + ahorro_mdd, no anulado). */
+  egresosCajaPeriodo: number;
+  cantidadEgresosCajaPeriodo: number;
+  /** Parte de egresosCajaPeriodo con banco = mdd. */
+  egresosCajaMddPeriodo: number;
+  /** Parte de egresosCajaPeriodo con banco = ahorro_mdd. */
+  egresosCajaAhorroPeriodo: number;
   contratosActivos: number;
   /** Contratos con fecha_inicio en el periodo y estado <> anulado. */
   contratosNuevos: number;
@@ -49,11 +71,14 @@ export interface ResumenDashboard {
   ingresosMesAnterior: number;
   egresosMesActual: number;
   egresosMesAnterior: number;
+  egresosCajaMesActual: number;
+  egresosCajaMesAnterior: number;
   /** % mes actual vs anterior. 0 si ambos son 0; 100 si anterior es 0 y hay ingresos. */
   crecimientoMensualPct: number;
   planes: PlanKpi[];
   ingresosMensuales: IngresoMensualKpi[];
   egresosMensuales: IngresoMensualKpi[];
+  egresosCajaMensuales: IngresoMensualKpi[];
 }
 
 export function emptyResumenDashboard(periodo: PeriodoDashboard = 'mes'): ResumenDashboard {
@@ -68,6 +93,10 @@ export function emptyResumenDashboard(periodo: PeriodoDashboard = 'mes'): Resume
     cantidadOtrosPeriodo: 0,
     egresosPeriodo: 0,
     cantidadEgresosPeriodo: 0,
+    egresosCajaPeriodo: 0,
+    cantidadEgresosCajaPeriodo: 0,
+    egresosCajaMddPeriodo: 0,
+    egresosCajaAhorroPeriodo: 0,
     contratosActivos: 0,
     contratosNuevos: 0,
     conductoresActivos: 0,
@@ -83,10 +112,13 @@ export function emptyResumenDashboard(periodo: PeriodoDashboard = 'mes'): Resume
     ingresosMesAnterior: 0,
     egresosMesActual: 0,
     egresosMesAnterior: 0,
+    egresosCajaMesActual: 0,
+    egresosCajaMesAnterior: 0,
     crecimientoMensualPct: 0,
     planes: [],
     ingresosMensuales: [],
     egresosMensuales: [],
+    egresosCajaMensuales: [],
   };
 }
 
@@ -190,6 +222,7 @@ export function mapResumenDashboardFromRow(row: any, periodoDefault: PeriodoDash
   const planesRaw = parsed.planes;
   const seriesRaw = parsed.ingresos_mensuales ?? parsed.ingresosMensuales;
   const egresosRaw = parsed.egresos_mensuales ?? parsed.egresosMensuales;
+  const egresosCajaRaw = parsed.egresos_caja_mensuales ?? parsed.egresosCajaMensuales;
   return {
     periodo: normalizarPeriodo(parsed.periodo ?? periodoDefault),
     periodoDesde: String(parsed.periodo_desde ?? parsed.periodoDesde ?? ''),
@@ -215,6 +248,18 @@ export function mapResumenDashboardFromRow(row: any, periodoDefault: PeriodoDash
     cantidadEgresosPeriodo: toNonNegNumber(
       parsed.cantidad_egresos_periodo ?? parsed.cantidadEgresosPeriodo,
     ),
+    egresosCajaPeriodo: toNonNegNumber(
+      parsed.egresos_caja_periodo ?? parsed.egresosCajaPeriodo,
+    ),
+    cantidadEgresosCajaPeriodo: toNonNegNumber(
+      parsed.cantidad_egresos_caja_periodo ?? parsed.cantidadEgresosCajaPeriodo,
+    ),
+    egresosCajaMddPeriodo: toNonNegNumber(
+      parsed.egresos_caja_mdd_periodo ?? parsed.egresosCajaMddPeriodo,
+    ),
+    egresosCajaAhorroPeriodo: toNonNegNumber(
+      parsed.egresos_caja_ahorro_periodo ?? parsed.egresosCajaAhorroPeriodo,
+    ),
     contratosActivos: toNonNegNumber(parsed.contratos_activos ?? parsed.contratosActivos),
     contratosNuevos: toNonNegNumber(parsed.contratos_nuevos ?? parsed.contratosNuevos),
     conductoresActivos: toNonNegNumber(parsed.conductores_activos ?? parsed.conductoresActivos),
@@ -236,11 +281,69 @@ export function mapResumenDashboardFromRow(row: any, periodoDefault: PeriodoDash
     egresosMesAnterior: toNonNegNumber(
       parsed.egresos_mes_anterior ?? parsed.egresosMesAnterior,
     ),
+    egresosCajaMesActual: toNonNegNumber(
+      parsed.egresos_caja_mes_actual ?? parsed.egresosCajaMesActual,
+    ),
+    egresosCajaMesAnterior: toNonNegNumber(
+      parsed.egresos_caja_mes_anterior ?? parsed.egresosCajaMesAnterior,
+    ),
     crecimientoMensualPct: variacionPorcentual(ingresosMesActual, ingresosMesAnterior),
     planes: Array.isArray(planesRaw) ? planesRaw.map(mapPlanKpi) : [],
     ingresosMensuales: Array.isArray(seriesRaw) ? seriesRaw.map(mapIngresoMensualKpi) : [],
     egresosMensuales: Array.isArray(egresosRaw) ? egresosRaw.map(mapIngresoMensualKpi) : [],
+    egresosCajaMensuales: Array.isArray(egresosCajaRaw)
+      ? egresosCajaRaw.map(mapIngresoMensualKpi)
+      : [],
   };
+}
+
+/** Alinea gastos pagos y egresos caja por YYYY-MM. */
+export function combinarEgresosMensuales(
+  pagos: IngresoMensualKpi[],
+  caja: IngresoMensualKpi[],
+): EgresoMensualSplit[] {
+  const byKey = new Map<string, EgresoMensualSplit>();
+  const touch = (row: IngresoMensualKpi, side: 'pagos' | 'caja') => {
+    const cur = byKey.get(row.key) || {
+      key: row.key,
+      label: row.label || etiquetaMes(row.key),
+      montoPagos: 0,
+      montoCaja: 0,
+      monto: 0,
+      cantidadPagos: 0,
+      cantidadCaja: 0,
+    };
+    if (side === 'pagos') {
+      cur.montoPagos = row.monto;
+      cur.cantidadPagos = row.cantidadAbonos;
+    } else {
+      cur.montoCaja = row.monto;
+      cur.cantidadCaja = row.cantidadAbonos;
+    }
+    if (row.label) cur.label = row.label;
+    /* monto no se usa como "salida única": overlap pagos↔caja. */
+    cur.monto = 0;
+    byKey.set(row.key, cur);
+  };
+  (pagos || []).forEach((r) => touch(r, 'pagos'));
+  (caja || []).forEach((r) => touch(r, 'caja'));
+  return [...byKey.values()].sort((a, b) => a.key.localeCompare(b.key));
+}
+
+export function montoSerieEgresos(
+  row: EgresoMensualSplit,
+  serie: SerieEgresosChart,
+): number {
+  return serie === 'egresos_caja' ? row.montoCaja : row.montoPagos;
+}
+
+export function maxMontoEgresosSplit(
+  series: EgresoMensualSplit[],
+  modo: SerieEgresosChart,
+): number {
+  if (!series?.length) return 0;
+  if (modo === 'egresos_caja') return Math.max(0, ...series.map((m) => m.montoCaja));
+  return Math.max(0, ...series.map((m) => m.montoPagos));
 }
 
 export function porcentajeDisponibles(kpis: ResumenDashboard): number {

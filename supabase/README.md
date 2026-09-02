@@ -20,7 +20,7 @@ Ejecuta en Supabase SQL Editor, en este orden si aún no lo hiciste:
 16. **`20260904_motos_imagen_url.sql`** ← columna `motos.imagen_url` (URL http corta). Backfill solo de `imagen LIKE 'http%'`. **No copia `data:`.** Las listas (landing, inventario, contratos) leen **solo** `imagen_url`. **No re-ejecutes 20260901.**
 17. **`20260905_motos_imagen_drop_data.sql`** ← **después de 20260904.** Pone `imagen = imagen_url` cuando el blob es `data:` y ya hay URL http; luego `imagen = NULL` en el resto de `data:`. **Puede tardar 1–2 min UNA vez.** Motos que solo tenían `data:` (sin `imagen_url` http) pierden el blob (fallback hasta re-subir). `VACUUM ANALYZE` va **comentado**: córrelo en otra query si el rol puede; si falla, sáltalo. **No re-ejecutes 20260901.**
 18. **`20260908_import_pagos_excel.sql`** ← importa REGISTRO DE PAGOS (Excel) a `public.pagos`. Soft-anula historial inventado. **No toca caja.**
-19. **`20260909_dashboard_desde_pagos.sql`** ← `resumen_dashboard` dinero = **`pagos`** (misma fuente que `/pagos`): ingresos = `sum(valor_pagado)`, egresos = `sum(gastos)`, `ingresos_otros` = 0. **No toca** Flujo de caja, cartera ni mora.
+19. **`20260909_dashboard_desde_pagos.sql`** ← `resumen_dashboard`: ingresos = `sum(pagos.valor_pagado)`; **Gastos (pagos)** = `sum(pagos.gastos)`; **Egresos caja** = todos los `movimientos_caja` tipo egreso (MDD + Ahorro). **No sumar ambas tarjetas** (overlap). **No toca** saldos de caja, cartera ni mora.
 
 Luego cierra sesión y vuelve a entrar.
 
@@ -274,12 +274,13 @@ Tras `20260908_import_pagos_excel.sql`, `/pagos` es la verdad Excel. El RPC ante
 1. Supabase → **SQL Editor** → pega `supabase/migrations/20260909_dashboard_desde_pagos.sql` → **Run**.
 2. Verificar (rango que cubra el Excel; `anio` 2026):
    ```sql
-   -- Debe coincidir con Total cobrado / Total gastos en /pagos
-   select public.resumen_dashboard('anio') -> 'ingresos_periodo';  -- ≈ 6280000
-   select public.resumen_dashboard('anio') -> 'egresos_periodo';   -- ≈ 1357613
-   select public.resumen_dashboard('anio') -> 'ingresos_otros';    -- 0
+   select public.resumen_dashboard('anio') -> 'ingresos_periodo';       -- ≈ 6280000
+   select public.resumen_dashboard('anio') -> 'egresos_periodo';        -- ≈ 1357613  Gastos (pagos)
+   select public.resumen_dashboard('anio') -> 'egresos_caja_periodo';   -- ≈ 5216611  Flujo MDD+Ahorro
+   select public.resumen_dashboard('anio') -> 'egresos_caja_mdd_periodo';
+   -- NO sumar egresos_periodo + egresos_caja_periodo (overlap operativo).
    ```
-3. Flujo de caja (MDD / Ahorro) **no cambia**. Cartera y mora siguen saliendo de `cobros`.
+3. Flujo de caja **saldos** MDD/Ahorro no cambian. Cartera y mora siguen de `cobros`.
 
 No borra filas, no reescribe `cuota_semanal`, no cambia talleres / planes / mora.
 
