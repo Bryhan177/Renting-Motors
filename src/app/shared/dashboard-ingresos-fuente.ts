@@ -1,20 +1,8 @@
 /**
- * Fuente de verdad de métricas del dashboard (también en
- * supabase/migrations/20260903_dashboard_ingresos_egresos.sql).
- *
- * Ingresos del periodo = cuotas (abonos.estado = registrado) + otros
- * (movimientos_caja.tipo = ingreso, sin abono_id, no anulado).
- *
- * No se suman los ingresos de caja que ya tienen abono_id: esos los creó
- * el trigger 20260831 al confirmar/registrar el abono. Sumarlos otra vez
- * duplicaría la cuota.
- *
- * Egresos = movimientos_caja.tipo = egreso (mantenimientos, caja manual).
- * pagos.gastos NO es el stream de egresos: el pago manual legacy descuenta
- * gastos del neto del ingreso, no inserta un egreso.
- *
- * abonos.cobro_id es NOT NULL: un alquiler puntual no puede ser abono de
- * cuota. Por eso otros ingresos viven en caja, no en abonos.
+ * Helper de tests del split viejo (abonos + caja). El RPC en vivo es
+ * supabase/migrations/20260909_dashboard_desde_pagos.sql:
+ * ingresos = sum(pagos.valor_pagado), egresos = sum(pagos.gastos),
+ * ingresos_otros = 0 (Excel ya incluye Franklin/otros en valor_pagado).
  */
 
 export interface AbonoIngresoFuente {

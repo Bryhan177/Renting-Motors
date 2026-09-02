@@ -23,9 +23,9 @@ export interface ResumenDashboard {
   periodoDesde: string;
   periodoHasta: string;
   ingresosPeriodo: number;
-  /** Abonos de cuota (cobro). Parte de ingresosPeriodo. */
+  /** Cobrado (pagos.valor_pagado, no anulado). Parte de ingresosPeriodo. */
   ingresosCuotas: number;
-  /** Caja ingreso sin abono_id (alquiler puntual / otros). Parte de ingresosPeriodo. */
+  /** Reservado: Excel ya incluye Franklin/otros en valor_pagado. RPC 20260909 = 0. */
   ingresosOtros: number;
   cantidadAbonosPeriodo: number;
   cantidadOtrosPeriodo: number;

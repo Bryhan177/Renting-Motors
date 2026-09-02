@@ -16,9 +16,11 @@ Ejecuta en Supabase SQL Editor, en este orden si aún no lo hiciste:
 12. **`20260831_abono_registrado_pagos_caja.sql`** ← al confirmar un abono (`estado = registrado`) crea fila en `pagos` + ingreso en `movimientos_caja` (banco MDD). No borra filas (anulado). Backfill de abonos ya aprobados. RLS de caja/pagos: escribe solo staff.
 13. **`20260901_multi_tenant_empresas.sql`** ← aísla producción vs pruebas (`empresas` + `empresa_id` + RLS). **Obligatorio** si quieres un login de TEST que no vea plata real.
 14. **`20260902_assert_misma_empresa_grant.sql`** ← hotfix si el owner ve `permission denied for function assert_misma_empresa` al INSERT/UPDATE. **No re-ejecutes 20260901.** Un `grant execute … to authenticated` ya desbloquea; este archivo es el arreglo durable.
-15. **`20260903_dashboard_ingresos_egresos.sql`** ← `resumen_dashboard` suma **cuotas** (abonos registrados) **+ otros ingresos** (caja ingreso sin `abono_id`: alquiler puntual). Añade `egresos_periodo` / `egresos_mensuales` (`movimientos_caja.tipo = egreso`). **No duplica** caja ligada a un abono. No toca mora, talleres ni planes.
+15. **`20260903_dashboard_ingresos_egresos.sql`** ← versión anterior del RPC (abonos + caja). **Superseded** por `20260909_dashboard_desde_pagos.sql`. No re-ejecutar después de 20260909.
 16. **`20260904_motos_imagen_url.sql`** ← columna `motos.imagen_url` (URL http corta). Backfill solo de `imagen LIKE 'http%'`. **No copia `data:`.** Las listas (landing, inventario, contratos) leen **solo** `imagen_url`. **No re-ejecutes 20260901.**
 17. **`20260905_motos_imagen_drop_data.sql`** ← **después de 20260904.** Pone `imagen = imagen_url` cuando el blob es `data:` y ya hay URL http; luego `imagen = NULL` en el resto de `data:`. **Puede tardar 1–2 min UNA vez.** Motos que solo tenían `data:` (sin `imagen_url` http) pierden el blob (fallback hasta re-subir). `VACUUM ANALYZE` va **comentado**: córrelo en otra query si el rol puede; si falla, sáltalo. **No re-ejecutes 20260901.**
+18. **`20260908_import_pagos_excel.sql`** ← importa REGISTRO DE PAGOS (Excel) a `public.pagos`. Soft-anula historial inventado. **No toca caja.**
+19. **`20260909_dashboard_desde_pagos.sql`** ← `resumen_dashboard` dinero = **`pagos`** (misma fuente que `/pagos`): ingresos = `sum(valor_pagado)`, egresos = `sum(gastos)`, `ingresos_otros` = 0. **No toca** Flujo de caja, cartera ni mora.
 
 Luego cierra sesión y vuelve a entrar.
 
@@ -99,10 +101,11 @@ El plan **sugiere**. No hay tarifa global $160.000 / $180.000 para contratos.
    ```
 4. Cruza una tarjeta con una fila conocida:
    ```sql
-   -- Ingresos del mes = abonos registrados (no anulado, no pendiente_confirmacion)
-   select coalesce(sum(monto), 0)
-   from public.abonos
-   where estado = 'registrado'
+   -- Ingresos del mes = cobrado en pagos (Excel / /pagos)
+   select coalesce(sum(valor_pagado), 0)
+   from public.pagos
+   where estado is distinct from 'anulado'
+     and coalesce(valor_pagado, 0) > 0
      and (timezone('America/Bogota', fecha_pago))::date
          between (select desde from public.rango_periodo_dashboard('mes'))
              and (select hasta from public.rango_periodo_dashboard('mes'));
@@ -164,7 +167,7 @@ El conductor reporta un abono (`pendiente_confirmacion`). Staff **Confirmar** en
    -- Cobro: monto_pagado/saldo vía trigger de 20260826 (no se reescribe cuota)
    select id, monto_esperado, monto_pagado, saldo, estado from public.cobros where id = '<cobro_id>';
    ```
-4. App: `/pagos` muestra la fila. `/flujo-caja` muestra ingreso MDD. Dashboard → ingresos del periodo sube (abonos registrados).
+4. App: `/pagos` muestra la fila. `/flujo-caja` muestra ingreso MDD. Dashboard → ingresos del periodo sube (pagos.valor_pagado, no abonos).
 5. Rechazar un pendiente **no** crea pago/caja. Anular un abono ya registrado marca `pagos` y `movimientos_caja` como `anulado` (no DELETE).
 
 ## Multi-tenant: producción vs pruebas (20260901)
@@ -264,28 +267,19 @@ where n.nspname = 'public'
 
 No toca Angular, mora, wizard, planes, talleres UX ni cobros.
 
-## Dashboard: otros ingresos + egresos (20260903)
+## Dashboard: dinero desde pagos / Excel (20260909)
 
-El alquiler puntual (ej. 30.000 COP × 2) que la asesora registraba con “pago manual” por moto **nunca era un abono**. `resumen_dashboard` solo sumaba `abonos.estado = 'registrado'`, así que no salía en KPIs ni en la gráfica.
+Tras `20260908_import_pagos_excel.sql`, `/pagos` es la verdad Excel. El RPC anterior (`20260903`) sumaba `abonos` + `movimientos_caja` y **no coincidía** con Pagos.
 
-1. Supabase → **SQL Editor** → pega `supabase/migrations/20260903_dashboard_ingresos_egresos.sql` → **Run**.
-2. En la app, **Pagos → Otros ingresos**: concepto (Alquiler puntual), valor, MDD opcional. Eso escribe `pagos` + `movimientos_caja` ingreso **sin** `abono_id`.
-3. Verificar:
+1. Supabase → **SQL Editor** → pega `supabase/migrations/20260909_dashboard_desde_pagos.sql` → **Run**.
+2. Verificar (rango que cubra el Excel; `anio` 2026):
    ```sql
-   -- Otros ingresos del mes (no cuotas)
-   select id, monto, fecha, descripcion, abono_id, tipo, estado
-   from public.movimientos_caja
-   where tipo = 'ingreso' and abono_id is null
-     and estado is distinct from 'anulado'
-     and fecha between (select desde from public.rango_periodo_dashboard('mes'))
-                   and (select hasta from public.rango_periodo_dashboard('mes'));
-
-   -- El RPC (staff JWT). ingresos_periodo = cuotas + otros
-   select public.resumen_dashboard('mes') -> 'ingresos_periodo';
-   select public.resumen_dashboard('mes') -> 'ingresos_otros';
-   select public.resumen_dashboard('mes') -> 'egresos_periodo';
+   -- Debe coincidir con Total cobrado / Total gastos en /pagos
+   select public.resumen_dashboard('anio') -> 'ingresos_periodo';  -- ≈ 6280000
+   select public.resumen_dashboard('anio') -> 'egresos_periodo';   -- ≈ 1357613
+   select public.resumen_dashboard('anio') -> 'ingresos_otros';    -- 0
    ```
-4. Dashboard: gráfica **Ingresos** (cuotas + otros) y gráfica **Egresos** (solo caja `tipo = egreso`). Un egreso no sube ingresos.
+3. Flujo de caja (MDD / Ahorro) **no cambia**. Cartera y mora siguen saliendo de `cobros`.
 
 No borra filas, no reescribe `cuota_semanal`, no cambia talleres / planes / mora.
 

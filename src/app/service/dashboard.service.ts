@@ -12,7 +12,7 @@ import {
 export class DashboardService {
   /**
    * KPIs agregados en Postgres (RPC staff-only).
-   * No trae filas de cobros/abonos para sumar en el browser.
+   * Dinero = public.pagos (cobrado/gastos Excel). No suma abonos ni caja.
    */
   getResumen(periodo: PeriodoDashboard = 'mes'): Observable<ResumenDashboard> {
     return from(getSupabase().rpc('resumen_dashboard', { p_periodo: periodo })).pipe(
