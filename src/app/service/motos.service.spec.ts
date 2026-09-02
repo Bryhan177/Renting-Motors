@@ -5,10 +5,12 @@ import {
   MOTOS_EMBED_SELECT,
   MOTOS_OPERATIVO_SELECT,
   columnasDelSelect,
+  esMotoCatalogoPublico,
   imagenCatalogoPublico,
   fotoDesdeImagenUrl,
   mapMotoCatalogo,
   mapMotoLista,
+  normalizarUsoMoto,
 } from './motos.service';
 
 describe('listas livianas de motos (imagen_url)', () => {
@@ -19,11 +21,17 @@ describe('listas livianas de motos (imagen_url)', () => {
     expect(MOTOS_CATALOGO_SELECT).not.toMatch(/\*/);
     expect(MOTOS_CATALOGO_SELECT).not.toMatch(/usuarios/);
     expect(MOTOS_CATALOGO_SELECT).not.toMatch(/conductor/);
+    expect(cols).toContain('uso');
   });
 
   it('el select de lista staff pide imagen_url y nunca la columna imagen ni *', () => {
     const cols = columnasDelSelect(MOTOS_LISTA_SELECT);
     expect(cols).toContain('imagen_url');
+    expect(cols).toContain('cilindraje');
+    expect(cols).toContain('color');
+    expect(cols).toContain('anio');
+    expect(cols).toContain('tiene_multas');
+    expect(cols).toContain('uso');
     expect(cols).not.toContain('imagen');
     expect(MOTOS_LISTA_SELECT).not.toMatch(/\*/);
     expect(MOTOS_LISTA_SELECT).not.toMatch(/usuarios/);
@@ -120,5 +128,53 @@ describe('listas livianas de motos (imagen_url)', () => {
     expect(conFoto.imagen).toBe('https://cdn.example/aaa.jpg');
     expect(sinFoto.imagen).toBeUndefined();
     expect(sinFoto.placa).toBe('BBB');
+  });
+
+  it('la landing trata null como flota y oculta uso personal (QBQ-68D, PVT88H)', () => {
+    expect(normalizarUsoMoto(null)).toBe('flota');
+    expect(normalizarUsoMoto(undefined)).toBe('flota');
+    expect(normalizarUsoMoto('flota')).toBe('flota');
+    expect(esMotoCatalogoPublico({ uso: null })).toBe(true);
+    expect(esMotoCatalogoPublico({ uso: 'flota' })).toBe(true);
+    expect(esMotoCatalogoPublico({ uso: 'personal' })).toBe(false);
+    const qbq = mapMotoCatalogo({
+      id: 'p1',
+      marca: 'BAJAJ',
+      modelo: 'Pulsar',
+      placa: 'QBQ-68D',
+      estado: 'disponible',
+      uso: 'personal',
+    });
+    const pvt = mapMotoCatalogo({
+      id: 'p2',
+      marca: 'AKT',
+      modelo: 'NKD',
+      placa: 'PVT88H',
+      estado: 'disponible',
+      uso: 'personal',
+    });
+    expect(qbq.uso).toBe('personal');
+    expect(esMotoCatalogoPublico(qbq)).toBe(false);
+    expect(esMotoCatalogoPublico(pvt)).toBe(false);
+  });
+
+  it('mapMotoLista trae cilindraje, color, anio, tiene_multas y uso', () => {
+    const moto = mapMotoLista({
+      id: '1',
+      marca: 'AUTECO',
+      modelo: '2008',
+      placa: 'FSS51B',
+      estado: 'disponible',
+      cilindraje: 150,
+      color: 'Rojo',
+      anio: 2022,
+      tiene_multas: true,
+      uso: 'flota',
+    });
+    expect(moto.cilindraje).toBe(150);
+    expect(moto.color).toBe('Rojo');
+    expect(moto.anio).toBe(2022);
+    expect(moto.tieneMultas).toBe(true);
+    expect(moto.uso).toBe('flota');
   });
 });

@@ -5,6 +5,7 @@ import { PAGOS_LISTA_SELECT } from './pagos.service';
 import { ABONOS_LISTA_SELECT } from './cobros.service';
 import { MANTENIMIENTOS_LISTA_SELECT } from './mantenimientos.service';
 import { USUARIOS_LISTA_SELECT } from './usuarios.service';
+import { CAJA_LISTA_SELECT } from '../shared/caja-resumen';
 
 /** El split por coma de columnasDelSelect no sirve para embeds; acá se busca la columna suelta. */
 function pideColumnaImagen(select: string): boolean {
@@ -35,6 +36,13 @@ describe('lecturas livianas (sin blob motos.imagen ni comprobante de lista)', ()
   it('mantenimientos embebe imagen_url, no imagen', () => {
     expect(MANTENIMIENTOS_LISTA_SELECT).toContain(MOTOS_EMBED_SELECT);
     expect(pideColumnaImagen(MANTENIMIENTOS_LISTA_SELECT)).toBe(false);
+  });
+
+  it('caja lista embebe solo placa, no motos.* ni imagen', () => {
+    expect(CAJA_LISTA_SELECT).toMatch(/motos:moto_id\(placa\)/);
+    expect(CAJA_LISTA_SELECT).not.toMatch(/motos:moto_id\(\*\)/);
+    expect(CAJA_LISTA_SELECT).not.toMatch(/\*/);
+    expect(pideColumnaImagen(CAJA_LISTA_SELECT)).toBe(false);
   });
 
   it('usuarios de lista no usa select *', () => {

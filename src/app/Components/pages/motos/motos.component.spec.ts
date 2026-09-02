@@ -106,6 +106,15 @@ describe('MotosComponent contrato wizard', () => {
     );
   });
 
+  it('el formulario de MDD incluye campos Excel VEHICULOS', () => {
+    const f = component.formVacio();
+    expect(f.cilindraje).toBeNull();
+    expect(f.color).toBe('');
+    expect(f.anio).toBeNull();
+    expect(f.tieneMultas).toBe(false);
+    expect(f.uso).toBe('flota');
+  });
+
   it('create rechazado no avanza al acta de entrega', () => {
     contratosService.create.mockReturnValue(throwError(() => ({ message: 'fail' })));
     const payload = aplicarCambioPlan(

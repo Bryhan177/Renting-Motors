@@ -90,6 +90,36 @@ describe('HomeComponent catálogo', () => {
     expect(component.placaMdd(dan)).toBe('DAN78D');
   });
 
+  it('no muestra motos personales QBQ-68D ni PVT88H', () => {
+    motosService.getMotosPublicas.mockReturnValue(
+      of([
+        ...catalogo,
+        mapMotoCatalogo({
+          id: 'p1',
+          marca: 'BAJAJ',
+          modelo: 'Dominar',
+          placa: 'QBQ-68D',
+          estado: 'disponible',
+          uso: 'personal',
+        }),
+        mapMotoCatalogo({
+          id: 'p2',
+          marca: 'AKT',
+          modelo: 'TT',
+          placa: 'PVT88H',
+          estado: 'en_uso',
+          uso: 'personal',
+        }),
+      ]),
+    );
+    const c = new HomeComponent(motosService as unknown as MotosService, 'browser');
+    c.ngOnInit();
+    expect(c.mdds.some((m) => /QBQ-?68D/i.test(m.placa))).toBe(false);
+    expect(c.mdds.some((m) => /PVT88H/i.test(m.placa))).toBe(false);
+    expect(c.mdds.every((m) => m.uso !== 'personal')).toBe(true);
+    expect(c.mdds.map((m) => m.placa)).toEqual(['FSS51B', 'DAN78D', 'RIP-44G']);
+  });
+
   it('img onerror pasa a fallback y conserva el texto', () => {
     const rip = component.mdds.find((m) => m.placa === 'RIP-44G')!;
     expect(component.mostrarFoto(rip)).toBe(true);

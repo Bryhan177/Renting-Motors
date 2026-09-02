@@ -1,28 +1,21 @@
 import { Injectable } from '@angular/core';
-import { Observable, from, map, forkJoin } from 'rxjs';
+import { Observable, from, map, of, switchMap } from 'rxjs';
 import { getSupabase } from '../supabase/supabase.client';
 import { AuthService } from '../auth/auth.service';
 import { aplicarFiltroEmpresa, stripClienteEmpresaId } from '../shared/empresa-scope';
+import {
+  BANCOS_CAJA,
+  CAJA_LISTA_LIMIT,
+  CAJA_LISTA_SELECT,
+  CAJA_RESUMEN_SELECT,
+  mapResumenCajaFromRpc,
+  resumenDesdeFilas,
+  type BancoCaja,
+  type MovimientoCaja,
+  type ResumenBanco,
+} from '../shared/caja-resumen';
 
-export type BancoCaja = 'mdd' | 'ahorro_mdd';
-
-export interface MovimientoCaja {
-  _id?: string;
-  banco: BancoCaja;
-  tipo: 'ingreso' | 'egreso';
-  monto: number;
-  fecha: string;
-  descripcion?: string | null;
-  motoId?: string | null;
-  motoPlaca?: string | null;
-}
-
-export interface ResumenBanco {
-  banco: BancoCaja;
-  ingresos: number;
-  egresos: number;
-  saldo: number;
-}
+export type { BancoCaja, MovimientoCaja, ResumenBanco };
 
 @Injectable({ providedIn: 'root' })
 export class CajaService {
@@ -41,13 +34,14 @@ export class CajaService {
     };
   }
 
+  /** Tabla del Flujo de caja: últimas N filas. No usar para saldo. */
   list(banco?: BancoCaja): Observable<MovimientoCaja[]> {
     let q = getSupabase()
       .from('movimientos_caja')
-      .select('*, motos:moto_id(placa)')
+      .select(CAJA_LISTA_SELECT)
       .neq('estado', 'anulado')
       .order('fecha', { ascending: false })
-      .limit(200);
+      .limit(CAJA_LISTA_LIMIT);
     if (banco) q = q.eq('banco', banco);
     q = aplicarFiltroEmpresa(q, this.auth.getEmpresaId());
     return from(q).pipe(
@@ -58,16 +52,31 @@ export class CajaService {
     );
   }
 
+  /**
+   * Saldo real por banco: RPC que agrega TODAS las filas no anuladas.
+   * Si el RPC aún no está aplicado, SELECT `banco, tipo, monto` sin LIMIT.
+   * Nunca llama a list() (ese sí tiene tope de 200).
+   */
   resumen(): Observable<ResumenBanco[]> {
-    return this.list().pipe(
-      map((movs) => {
-        const banks: BancoCaja[] = ['mdd', 'ahorro_mdd'];
-        return banks.map((banco) => {
-          const subset = movs.filter((m) => m.banco === banco);
-          const ingresos = subset.filter((m) => m.tipo === 'ingreso').reduce((s, m) => s + m.monto, 0);
-          const egresos = subset.filter((m) => m.tipo === 'egreso').reduce((s, m) => s + m.monto, 0);
-          return { banco, ingresos, egresos, saldo: ingresos - egresos };
-        });
+    return from(getSupabase().rpc('resumen_caja')).pipe(
+      switchMap(({ data, error }) => {
+        const mapped = !error ? mapResumenCajaFromRpc(data) : null;
+        if (mapped) return of(mapped);
+        return this.resumenPorAgregado();
+      }),
+    );
+  }
+
+  private resumenPorAgregado(): Observable<ResumenBanco[]> {
+    let q = getSupabase()
+      .from('movimientos_caja')
+      .select(CAJA_RESUMEN_SELECT)
+      .neq('estado', 'anulado');
+    q = aplicarFiltroEmpresa(q, this.auth.getEmpresaId());
+    return from(q).pipe(
+      map(({ data, error }) => {
+        if (error) throw error;
+        return resumenDesdeFilas(data || []);
       }),
     );
   }
@@ -92,7 +101,7 @@ export class CajaService {
           moto_id: payload.motoId || null,
           registrado_por: this.auth.getUserId(),
         }))
-        .select('*, motos:moto_id(placa)')
+        .select(CAJA_LISTA_SELECT)
         .single(),
     ).pipe(
       map(({ data, error }) => {
@@ -102,3 +111,5 @@ export class CajaService {
     );
   }
 }
+
+export { BANCOS_CAJA, CAJA_LISTA_LIMIT, CAJA_LISTA_SELECT, CAJA_RESUMEN_SELECT, resumenDesdeFilas };

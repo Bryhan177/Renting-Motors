@@ -2,6 +2,9 @@ import { Usuario } from './usuario';
 
 export type ModalidadMdd = 'arriendo' | 'liquidacion';
 
+/** Excel ESTADO: PERSONAL vs ACTIVA/INACTIVA (flota de arriendo). */
+export type UsoMoto = 'flota' | 'personal';
+
 export interface Moto {
   _id?: string;
   /** Alias de negocio: Máquina de Dinero */
@@ -20,6 +23,12 @@ export interface Moto {
   transitoMatricula?: string | null;
   fechaIngreso?: string | null;
   picoYPlaca?: string | null;
+  cilindraje?: number | null;
+  color?: string | null;
+  anio?: number | null;
+  tieneMultas?: boolean;
+  /** flota = catálogo público. personal = no sale en la landing. null = flota. */
+  uso?: UsoMoto | null;
   modalidad?: ModalidadMdd;
   estado: 'disponible' | 'en_uso' | 'en_mantenimiento' | 'fuera_servicio';
   conductorId?: string | null;
