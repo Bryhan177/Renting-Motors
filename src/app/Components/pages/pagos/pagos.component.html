@@ -238,7 +238,8 @@
     </div>
     <div class="bg-gray-800 border border-gray-700 rounded-xl p-5">
       <p class="text-gray-300 text-sm">Neto</p>
-      <p class="text-3xl font-bold text-white">$ {{ (totalPagado - totalGastos) | number }}</p>
+      <p class="text-3xl font-bold text-white">$ {{ totalNeto | number }}</p>
+      <p class="text-xs text-gray-500 mt-1">cobrado − gastos</p>
     </div>
   </div>
 
