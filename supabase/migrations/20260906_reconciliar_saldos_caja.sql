@@ -8,6 +8,11 @@
 --   banco ahorro_mdd saldo = 1116324 COP
 --
 -- 1) Informe: saldo actual = sum(ingreso) - sum(egreso) donde estado != anulado.
+--    Suma TODAS las filas de GoRenting. NO copies el saldo de la UI: Flujo de
+--    caja podía mostrar solo las últimas 200 (p.ej. MDD -1422707 / Ahorro
+--    1113356). Esas cifras NO se usan aquí. El delta es meta − SUM real.
+--    Si la UI truncada fuera la verdad, el delta sería +2074896 (MDD) y
+--    +2968 (Ahorro); el script recalcula y puede dar otro número.
 -- 2) Ajuste idempotente: si el saldo ≠ meta, inserta UN movimiento
 --    (ingreso o egreso) con descripción fija. Si ya existe ese ajuste
 --    no anulado, no inserta otro. Si el saldo ya es la meta, no hace nada.
@@ -28,12 +33,21 @@ select
   mc.banco,
   coalesce(sum(case when mc.tipo = 'ingreso' then mc.monto else 0 end), 0) as ingresos,
   coalesce(sum(case when mc.tipo = 'egreso' then mc.monto else 0 end), 0) as egresos,
-  coalesce(sum(case when mc.tipo = 'ingreso' then mc.monto else -mc.monto end), 0) as saldo,
+  coalesce(sum(case when mc.tipo = 'ingreso' then mc.monto else -mc.monto end), 0) as saldo_todas_las_filas,
   case mc.banco
     when 'mdd' then 652189
     when 'ahorro_mdd' then 1116324
     else null
-  end as meta_excel_2026_09_01
+  end as meta_excel_2026_09_01,
+  (
+    case mc.banco
+      when 'mdd' then 652189
+      when 'ahorro_mdd' then 1116324
+      else 0
+    end
+    -
+    coalesce(sum(case when mc.tipo = 'ingreso' then mc.monto else -mc.monto end), 0)
+  ) as delta_a_insertar
 from public.movimientos_caja mc
 where mc.empresa_id = public.empresa_id_produccion()
   and mc.estado is distinct from 'anulado'
@@ -71,7 +85,8 @@ begin
       and mc.banco = v_banco
       and mc.estado is distinct from 'anulado';
 
-    raise notice 'GoRenting % saldo actual=% meta=%', v_banco, v_actual, v_meta;
+    raise notice 'GoRenting % saldo_sql_todas_las_filas=% meta=% delta=%',
+      v_banco, v_actual, v_meta, (v_meta - v_actual);
 
     if v_actual = v_meta then
       raise notice '  ya coincide; no se inserta ajuste';
@@ -116,12 +131,12 @@ begin
   end loop;
 end $$;
 
--- 3) Informe DESPUÉS
+-- 3) Informe DESPUÉS (saldo_todas_las_filas debe igualar la meta)
 select
   mc.banco,
   coalesce(sum(case when mc.tipo = 'ingreso' then mc.monto else 0 end), 0) as ingresos,
   coalesce(sum(case when mc.tipo = 'egreso' then mc.monto else 0 end), 0) as egresos,
-  coalesce(sum(case when mc.tipo = 'ingreso' then mc.monto else -mc.monto end), 0) as saldo,
+  coalesce(sum(case when mc.tipo = 'ingreso' then mc.monto else -mc.monto end), 0) as saldo_todas_las_filas,
   case mc.banco
     when 'mdd' then 652189
     when 'ahorro_mdd' then 1116324
