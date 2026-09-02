@@ -270,6 +270,10 @@ export class PagosComponent implements OnInit {
     return this.pagos.reduce((s, p) => s + p.gastos, 0);
   }
 
+  get totalNeto(): number {
+    return this.totalPagado - this.totalGastos;
+  }
+
   conductorNombre(a: Abono): string {
     if (a.conductor) return `${a.conductor.nombre} ${a.conductor.apellido}`.trim();
     return 'Conductor';

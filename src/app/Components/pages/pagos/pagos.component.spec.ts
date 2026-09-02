@@ -105,6 +105,20 @@ describe('PagosComponent', () => {
     expect(component).toBeTruthy();
   });
 
+  it('totalNeto es cobrado menos gastos (KPI Neto, no Balance/Utilidad)', () => {
+    component.pagos = [
+      {
+        fechaPago: '2026-02-14',
+        valorPagado: 6280000,
+        gastos: 1357613,
+        metodoPago: 'TRANSFERENCIA',
+      },
+    ];
+    expect(component.totalPagado).toBe(6280000);
+    expect(component.totalGastos).toBe(1357613);
+    expect(component.totalNeto).toBe(4922387);
+  });
+
   it('staff ve varios periodos con saldo del mismo conductor, no solo el vigente', () => {
     cobrosService.getCobros.mockReturnValue(
       of([
