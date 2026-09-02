@@ -17,13 +17,14 @@
 -- activar. movimientos_caja de Wbeimar no se toca ni se crea.
 --
 -- Fechas: REGISTRO DE PAGOS, columna AUTECO BAJAJ PLATINO 100 FSS51B
--- (hoja pública gid 1356346860). No se inventan fechas de Excel.
--- Semana 1 = gavela (valor 0, no deuda, no caja).
--- Si el Excel no trae la última cuota y el dueño la cobró ayer
--- (2026-08-31 America/Bogota), solo ESE periodo usa 2026-08-31.
--- Periodos residuales más viejos (Excel se acabó y el cobro sigue
--- abierto) usan least(fecha_vencimiento, 2026-08-31).
--- Gastos del dueño (ej. llanta 90.000) NO son abono del conductor.
+-- (gid 1356346860). Solo líneas VALOR PAGADO. GASTOS del dueño se ignoran.
+-- Cuota pactada Excel CLIENTES = 180000 (no se reescribe monto_esperado).
+-- Semana 1 = gavela (valor 0). Semana 14 = NO PAGO (valor 0): esa fila
+-- no marca el periodo; el 360000 de la semana 15 cubre 2 semanas abiertas.
+-- Semana 29 Excel = 2026-09-01 (se prefiere a “ayer” 2026-08-31).
+-- Un abono Excel se parte si el monto > saldo del cobro (p.ej. 360000).
+-- Empareja numero_periodo ≈ semana; sobrante → cobros abiertos más viejos.
+-- Residual (saldo que quede): least(vencimiento, 2026-09-01).
 --
 -- -----------------------------------------------------------------------------
 -- 2) Diego Alejandro Saavedra Montoya y Miguel Ángel Rojas Morales (RIP-44G)
@@ -55,26 +56,40 @@ create temporary table pg_temp.excel_fss51b (
   seq int not null
 );
 
--- Semana 1 Excel = gavela (valor 0, obs 'Se otorga gavela de 1 semana...').
--- No hay fila aquí: abonos.monto > 0 y no hay fecha de cobro en el Excel.
--- El DO anula cobro numero_periodo=1 si no tiene abonos registrados.
+-- Semana 1 = gavela (valor 0): sin fila; el DO anula cobro periodo 1 vacío.
+-- Semana 14 = NO PAGO (valor 0): sin fila; no se marca pagado por esa línea.
+-- Semana 11 fecha Excel 07/04/2026 se deja 2026-04-07 (no se reordena).
 insert into pg_temp.excel_fss51b (semana, fecha, monto, metodo, obs, seq) values
-  -- Semana 2: 01/03/2026
-  (2, date '2026-03-01', 50000, 'TRANSFERENCIA',
-   'Excel FSS51B semana 2 · transferencia', 1),
-  (2, date '2026-03-01', 130000, 'EFECTIVO',
-   'Excel FSS51B semana 2 · efectivo (gasto llanta 90000 del dueño IGNORADO)', 2),
-  -- Semana 3: 08/03/2026
-  (3, date '2026-03-08', 140000, 'TRANSFERENCIA',
-   'Excel FSS51B semana 3 · 140000', 1),
-  (3, date '2026-03-08', 40000, 'TRANSFERENCIA',
-   'Excel FSS51B semana 3 · 40000', 2),
-  -- Semana 4: 16/03/2026
-  (4, date '2026-03-16', 180000, 'TRANSFERENCIA',
-   'Excel FSS51B semana 4 · 180000', 1);
-  -- Semanas 5+ del mismo sheet (gid 1356346860): pegar más VALUES aquí.
-  -- No inventar fechas. Si el Excel no trae la última cuota de la app,
-  -- el residual usa 2026-08-31 solo en el periodo más reciente.
+  (2,  date '2026-03-01',  50000, 'TRANSFERENCIA', 'semana 2 · 50000', 1),
+  (2,  date '2026-03-01', 130000, 'EFECTIVO',      'semana 2 · 130000 efectivo', 2),
+  (3,  date '2026-03-08', 140000, 'TRANSFERENCIA', 'semana 3 · 140000', 1),
+  (3,  date '2026-03-08',  40000, 'TRANSFERENCIA', 'semana 3 · 40000', 2),
+  (4,  date '2026-03-16', 180000, 'TRANSFERENCIA', 'semana 4', 1),
+  (5,  date '2026-03-23', 180000, 'TRANSFERENCIA', 'semana 5', 1),
+  (6,  date '2026-03-30', 180000, 'TRANSFERENCIA', 'semana 6', 1),
+  (7,  date '2026-04-06', 180000, 'TRANSFERENCIA', 'semana 7', 1),
+  (8,  date '2026-04-14', 180000, 'TRANSFERENCIA', 'semana 8', 1),
+  (9,  date '2026-04-21', 180000, 'TRANSFERENCIA', 'semana 9', 1),
+  (10, date '2026-04-27', 180000, 'TRANSFERENCIA', 'semana 10', 1),
+  (11, date '2026-04-07', 180000, 'TRANSFERENCIA', 'semana 11 · Excel 07/04', 1),
+  (12, date '2026-05-13', 180000, 'TRANSFERENCIA', 'semana 12', 1),
+  (13, date '2026-05-18', 180000, 'TRANSFERENCIA', 'semana 13', 1),
+  -- 14 NO PAGO: omitida a propósito
+  (15, date '2026-06-03', 360000, 'TRANSFERENCIA', 'semana 15 · 360000 cubre 2 semanas', 1),
+  (16, date '2026-06-07', 180000, 'TRANSFERENCIA', 'semana 16', 1),
+  (17, date '2026-06-15',  90000, 'TRANSFERENCIA', 'semana 17 · 90000', 1),
+  (18, date '2026-06-25',  90000, 'TRANSFERENCIA', 'semana 18 · 90000', 1),
+  (19, date '2026-06-25',  90000, 'TRANSFERENCIA', 'semana 19 · 90000', 1),
+  (20, date '2026-06-29', 180000, 'TRANSFERENCIA', 'semana 20', 1),
+  (21, date '2026-07-06', 180000, 'TRANSFERENCIA', 'semana 21', 1),
+  (22, date '2026-07-13', 180000, 'TRANSFERENCIA', 'semana 22', 1),
+  (23, date '2026-07-20', 180000, 'TRANSFERENCIA', 'semana 23', 1),
+  (24, date '2026-07-27', 180000, 'TRANSFERENCIA', 'semana 24', 1),
+  (25, date '2026-08-03', 180000, 'TRANSFERENCIA', 'semana 25', 1),
+  (26, date '2026-08-10', 180000, 'TRANSFERENCIA', 'semana 26', 1),
+  (27, date '2026-08-18', 180000, 'TRANSFERENCIA', 'semana 27', 1),
+  (28, date '2026-08-26', 180000, 'TRANSFERENCIA', 'semana 28', 1),
+  (29, date '2026-09-01', 180000, 'TRANSFERENCIA', 'semana 29 · Excel 2026-09-01', 1);
 
 -- =============================================================================
 -- INFORME INICIO — quién matcheó (producción)
@@ -197,7 +212,10 @@ declare
   v_abono_id uuid;
   v_fecha_ts timestamptz;
   v_semana_iso text;
-  v_latest uuid;
+  v_restante numeric(12,0);
+  v_aplicar numeric(12,0);
+  v_ya_aplicado numeric(12,0);
+  v_obs text;
   v_banco text;
   v_desc text;
   v_meta numeric;
@@ -350,120 +368,143 @@ begin
           where a.cobro_id = c.id and a.estado = 'registrado'
         );
 
-      -- Abonos Excel (monto > 0). Empareja numero_periodo ≈ semana; si no, más viejo primero.
+      -- Abonos Excel (monto > 0). Semana 14 no está en la tabla (NO PAGO).
+      -- Parte el monto si excede el saldo (360000 de sem 15 → 2 cobros).
+      -- Orden por semana (no por fecha): la sem 11 es 07/04, antes que 8–10.
       for r in
         select *
         from pg_temp.excel_fss51b e
         where e.monto > 0
-        order by e.semana, e.fecha, e.seq
+        order by e.semana, e.seq
       loop
-        v_cobro_id := null;
-        v_contrato_id := null;
-        v_moto_id := null;
+        v_obs := v_tag || ' · Excel FSS51B semana ' || r.semana || ' · seq ' || r.seq;
+        v_fecha_ts := ((r.fecha::timestamp + time '12:00') at time zone 'America/Bogota');
+        v_semana_iso := to_char(r.fecha, 'IYYY') || '-W' || to_char(r.fecha, 'IW');
 
-        select c.id, c.contrato_id, c.moto_id
-          into v_cobro_id, v_contrato_id, v_moto_id
-        from public.cobros c
-        where c.conductor_id = v_wbeimar
-          and c.empresa_id = v_empresa
-          and c.numero_periodo = r.semana
-          and c.estado is distinct from 'anulado'
-          and coalesce(c.saldo, 0) > 0
-        order by c.fecha_vencimiento
-        limit 1;
+        select coalesce(sum(a.monto), 0)
+          into v_ya_aplicado
+        from public.abonos a
+        where a.conductor_id = v_wbeimar
+          and a.empresa_id = v_empresa
+          and a.referencia = v_ref
+          and a.estado is distinct from 'anulado'
+          and a.observaciones like v_obs || '%'
+          and (timezone('America/Bogota', a.fecha_pago))::date = r.fecha;
 
-        if v_cobro_id is null then
+        v_restante := r.monto - v_ya_aplicado;
+        if v_restante <= 0 then
+          continue;
+        end if;
+
+        while v_restante > 0 loop
+          v_cobro_id := null;
+          v_contrato_id := null;
+          v_moto_id := null;
+
+          -- Primero el cobro de esa semana si aún tiene saldo.
           select c.id, c.contrato_id, c.moto_id
             into v_cobro_id, v_contrato_id, v_moto_id
           from public.cobros c
           where c.conductor_id = v_wbeimar
             and c.empresa_id = v_empresa
+            and c.numero_periodo = r.semana
             and c.estado is distinct from 'anulado'
             and coalesce(c.saldo, 0) > 0
-          order by c.numero_periodo, c.fecha_vencimiento
+          order by c.fecha_vencimiento
           limit 1;
-        end if;
 
-        if v_cobro_id is null then
-          raise notice 'Excel semana % % %: no hay cobro con saldo; se omite',
-            r.semana, r.fecha, r.monto;
-          continue;
-        end if;
+          if v_cobro_id is null then
+            select c.id, c.contrato_id, c.moto_id
+              into v_cobro_id, v_contrato_id, v_moto_id
+            from public.cobros c
+            where c.conductor_id = v_wbeimar
+              and c.empresa_id = v_empresa
+              and c.estado is distinct from 'anulado'
+              and coalesce(c.saldo, 0) > 0
+            order by c.numero_periodo, c.fecha_vencimiento
+            limit 1;
+          end if;
 
-        if exists (
-          select 1 from public.abonos a
-          where a.cobro_id = v_cobro_id
-            and a.referencia = v_ref
-            and a.monto = r.monto
-            and (timezone('America/Bogota', a.fecha_pago))::date = r.fecha
-            and a.estado is distinct from 'anulado'
-        ) then
-          continue;
-        end if;
+          if v_cobro_id is null then
+            raise notice 'Excel semana % % restante %: no hay cobro con saldo',
+              r.semana, r.fecha, v_restante;
+            exit;
+          end if;
 
-        v_fecha_ts := ((r.fecha::timestamp + time '12:00') at time zone 'America/Bogota');
+          select c.saldo into v_aplicar
+          from public.cobros c
+          where c.id = v_cobro_id;
+          v_aplicar := least(v_restante, greatest(coalesce(v_aplicar, 0), 0));
+          if v_aplicar <= 0 then
+            exit;
+          end if;
 
-        insert into public.abonos (
-          cobro_id, contrato_id, conductor_id, monto, fecha_pago,
-          metodo_pago, referencia, responsable_id, origen_abono, estado,
-          observaciones, confirmado_por, confirmado_en, empresa_id
-        ) values (
-          v_cobro_id,
-          v_contrato_id,
-          v_wbeimar,
-          r.monto,
-          v_fecha_ts,
-          r.metodo,
-          v_ref,
-          v_actor,
-          'sistema',
-          'registrado',
-          v_tag || ' · ' || r.obs,
-          v_actor,
-          v_fecha_ts,
-          v_empresa
-        )
-        returning id into v_abono_id;
+          if exists (
+            select 1 from public.abonos a
+            where a.cobro_id = v_cobro_id
+              and a.referencia = v_ref
+              and a.monto = v_aplicar
+              and a.observaciones like v_obs || '%'
+              and (timezone('America/Bogota', a.fecha_pago))::date = r.fecha
+              and a.estado is distinct from 'anulado'
+          ) then
+            v_restante := v_restante - v_aplicar;
+            continue;
+          end if;
 
-        v_semana_iso := to_char(r.fecha, 'IYYY') || '-W' || to_char(r.fecha, 'IW');
-
-        if not exists (select 1 from public.pagos p where p.abono_id = v_abono_id) then
-          insert into public.pagos (
-            conductor_id, moto_id, fecha_pago, monto, valor_pagado, gastos,
-            metodo_pago, observaciones, semana, pagado, registrado_por,
-            abono_id, estado, empresa_id
+          insert into public.abonos (
+            cobro_id, contrato_id, conductor_id, monto, fecha_pago,
+            metodo_pago, referencia, responsable_id, origen_abono, estado,
+            observaciones, confirmado_por, confirmado_en, empresa_id
           ) values (
+            v_cobro_id,
+            v_contrato_id,
             v_wbeimar,
-            v_moto_id,
+            v_aplicar,
             v_fecha_ts,
-            r.monto,
-            r.monto,
-            0,
             r.metodo,
-            v_tag || ' · ' || r.obs,
-            v_semana_iso,
-            true,
+            v_ref,
             v_actor,
-            v_abono_id,
+            'sistema',
             'registrado',
+            v_obs || ' · ' || r.obs,
+            v_actor,
+            v_fecha_ts,
             v_empresa
-          );
-        end if;
-        -- SIN insert a movimientos_caja.
+          )
+          returning id into v_abono_id;
+
+          if not exists (select 1 from public.pagos p where p.abono_id = v_abono_id) then
+            insert into public.pagos (
+              conductor_id, moto_id, fecha_pago, monto, valor_pagado, gastos,
+              metodo_pago, observaciones, semana, pagado, registrado_por,
+              abono_id, estado, empresa_id
+            ) values (
+              v_wbeimar,
+              v_moto_id,
+              v_fecha_ts,
+              v_aplicar,
+              v_aplicar,
+              0,
+              r.metodo,
+              v_obs || ' · ' || r.obs,
+              v_semana_iso,
+              true,
+              v_actor,
+              v_abono_id,
+              'registrado',
+              v_empresa
+            );
+          end if;
+          -- SIN insert a movimientos_caja.
+
+          v_restante := v_restante - v_aplicar;
+        end loop;
       end loop;
 
-      -- Residual: cobros que siguen con saldo (Excel se acabó o no cubrió).
-      -- La última cuota abierta usa 2026-08-31 (pago de ayer si el Excel atrasó).
-      select c.id
-        into v_latest
-      from public.cobros c
-      where c.conductor_id = v_wbeimar
-        and c.empresa_id = v_empresa
-        and c.estado is distinct from 'anulado'
-        and coalesce(c.saldo, 0) > 0
-      order by c.numero_periodo desc, c.fecha_vencimiento desc
-      limit 1;
-
+      -- Residual: saldo que el Excel no cerró (p.ej. 90000 de sem 17–19,
+      -- o cobros de la app posteriores a la sem 29). Fecha tope = última
+      -- Excel 2026-09-01 (no 2026-08-31).
       for r in
         select
           c.id,
@@ -473,8 +514,8 @@ begin
           c.fecha_vencimiento,
           c.saldo,
           case
-            when c.id = v_latest then date '2026-08-31'
-            else least(c.fecha_vencimiento, date '2026-08-31')
+            when c.numero_periodo = 29 then date '2026-09-01'
+            else least(c.fecha_vencimiento, date '2026-09-01')
           end as fecha_abono
         from public.cobros c
         where c.conductor_id = v_wbeimar
@@ -512,8 +553,8 @@ begin
           'registrado',
           v_tag || ' · saldo residual · periodo ' || r.numero_periodo
             || case
-                 when r.id = v_latest then ' · fecha 2026-08-31 (última cuota)'
-                 else ' · fecha_vencimiento'
+                 when r.numero_periodo = 29 then ' · fecha Excel 2026-09-01'
+                 else ' · fecha_vencimiento / tope 2026-09-01'
                end,
           v_actor,
           v_fecha_ts,
