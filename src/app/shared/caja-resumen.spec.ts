@@ -1,11 +1,17 @@
 import { CajaService } from '../service/caja.service';
 import {
   BANCOS_CAJA,
+  BANCOS_CAJA_SELECT,
   CAJA_LISTA_LIMIT,
   CAJA_LISTA_SELECT,
   CAJA_RESUMEN_SELECT,
+  codigoBancoUnico,
+  esTablaBancosAusente,
   mapResumenCajaFromRpc,
+  nombreBanco,
   resumenDesdeFilas,
+  rpcOmiteCatalogo,
+  slugBanco,
 } from './caja-resumen';
 
 describe('resumen de caja (todas las filas, no las últimas 200)', () => {
@@ -17,6 +23,9 @@ describe('resumen de caja (todas las filas, no las últimas 200)', () => {
     expect(CAJA_LISTA_SELECT).not.toMatch(/\*/);
     expect(CAJA_LISTA_SELECT).not.toMatch(/motos:moto_id\(\*\)/);
     expect(CAJA_LISTA_SELECT).not.toMatch(/imagen/);
+    expect(BANCOS_CAJA_SELECT).toMatch(/codigo/);
+    expect(BANCOS_CAJA_SELECT).toMatch(/nombre/);
+    expect(BANCOS_CAJA_SELECT).not.toMatch(/\*/);
   });
 
   it('resumenDesdeFilas suma más de 200 filas (el bug de list().limit(200))', () => {
@@ -50,6 +59,20 @@ describe('resumen de caja (todas las filas, no las últimas 200)', () => {
     expect(r.find((x) => x.banco === 'ahorro_mdd')?.saldo).toBe(1_116_324);
   });
 
+  it('incluye un banco nuevo del catálogo o de las filas', () => {
+    const r = resumenDesdeFilas(
+      [{ banco: 'deposito_dan78d', tipo: 'ingreso', monto: 80_000 }],
+      ['mdd', 'ahorro_mdd', 'deposito_dan78d'],
+    );
+    expect(r.find((x) => x.banco === 'deposito_dan78d')).toEqual({
+      banco: 'deposito_dan78d',
+      ingresos: 80_000,
+      egresos: 0,
+      saldo: 80_000,
+    });
+    expect(r.find((x) => x.banco === 'mdd')?.saldo).toBe(0);
+  });
+
   it('CajaService.resumen no delega en list() (evita el tope)', () => {
     const resumenSrc = CajaService.prototype.resumen.toString();
     const listSrc = CajaService.prototype.list.toString();
@@ -67,5 +90,48 @@ describe('resumen de caja (todas las filas, no las últimas 200)', () => {
     expect(r?.find((x) => x.banco === 'ahorro_mdd')?.saldo).toBe(1116324);
     expect(mapResumenCajaFromRpc(null)).toBeNull();
     expect(mapResumenCajaFromRpc([])).toBeNull();
+  });
+
+  it('mapea un banco extra del RPC y detecta catálogo omitido', () => {
+    const r = mapResumenCajaFromRpc(
+      [
+        { banco: 'mdd', ingresos: 1, egresos: 0, saldo: 1 },
+        { banco: 'deposito_dan78d', ingresos: 50, egresos: 10, saldo: 40 },
+      ],
+      ['mdd', 'ahorro_mdd', 'deposito_dan78d'],
+    );
+    expect(r?.find((x) => x.banco === 'deposito_dan78d')?.saldo).toBe(40);
+    expect(r?.find((x) => x.banco === 'ahorro_mdd')?.saldo).toBe(0);
+    expect(
+      rpcOmiteCatalogo(
+        [{ banco: 'mdd', ingresos: 1, egresos: 0, saldo: 1 }],
+        ['mdd', 'ahorro_mdd', 'deposito_dan78d'],
+      ),
+    ).toBe(true);
+    expect(
+      rpcOmiteCatalogo(
+        [
+          { banco: 'mdd', ingresos: 1, egresos: 0, saldo: 1 },
+          { banco: 'ahorro_mdd', ingresos: 0, egresos: 0, saldo: 0 },
+        ],
+        ['mdd', 'ahorro_mdd'],
+      ),
+    ).toBe(false);
+  });
+});
+
+describe('catálogo de bancos', () => {
+  it('slug de Deposito DAN78D y colisión de codigo', () => {
+    expect(slugBanco('Deposito DAN78D')).toBe('deposito_dan78d');
+    expect(codigoBancoUnico('Deposito DAN78D', ['deposito_dan78d'])).toBe('deposito_dan78d_2');
+    expect(nombreBanco('mdd')).toBe('Banco MDD');
+    expect(
+      nombreBanco('mdd', [{ id: '1', codigo: 'mdd', nombre: 'Banco Principal' }]),
+    ).toBe('Banco Principal');
+  });
+
+  it('detecta tabla bancos_caja ausente', () => {
+    expect(esTablaBancosAusente({ code: 'PGRST205', message: "Could not find the table 'public.bancos_caja' in the schema cache" })).toBe(true);
+    expect(esTablaBancosAusente({ code: '42501', message: 'permission denied' })).toBe(false);
   });
 });
