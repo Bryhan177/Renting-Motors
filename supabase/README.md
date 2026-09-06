@@ -21,6 +21,7 @@ Ejecuta en Supabase SQL Editor, en este orden si aún no lo hiciste:
 17. **`20260905_motos_imagen_drop_data.sql`** ← **después de 20260904.** Pone `imagen = imagen_url` cuando el blob es `data:` y ya hay URL http; luego `imagen = NULL` en el resto de `data:`. **Puede tardar 1–2 min UNA vez.** Motos que solo tenían `data:` (sin `imagen_url` http) pierden el blob (fallback hasta re-subir). `VACUUM ANALYZE` va **comentado**: córrelo en otra query si el rol puede; si falla, sáltalo. **No re-ejecutes 20260901.**
 18. **`20260908_import_pagos_excel.sql`** ← importa REGISTRO DE PAGOS (Excel) a `public.pagos`. Soft-anula historial inventado. **No toca caja.**
 19. **`20260909_dashboard_desde_pagos.sql`** ← `resumen_dashboard`: ingresos = `sum(pagos.valor_pagado)`; **Gastos (pagos)** = `sum(pagos.gastos)`; **Egresos caja** = todos los `movimientos_caja` tipo egreso (MDD + Ahorro). **No sumar ambas tarjetas** (overlap). **No toca** saldos de caja, cartera ni mora.
+20. **`20260910_bancos_caja.sql`** ← catálogo `bancos_caja` (crear / renombrar). Siembra Banco MDD y Ahorro MDD. Quita el CHECK de 2 bancos. `resumen_caja` agrega todos. **No reescribe** movimientos ni cambia dashboard.
 
 Luego cierra sesión y vuelve a entrar.
 
@@ -283,6 +284,27 @@ Tras `20260908_import_pagos_excel.sql`, `/pagos` es la verdad Excel. El RPC ante
 3. Flujo de caja **saldos** MDD/Ahorro no cambian. Cartera y mora siguen de `cobros`.
 
 No borra filas, no reescribe `cuota_semanal`, no cambia talleres / planes / mora.
+
+## Bancos del Flujo de caja (20260910)
+
+Hasta este SQL, `movimientos_caja.banco` solo aceptaba `mdd` y `ahorro_mdd`. No había tabla ni UI para crear un banco (ej. **Deposito DAN78D**).
+
+1. Supabase → SQL Editor → pega **`20260910_bancos_caja.sql`** → **Run**.
+2. Verifica:
+   ```sql
+   select codigo, nombre from public.bancos_caja order by codigo;
+   -- mdd / Banco MDD, ahorro_mdd / Ahorro MDD (por empresa)
+
+   select pg_get_constraintdef(oid)
+   from pg_constraint
+   where conrelid = 'public.movimientos_caja'::regclass and contype = 'c';
+   -- banco ya no está limitado a mdd / ahorro_mdd
+   ```
+3. App: **Flujo de caja** → **Nuevo banco** → nombre `Deposito DAN78D` → Guardar.
+4. **Renombrar** en la tarjeta. El saldo no se mueve: `movimientos_caja.banco` sigue siendo el `codigo`.
+5. **Nuevo movimiento** → el selector incluye el banco nuevo.
+
+No reescribe movimientos existentes. El trigger de abonos sigue escribiendo banco `mdd`. El dashboard que recorta MDD / Ahorro no cambia.
 
 ## motos.imagen data: → drop (20260905)
 

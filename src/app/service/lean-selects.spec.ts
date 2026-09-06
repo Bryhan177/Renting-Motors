@@ -5,7 +5,7 @@ import { PAGOS_LISTA_SELECT } from './pagos.service';
 import { ABONOS_LISTA_SELECT } from './cobros.service';
 import { MANTENIMIENTOS_LISTA_SELECT } from './mantenimientos.service';
 import { USUARIOS_LISTA_SELECT } from './usuarios.service';
-import { CAJA_LISTA_SELECT } from '../shared/caja-resumen';
+import { BANCOS_CAJA_SELECT, CAJA_LISTA_SELECT } from '../shared/caja-resumen';
 
 /** El split por coma de columnasDelSelect no sirve para embeds; acá se busca la columna suelta. */
 function pideColumnaImagen(select: string): boolean {
@@ -43,6 +43,12 @@ describe('lecturas livianas (sin blob motos.imagen ni comprobante de lista)', ()
     expect(CAJA_LISTA_SELECT).not.toMatch(/motos:moto_id\(\*\)/);
     expect(CAJA_LISTA_SELECT).not.toMatch(/\*/);
     expect(pideColumnaImagen(CAJA_LISTA_SELECT)).toBe(false);
+  });
+
+  it('catálogo de bancos no usa select *', () => {
+    expect(BANCOS_CAJA_SELECT).not.toMatch(/\*/);
+    expect(BANCOS_CAJA_SELECT).toMatch(/codigo/);
+    expect(BANCOS_CAJA_SELECT).toMatch(/nombre/);
   });
 
   it('usuarios de lista no usa select *', () => {
